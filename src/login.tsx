@@ -48,41 +48,43 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="login-box">
-      <h2 className="text-center">Hello User</h2>
+    <div className="login-container">
+      <div className="login-box">
+        <h2 className="text-center">Hello User</h2>
 
-      <label>User ID</label>
-      <input
-        type="text"
-        className="form-control"
-        placeholder="Enter your ID"
-        value={userId}
-        onChange={(e) => setUserId(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-      />
-      <br />
-      <label>Password</label>
-      <div className="password-container">
+        <label>User ID</label>
         <input
-          type={showPassword ? "text" : "password"}
+          type="text"
           className="form-control"
-          placeholder="Enter your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter your ID"
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
         />
-        <span
-          className="eye-icon"
-          onClick={() => setShowPassword(!showPassword)}
-        >
-          {showPassword ? <FaEyeSlash /> : <FaEye />}
-        </span>
+        <br />
+        <label>Password</label>
+        <div className="password-container">
+          <input
+            type={showPassword ? "text" : "password"}
+            className="form-control"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          />
+          <span
+            className="eye-icon"
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? <FaEyeSlash /> : <FaEye />}
+          </span>
+        </div>
+        {error && <p style={{ color: "red" }}>{error}</p>}
+
+        <button className="btn btn-primary mt-3" onClick={handleSubmit} disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
+        </button>
       </div>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      
-      <button className="btn btn-primary mt-3" onClick={handleSubmit} disabled={loading}>
-        {loading ? "Logging in..." : "Login"}
-      </button>
     </div>
   );
 };
