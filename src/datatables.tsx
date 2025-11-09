@@ -115,7 +115,7 @@ const DataTables: React.FC = () => {
       setUsers(filteredUsers);
       setSelectedUser(userRole === "admin" ? "Game" : currentUser?.user_name || null);
       if (userRole !== "admin") {
-        setSelectedUserId(currentUser?.user_id);
+        setSelectedUserId(currentUser?.user_id ?? null);
       }
     } catch {
       message.error("Failed to fetch users");
@@ -438,12 +438,12 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
               <span className="control-card__hint">%</span>
             </div>
             <div ></div>
-            <Select
+        <Select
           style={{ width: 180 }}
           placeholder="Select Game"
           value={selectedGame ? selectedGame.gameid : undefined}
           onChange={(value: number) => {
-            const game = games.find((g) => g.gameid === value) || null;
+            const game = games.find((g) => g.gameid === value) ?? null;
             setSelectedGame(game);
           }}
         >
