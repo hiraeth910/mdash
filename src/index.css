@@ -1,0 +1,333 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --color-primary: #3ecf8e;
+  --color-primary-strong: #1f9d6d;
+  --color-primary-10: rgba(62, 207, 142, 0.18);
+  --color-secondary: #fdb022;
+  --color-secondary-strong: #f59f0b;
+  --color-secondary-10: rgba(253, 176, 34, 0.24);
+  --color-accent: #fb923c;
+  --color-bg: #041217;
+  --color-bg-soft: #0a1f25;
+  --color-surface: #11252a;
+  --color-surface-muted: #16323a;
+  --color-border: rgba(63, 207, 142, 0.22);
+  --color-text: #dbeff0;
+  --color-text-muted: rgba(219, 239, 240, 0.72);
+  --color-heading: #f2fbfa;
+  --color-success: #3ecf8e;
+  --color-danger: #ef4444;
+  --color-warning: #fbbf24;
+  --color-info: #38bdf8;
+  --gradient-primary: linear-gradient(135deg, #3ecf8e 0%, #1f9d6d 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #48e9a3 0%, #1a8660 100%);
+  --gradient-header: linear-gradient(135deg, #0f4f46 0%, #3ecf8e 100%);
+  --gradient-background: linear-gradient(145deg, #031017 0%, #072125 45%, #0f3a34 100%);
+  --gradient-surface: linear-gradient(145deg, #10252a 0%, #16333b 100%);
+  --gradient-hero: linear-gradient(145deg, rgba(4, 30, 26, 0.95) 0%, rgba(31, 157, 109, 0.82) 100%);
+  --shadow-soft: 0 18px 38px rgba(3, 15, 20, 0.42);
+  --shadow-hover: 0 28px 46px rgba(3, 15, 20, 0.56);
+
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  font-weight: 500;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-primary-strong);
+  opacity: 0.85;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  overflow-x: hidden;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+h1 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 0 0 1rem 0;
+}
+
+h2 {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--color-heading);
+  margin: 0 0 0.875rem 0;
+}
+
+h3 {
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0 0 0.75rem 0;
+}
+
+button {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.7rem 1.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--gradient-primary);
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  box-shadow: 0 18px 34px rgba(79, 70, 229, 0.28);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+button:hover:not(:disabled) {
+  background: var(--gradient-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 24px 38px rgba(67, 56, 202, 0.32);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.ant-btn {
+  border-radius: 999px !important;
+  padding: 0.7rem 1.7rem !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent !important;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+}
+
+.ant-btn:hover:not(.ant-btn-disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.12) !important;
+}
+
+.ant-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
+}
+
+.ant-btn-primary {
+  background: var(--gradient-primary) !important;
+  color: #0b1716 !important;
+  border: none !important;
+  box-shadow: 0 22px 38px rgba(15, 157, 109, 0.38) !important;
+}
+
+.ant-btn-primary:hover:not(.ant-btn-disabled) {
+  background: var(--gradient-primary-hover) !important;
+  filter: brightness(1.05);
+}
+
+.ant-btn-default {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid rgba(62, 207, 142, 0.26) !important;
+}
+
+.ant-btn-default:hover:not(.ant-btn-disabled) {
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  background: rgba(62, 207, 142, 0.12) !important;
+}
+
+.ant-btn-text,
+.ant-btn-link {
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--color-primary) !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.ant-btn-text:hover,
+.ant-btn-link:hover {
+  color: var(--color-primary-strong) !important;
+  transform: none;
+}
+
+/* DatePicker theme overrides to match dark theme */
+.ant-picker {
+  background: rgba(17, 37, 42, 0.85) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 999px !important;
+  color: var(--color-text) !important;
+  transition: all 0.2s ease !important;
+}
+
+.ant-picker:hover {
+  border-color: rgba(62, 207, 142, 0.4) !important;
+  background: rgba(17, 37, 42, 0.95) !important;
+}
+
+.ant-picker-focused,
+.ant-picker:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.24) !important;
+  background: rgba(17, 37, 42, 1) !important;
+}
+
+.ant-picker-input > input {
+  background: transparent !important;
+  color: var(--color-text) !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 0.95rem !important;
+}
+
+.ant-picker-input > input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* DatePicker dropdown panel */
+.ant-picker-dropdown {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.ant-picker-panel {
+  background: var(--color-surface) !important;
+  border-radius: 0.5rem !important;
+}
+
+.ant-picker-body {
+  background: var(--color-surface) !important;
+}
+
+.ant-picker-content {
+  background: var(--color-surface) !important;
+}
+
+.ant-picker-cell-in-view {
+  color: var(--color-text) !important;
+}
+
+.ant-picker-cell-in-view:hover {
+  background: rgba(62, 207, 142, 0.08) !important;
+}
+
+.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: var(--color-primary) !important;
+  color: var(--color-heading) !important;
+}
+
+.ant-picker-cell-today .ant-picker-cell-inner {
+  border-color: var(--color-primary) !important;
+}
+
+/* Previous and next month dates */
+
+/* Day names in calendar header */
+.ant-picker-content th {
+  color: var(--color-text-muted) !important;
+  font-weight: 600 !important;
+}
+
+.ant-picker-header {
+  color: var(--color-text) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  background: var(--color-surface) !important;
+}
+
+.ant-picker-header button {
+  color: var(--color-text) !important;
+}
+
+.ant-picker-header button:hover {
+  color: var(--color-primary) !important;
+}
+
+.ant-picker-footer {
+  background: var(--color-surface) !important;
+  border-top: 1px solid var(--color-border) !important;
+}
+
+.ant-picker-footer button {
+  color: var(--color-primary) !important;
+}
+
+.ant-picker-footer button:hover {
+  color: var(--color-primary-strong) !important;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #fdb022 0%, #fb923c 100%) !important;
+  color: #0b1716 !important;
+  border: none !important;
+  box-shadow: 0 18px 36px rgba(253, 176, 34, 0.32) !important;
+}
+
+.btn-warning:hover {
+  filter: brightness(1.03);
+}
+
+.btn-ghost {
+  background: rgba(99, 102, 241, 0.08) !important;
+  color: var(--color-primary) !important;
+  border: none !important;
+}
+
+.btn-ghost:hover {
+  background: rgba(99, 102, 241, 0.16) !important;
+  color: var(--color-primary-strong) !important;
+}
+
+.btn-responsive {
+  min-width: 160px;
+}
+
+@media (max-width: 640px) {
+  .ant-btn,
+  .btn-responsive {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 0.875rem;
+  }
+}

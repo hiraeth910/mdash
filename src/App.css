@@ -1,0 +1,200 @@
+#root {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  min-height: 100vh;
+}
+
+.card {
+  padding: clamp(1rem, 3vw, 2rem);
+  background: var(--gradient-surface);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(62, 207, 142, 0.16);
+  margin-bottom: 1rem;
+}
+
+.card-container {
+  padding: clamp(1rem, 3vw, 2rem);
+  background: var(--gradient-background);
+  min-height: 100vh;
+}
+
+.ant-spin {
+  color: var(--color-secondary);
+}
+
+.ant-modal-content {
+  border-radius: 1rem !important;
+  background: var(--gradient-surface) !important;
+  border: 1px solid rgba(62, 207, 142, 0.16) !important;
+  counter-reset: white;
+}
+
+.ant-modal-header {
+  border-radius: 0.75rem 0.75rem 0 0 !important;
+  background: var(--gradient-header) !important;
+}
+
+.ant-btn-primary {
+  background: var(--gradient-primary) !important;
+  border: none !important;
+  box-shadow: 0 18px 34px rgba(15, 157, 109, 0.32) !important;
+}
+
+.ant-btn-primary:hover {
+  background: var(--gradient-primary-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 22px 38px rgba(15, 157, 109, 0.4) !important;
+}
+
+.ant-select-selector,
+.ant-input,
+.ant-picker {
+  border-radius: 0.75rem !important;
+  border: 2px solid var(--color-border) !important;
+  background-color: rgba(17, 37, 42, 0.85) !important;
+  color: var(--color-heading) !important;
+  transition: all 0.2s ease !important;
+}
+
+.ant-select-selector:hover,
+.ant-input:hover,
+.ant-picker:hover {
+  border-color: rgba(62, 207, 142, 0.4) !important;
+  background-color: rgba(17, 37, 42, 0.95) !important;
+}
+
+.ant-select-selector .ant-select-selection-item,
+.ant-select-selector .ant-select-selection-placeholder,
+.ant-picker-input > input,
+.ant-input,
+.ant-input::placeholder {
+  color: var(--color-text) !important;
+}
+
+.ant-select-selection-placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+.ant-select-selector:focus,
+.ant-input:focus,
+.ant-picker:focus,
+.ant-select-focused .ant-select-selector {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.2) !important;
+  background-color: rgba(17, 37, 42, 1) !important;
+}
+
+.ant-select-dropdown {
+  background: linear-gradient(135deg, #fb923c 0%, #fdb022 100%) !important;
+  border: 1px solid rgba(251, 146, 60, 0.3) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.ant-select-item {
+  color: #0b1716 !important;
+  transition: all 0.2s ease !important;
+  font-weight: 500 !important;
+}
+
+.ant-select-item:hover {
+  background-color: rgba(253, 176, 34, 0.2) !important;
+  color: #0b1716 !important;
+}
+
+.ant-select-item-option-selected {
+  background-color: rgba(251, 146, 60, 0.35) !important;
+  color: #0b1716 !important;
+  font-weight: 700 !important;
+}
+
+.ant-picker-dropdown {
+  background: var(--gradient-surface) !important;
+  border: 1px solid rgba(62, 207, 142, 0.18) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.ant-picker-panel {
+  background: transparent !important;
+}
+
+.ant-picker-header {
+  border-bottom: 1px solid rgba(62, 207, 142, 0.18) !important;
+}
+
+.ant-picker-header button {
+  color: var(--color-text) !important;
+}
+
+.ant-picker-header button:hover {
+  color: var(--color-primary) !important;
+}
+
+.ant-picker-cell {
+  color: var(--color-text) !important;
+}
+
+.ant-picker-cell:hover {
+  background-color: rgba(62, 207, 142, 0.18) !important;
+}
+
+.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: var(--gradient-primary) !important;
+  color: var(--color-heading) !important;
+}
+
+.ant-picker-cell-today .ant-picker-cell-inner {
+  border-color: var(--color-primary) !important;
+}
+
+/* Desktop Logout Button */
+.desktop-logout {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;
+}
+
+.desktop-logout .logout-btn {
+  background-color: #fb923c !important;
+
+  border: 1px solid rgba(62, 207, 142, 0.18);
+  color: var(--color-text-muted);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+}
+
+.desktop-logout .logout-btn:hover {
+  background: rgba(251, 146, 60, 0.1);
+  color: #fb923c;
+  transform: translateY(-1px);
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+/* Hide desktop logout on mobile */
+@media (max-width: 768px) {
+  .desktop-logout {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  #root {
+    padding: 0;
+  }
+
+  .card-container {
+    padding: 1rem 0.5rem;
+  }
+}
