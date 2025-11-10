@@ -1,12 +1,12 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Route,
   Routes,
   Navigate,
 } from "react-router-dom";
-import { useUserStore } from "./store/store";
-import { LogOut } from "lucide-react";
+import { useUserStore, useThemeStore } from "./store/store";
+import { LogOut, Sun, Moon } from "lucide-react";
 import { Modal } from "antd";
 import Login from "./login";
 import GamesPage from "./games";
@@ -20,6 +20,7 @@ import Games from "./userGames";
 import SummaryDashboard from "./newdashboard";
 import HistoryViewer from "./Historyviewer";
 import BottomNavigator from "./components/BottomNavigator";
+
 const ProtectedRoute = ({
   children,
   allowedRoles,
@@ -42,6 +43,22 @@ const ProtectedRoute = ({
 
 const App: React.FC = () => {
   const { userRole, setUser } = useUserStore();
+  const { theme, toggleTheme, setTheme } = useThemeStore();
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme-store");
+    if (storedTheme) {
+      try {
+        const parsed = JSON.parse(storedTheme);
+        const themeValue = parsed.state?.theme || "dark";
+        setTheme(themeValue);
+      } catch {
+        setTheme("dark");
+      }
+    } else {
+      setTheme("dark");
+    }
+  }, [setTheme]);
 
   const handleLogout = () => {
     Modal.confirm({
@@ -57,6 +74,15 @@ const App: React.FC = () => {
 
   return (
     <Router>
+      <button
+        className="theme-toggle"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      >
+        {theme === "dark" ? <Sun size={24} /> : <Moon size={24} />}
+      </button>
+
       <Routes>
         <Route path="/" element={<Login />} />
         <Route

@@ -28,6 +28,36 @@
   --gradient-hero: linear-gradient(145deg, rgba(4, 30, 26, 0.95) 0%, rgba(31, 157, 109, 0.82) 100%);
   --shadow-soft: 0 18px 38px rgba(3, 15, 20, 0.42);
   --shadow-hover: 0 28px 46px rgba(3, 15, 20, 0.56);
+}
+
+[data-theme="light"] {
+  --color-primary: #ec4899;
+  --color-primary-strong: #db2777;
+  --color-primary-10: rgba(236, 72, 153, 0.18);
+  --color-secondary: #3b82f6;
+  --color-secondary-strong: #2563eb;
+  --color-secondary-10: rgba(59, 130, 246, 0.24);
+  --color-accent: #8b5cf6;
+  --color-bg: #fef3f9;
+  --color-bg-soft: #fce7f3;
+  --color-surface: #fdf2f8;
+  --color-surface-muted: #fae8f5;
+  --color-border: rgba(236, 72, 153, 0.22);
+  --color-text: #1f2937;
+  --color-text-muted: rgba(31, 41, 55, 0.72);
+  --color-heading: #111827;
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+  --gradient-primary: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #f472b6 0%, #be185d 100%);
+  --gradient-header: linear-gradient(135deg, #ec4899 0%, #3b82f6 100%);
+  --gradient-background: linear-gradient(145deg, #fef3f9 0%, #ede9fe 45%, #dbeafe 100%);
+  --gradient-surface: linear-gradient(145deg, #fdf2f8 0%, #fae8f5 100%);
+  --gradient-hero: linear-gradient(145deg, rgba(253, 242, 248, 0.95) 0%, rgba(236, 72, 153, 0.82) 100%);
+  --shadow-soft: 0 18px 38px rgba(236, 72, 153, 0.15);
+  --shadow-hover: 0 28px 46px rgba(236, 72, 153, 0.22);
 
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   line-height: 1.6;
@@ -187,9 +217,9 @@ button:focus-visible {
   transform: none;
 }
 
-/* DatePicker theme overrides to match dark theme */
+/* DatePicker theme overrides */
 .ant-picker {
-  background: rgba(17, 37, 42, 0.85) !important;
+  background: var(--color-surface) !important;
   border: 1px solid var(--color-border) !important;
   border-radius: 999px !important;
   color: var(--color-text) !important;
@@ -197,15 +227,15 @@ button:focus-visible {
 }
 
 .ant-picker:hover {
-  border-color: rgba(62, 207, 142, 0.4) !important;
-  background: rgba(17, 37, 42, 0.95) !important;
+  border-color: var(--color-primary) !important;
+  background: var(--color-surface-muted) !important;
 }
 
 .ant-picker-focused,
 .ant-picker:focus {
   border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.24) !important;
-  background: rgba(17, 37, 42, 1) !important;
+  box-shadow: 0 0 0 3px var(--color-primary-10) !important;
+  background: var(--color-surface) !important;
 }
 
 .ant-picker-input > input {
@@ -330,4 +360,72 @@ button:focus-visible {
   body {
     font-size: 0.875rem;
   }
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: var(--gradient-primary);
+  border: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-soft);
+  color: white;
+  font-size: 1.5rem;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: var(--shadow-hover);
+}
+
+@media (max-width: 768px) {
+  .theme-toggle {
+    width: 42px;
+    height: 42px;
+    top: 15px;
+    right: 15px;
+    font-size: 1.25rem;
+  }
+}
+
+/* Light theme specific adjustments */
+[data-theme="light"] .ant-modal-content {
+  background: var(--gradient-surface) !important;
+}
+
+[data-theme="light"] .ant-modal-title,
+[data-theme="light"] .ant-modal-body,
+[data-theme="light"] .ant-modal-body span {
+  color: var(--color-text) !important;
+}
+
+[data-theme="light"] .ant-input,
+[data-theme="light"] .ant-select-selector,
+[data-theme="light"] .ant-picker {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme="light"] .ant-select-dropdown {
+  background: var(--gradient-surface) !important;
+}
+
+[data-theme="light"] .ant-select-item {
+  color: var(--color-text) !important;
+}
+
+[data-theme="light"] .ant-picker-dropdown,
+[data-theme="light"] .ant-picker-panel {
+  background: var(--color-surface) !important;
 }
