@@ -117,6 +117,7 @@ const SummaryDashboard: React.FC = () => {
     Modal.confirm({
       title: <span style={{ color: 'var(--color-heading)' }}>Recalculate All Groups?</span>,
       content: <span style={{ color: 'var(--color-text)' }}>This will recalculate profit and loss for every group. This operation cannot be undone.</span>,
+      bodyStyle: { backgroundColor: 'var(--color-background)', color: 'var(--color-text)' },
       onOk: recalcAll,
       okText: "Yes, recalc",
       cancelText: "Cancel",

@@ -337,6 +337,7 @@ const Users: React.FC = () => {
           setNewUser({ userid: "", password: "", role: "", group_ids: [] });
         }}
         onOk={isEditing ? handleUpdate : handleSubmit}
+        bodyStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}
       >
         <div style={{ color: 'var(--color-text)' }}>
           <label>User Name</label>

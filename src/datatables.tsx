@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import React, { useEffect, useState, useRef } from "react";
 import { Table, Button, DatePicker, Grid, Select, Spin, message } from "antd";
-import { CloseOutlined } from "@ant-design/icons";
+import { CloseOutlined, PaperClipOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -350,6 +350,16 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
   // Save PDF
   doc.save(filename);
 };
+
+  const copyTableData = (rows: any[]) => {
+    const dataToCopy = rows
+      .filter((row) => !row.__isBucket)
+      .map((row) => `${row.inumber}: ${row.adjusted_amount ?? row.total_amount}`)
+      .join("\n");
+    navigator.clipboard.writeText(dataToCopy).then(() => {
+      message.success("Table data copied to clipboard");
+    });
+  };
 
   const buildBucketedData = (rows: any[], bucketTotalsOnly: boolean = false) => {
     const buckets = new Map<number, { label: string; total: number; rows: any[] }>();
@@ -720,6 +730,12 @@ const tableContent = (
                   <span className={`table-total ${isType2 ? "table-total--accent" : ""}`}>
                     Total: {formatNumber(adjustedGroupTotal)}
                   </span>
+                  <Button
+                    type="text"
+                    icon={<PaperClipOutlined />}
+                    onClick={() => copyTableData(adjustedRows)}
+                    style={{ marginLeft: '10px' }}
+                  />
                 </h3>
 
                 {tableContent}

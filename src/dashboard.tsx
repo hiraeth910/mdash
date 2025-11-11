@@ -150,6 +150,7 @@ const showConfirm = () => {
    Modal.confirm({
     title: <span style={{ color: 'var(--color-heading)' }}>Are you sure?</span>,
    content: <span style={{ color: 'var(--color-text)' }}>Once recalculated, data cannot be reverted. Be careful.</span>,
+     bodyStyle: { backgroundColor: 'var(--color-background)', color: 'var(--color-text)' },
      onOk: () => {
       recalc();
      },

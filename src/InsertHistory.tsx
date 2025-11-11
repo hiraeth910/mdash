@@ -9,6 +9,7 @@ import moment from "moment";
 import { IGame } from "./games";
 import { IGroup } from "./userGames";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import { compactLines } from "./utils/helpter";
 
 interface NumberEntry {
   number: string;
@@ -551,18 +552,20 @@ const InsertHistory: React.FC = () => {
                 const start = textarea.selectionStart;
                 const end = textarea.selectionEnd;
                 const originalValue = e.target.value;
-                const cleaned = originalValue
+               const cleaned = originalValue
   .split(/\r?\n/)
   .map(line =>
     line.replace(
-      /^\s*(?:\[\s*\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?\s*\]\s*)?[^:\n]{1,200}:\s*/,
+      // [dd-mm( -yyyy optional ) or dd/mm( /yyyy optional )] (time optional)
+      // then ANY non-colon header (name or phone) ending with a colon
+      /^\s*\[\s*\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s+\d{1,2}:\d{2})?\s*\]\s*[^\n:]{1,200}:\s*/i,
       ""
     )
   )
   .join("\n");
 
-
-                setInputValue(cleaned);
+const normalized = compactLines(cleaned);
+setInputValue(normalized);
 
                 // Restore cursor position after state update
                 setTimeout(() => {

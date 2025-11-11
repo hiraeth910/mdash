@@ -64,6 +64,7 @@ const App: React.FC = () => {
     Modal.confirm({
       title: <span style={{ color: 'var(--color-heading)' }}>Confirm Logout</span>,
       content: <span style={{ color: 'var(--color-text)' }}>Are you sure you want to log out?</span>,
+      bodyStyle: { backgroundColor: 'var(--color-background)', color: 'var(--color-text)' },
       onOk() {
         localStorage.clear();
         setUser(null, null);

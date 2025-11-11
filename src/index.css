@@ -408,6 +408,17 @@ button:focus-visible {
   }
 }
 
+/* Modal theme adjustments */
+.ant-modal-content {
+  background: var(--color-surface) !important;
+}
+
+.ant-modal-title,
+.ant-modal-body,
+.ant-modal-body span {
+  color: var(--color-text) !important;
+}
+
 /* Light theme specific adjustments */
 [data-theme="light"] .ant-modal-content {
   background: var(--gradient-surface) !important;
