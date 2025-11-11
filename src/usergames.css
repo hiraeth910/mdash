@@ -1,0 +1,8 @@
+.usergames-table {
+  background: rgba(var(--color-surface-rgb), 0.68);
+  border-radius: 1.25rem;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(62, 207, 142, 0.18);
+  backdrop-filter: blur(12px);
+}

@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
 import { apiClient } from "./utils/api";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import "./usergames.css";
 
 // Type Definitions
 interface IGame {
@@ -130,8 +131,8 @@ const Games: React.FC = () => {
         </Link>
         <Link to={`/data`}>TOTAL</Link>
       </div>
-    <div className="games-layout">
-    <div>
+    <div style={{display:'flex',flexDirection:'row',justifyContent:'space-evenly'}}>
+    <div className="usergames-table">
   <h2>Day Games</h2>
   <Table
     columns={columns}
@@ -145,7 +146,7 @@ const Games: React.FC = () => {
     loading={loading}
   />
 </div>
-<div>
+<div className="usergames-table">
   <h2>Night Games</h2>
   <Table
     columns={columns}

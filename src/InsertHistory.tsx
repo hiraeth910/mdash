@@ -243,7 +243,7 @@ const InsertHistory: React.FC = () => {
         continue;
       }
 
-      const pairMatch = line.match(/^\s*(\d{1,3})\s*[.\-=:]\s*(\d[\d,.\.]*)\s*$/);
+      const pairMatch = line.match(/^\s*(\d{1,3})\s*[.\-=:]\s*(\d[\d,.]*)\s*$/);
       if (pairMatch) {
         const num = pairMatch[1];
         const amtStr = pairMatch[2].replace(/,/g, "");
@@ -268,7 +268,7 @@ const InsertHistory: React.FC = () => {
         continue;
       }
 
-      const groupMatch = line.match(/([\d\*\s,.\-\+:*]+?)\s*(?:\(\s*([0-9][\d,]*)\s*\)|\/\s*([0-9][\d,]*)|=\s*([0-9][\d,]*))$/);
+      const groupMatch = line.match(/([\d*\s,.\-+:*]+?)\s*(?:\(\s*([0-9][\d,]*)\s*\)|\/\s*([0-9][\d,]*)|=\s*([0-9][\d,]*))$/);
       if (groupMatch) {
         const rawNums = groupMatch[1];
         const amountStr = (groupMatch[2] || groupMatch[3] || groupMatch[4] || "").replace(/,/g, "");
@@ -547,18 +547,30 @@ const InsertHistory: React.FC = () => {
               ref={textareaRef}
               value={inputValue}
               onChange={(e) => {
-                const cleaned = e.target.value
-    .split(/\r?\n/)
-    .map((line) =>
-      line.replace(
-        /^\s*\[\s*\d{1,2}[-/]\d{1,2}[-/]\d{2,4}(?:\s+\d{1,2}:\d{2})?\s*\]\s*(?:\+?\d[\d\s\-]{6,}\d)\s*:\s*/i,
-        ""
-      )
+                const textarea = e.target as HTMLTextAreaElement;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const originalValue = e.target.value;
+                const cleaned = originalValue
+  .split(/\r?\n/)
+  .map(line =>
+    line.replace(
+      /^\s*(?:\[\s*\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?\s*\]\s*)?[^:\n]{1,200}:\s*/,
+      ""
     )
-    .join("\n");
+  )
+  .join("\n");
 
-  setInputValue(cleaned);
-  syncScroll();
+
+                setInputValue(cleaned);
+
+                // Restore cursor position after state update
+                setTimeout(() => {
+                  if (textareaRef.current) {
+                    textareaRef.current.setSelectionRange(start, end);
+                  }
+                }, 0);
+                syncScroll();
               }}
               onInput={syncScroll}
               onScroll={syncScroll}
@@ -612,9 +624,9 @@ const InsertHistory: React.FC = () => {
                         <Input
                           type="text"
                           value={new Intl.NumberFormat("en-IN").format(item.amount)}
-                          onFocus={(e: any) => (e.target.value = item.amount.toString())}
-                          onBlur={(e: any) => (e.target.value = new Intl.NumberFormat("en-IN").format(item.amount))}
-                          onChange={(e) =>
+                          onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target.value = item.amount.toString())}
+                          onBlur={(e: React.FocusEvent<HTMLInputElement>) => (e.target.value = new Intl.NumberFormat("en-IN").format(item.amount))}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setGroupedData((prev) => ({
                               ...prev,
                               [length]: prev[Number(length)].map((el, i) => (i === index ? { ...el, amount: Number(e.target.value.replace(/,/g, "")) } : el)),
