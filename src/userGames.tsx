@@ -61,7 +61,7 @@ const Games: React.FC = () => {
       render: (text: string, record: IGame) => (
         <span
           style={{
-            color: "#333",
+            color: "var(--color-heading)",
             fontSize: "24px",
             cursor: "pointer",
             textDecoration: "none",
