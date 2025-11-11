@@ -185,7 +185,7 @@ const SummaryDashboard: React.FC = () => {
           <Spin indicator={loaderIcon} />
         </div>
       ) : tableRows.length > 0 ? (
-        <div className="table-container" style={{ marginTop: 20 }}>
+        <div className="table-container" style={{ marginTop: 20, maxWidth: '600px', marginLeft: 'auto', marginRight: 'auto' }}>
           <Table
             columns={columns}
             dataSource={[

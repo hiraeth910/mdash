@@ -65,7 +65,7 @@ body {
 
 .games-lists {
   display: grid;
-  grid-template-columns: repeat(2, 280px);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   justify-content: center;
   gap: 1.5rem;
 }
@@ -121,6 +121,7 @@ body {
   margin: 0;
   font-size: clamp(0.875rem, 1.5vw, 1rem);
   color: var(--color-text-muted);
+  font-weight: 600;
 }
 
 .game-buttons {
