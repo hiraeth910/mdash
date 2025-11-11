@@ -162,8 +162,8 @@ const Games: React.FC = () => {
 
 
       {/* Group Selection Modal */}
-      <Modal title={<span style={{ color: 'white' }}>Select Group and Time</span>} open={groupSelectionModal} onCancel={() => setGroupSelectionModal(false)} onOk={handleGroupSelection}>
-        <div style={{ color: 'white' }}>
+      <Modal title={<span style={{ color: 'var(--color-heading)' }}>Select Group and Time</span>} open={groupSelectionModal} onCancel={() => setGroupSelectionModal(false)} onOk={handleGroupSelection}>
+        <div style={{ color: 'var(--color-text)' }}>
           <label>Select Group:</label>
           <Select
             style={{ width: "100%", marginBottom: "10px" }}

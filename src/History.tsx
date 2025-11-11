@@ -158,8 +158,8 @@ useEffect(() => {
   const handleDeleteSelected = () => {
     if (!selectedIds.length) return;
     Modal.confirm({
-      title: <span style={{ color: 'white' }}>Are you sure you want to delete selected records?</span>,
-      content: <span style={{ color: 'white' }}>This action cannot be undone.</span>,
+      title: "Are you sure you want to delete selected records?",
+      content: "This action cannot be undone.",
       onOk: async () => {
         try {
           const payload = {

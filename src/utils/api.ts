@@ -3,8 +3,8 @@ import CryptoJS from 'crypto-js';
 
 // Create API client
 export const apiClient = axios.create({
-  baseURL: 'https://server.matka369.in/api',
-  // baseURL:'http://localhost:8080/api',
+  // baseURL: 'https://server.matka369.in/api',
+  baseURL:'http://localhost:8080/api',
   headers: { 'Content-Type': 'application/json' },
 }); 
           

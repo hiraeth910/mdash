@@ -136,7 +136,8 @@ const InsertHistory: React.FC = () => {
       };
       const response = await apiClient.post("/get/messages", payload);
       if (response.data) {
-        setMessages(response.data);
+        const sortedMessages = response.data.sort((a: GameMessage, b: GameMessage) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        setMessages(sortedMessages);
         setIsOpen(true);
       }
     } catch (error) {
@@ -242,7 +243,7 @@ const InsertHistory: React.FC = () => {
         continue;
       }
 
-      const pairMatch = line.match(/^\s*(\d{1,3})\s*[.\-=:]\s*(\d[\d,\,\.]*)\s*$/);
+      const pairMatch = line.match(/^\s*(\d{1,3})\s*[.\-=:]\s*(\d[\d,.\.]*)\s*$/);
       if (pairMatch) {
         const num = pairMatch[1];
         const amtStr = pairMatch[2].replace(/,/g, "");
@@ -422,7 +423,7 @@ const InsertHistory: React.FC = () => {
     }
   };
 
-  const disabledDate = (current: any) => {
+  const disabledDate = (current: dayjs.Dayjs | null) => {
     if (!current) return false;
     const todayEnd = dayjs().endOf("day");
     const earliest = dayjs().subtract(30, "day").startOf("day");
@@ -442,8 +443,8 @@ const InsertHistory: React.FC = () => {
         <Link to={`/data/${gameid}/${gamename}`}>TOTAL</Link>
       </div>
 
-      <Modal title={<span style={{ color: 'white' }}>Insert History</span>} open={isOpen} onCancel={() => setIsOpen(false)} footer={null} centered width={600}>
-        <div style={{ color: 'white' }} className="h-96 overflow-y-auto flex flex-col gap-2 p-2">
+      <Modal title={<span className="modal-title">Insert History</span>} open={isOpen} onCancel={() => setIsOpen(false)} footer={null} centered width={600}>
+        <div className="modal-body-content h-96 overflow-y-auto flex flex-col gap-2 p-2">
           {messages.map((msg) => (
             <Card key={msg.id} className="history-message-card">
               <Card.Meta
@@ -546,8 +547,18 @@ const InsertHistory: React.FC = () => {
               ref={textareaRef}
               value={inputValue}
               onChange={(e) => {
-                setInputValue(e.target.value);
-                syncScroll();
+                const cleaned = e.target.value
+    .split(/\r?\n/)
+    .map((line) =>
+      line.replace(
+        /^\s*\[\s*\d{1,2}[-/]\d{1,2}[-/]\d{2,4}(?:\s+\d{1,2}:\d{2})?\s*\]\s*(?:\+?\d[\d\s\-]{6,}\d)\s*:\s*/i,
+        ""
+      )
+    )
+    .join("\n");
+
+  setInputValue(cleaned);
+  syncScroll();
               }}
               onInput={syncScroll}
               onScroll={syncScroll}

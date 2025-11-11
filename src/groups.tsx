@@ -118,8 +118,8 @@ const Groups: React.FC = () => {
             style={{ color: "#ff4d4f", cursor: "pointer" }}
             onClick={() =>
               Modal.confirm({
-                title: <span style={{ color: 'white' }}>Are you sure you want to delete this group?</span>,
-                content: <span style={{ color: 'white' }}>This action cannot be undone.</span>,
+                title: <span style={{ color: 'var(--color-heading)' }}>Are you sure you want to delete this group?</span>,
+                content: <span style={{ color: 'var(--color-text)' }}>This action cannot be undone.</span>,
                 onOk: () => handleDeleteGroup(record.id),
               })
             }
@@ -155,7 +155,7 @@ const Groups: React.FC = () => {
       {isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
           {filteredGroups.map((group) => (
-            <Card key={group.id} style={{ width: '100%', backgroundColor: 'transparent', color: 'white' }}>
+            <Card key={group.id} style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div><strong>Group Name:</strong> {group.groupname}</div>
                 <div><strong>Commission:</strong> {group.commission}</div>
@@ -170,8 +170,8 @@ const Groups: React.FC = () => {
                     style={{ color: "#ff4d4f", cursor: "pointer" }}
                     onClick={() =>
                       Modal.confirm({
-                        title: <span style={{ color: 'white' }}>Are you sure you want to delete this group?</span>,
-                        content: <span style={{ color: 'white' }}>This action cannot be undone.</span>,
+                        title: <span style={{ color: 'var(--color-heading)' }}>Are you sure you want to delete this group?</span>,
+                        content: <span style={{ color: 'var(--color-text)' }}>This action cannot be undone.</span>,
                         onOk: () => handleDeleteGroup(group.id),
                       })
                     }
@@ -191,12 +191,12 @@ const Groups: React.FC = () => {
         />
       )}
 <Modal
-  title={<span style={{ color: 'white' }}>{editingGroup ? "Edit Group" : "Add Group"}</span>}
+  title={<span style={{ color: 'var(--color-heading)' }}>{editingGroup ? "Edit Group" : "Add Group"}</span>}
   open={isModalOpen}
   onOk={handleSubmit}
   onCancel={() => setIsModalOpen(false)}
 >
-  <div style={{ color: 'white' }}>
+  <div style={{ color: 'var(--color-text)' }}>
     <Form form={form} layout="vertical">
       <Form.Item
         name="groupname"

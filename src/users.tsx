@@ -291,7 +291,7 @@ const Users: React.FC = () => {
           {isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
               {filteredUsers.map((user) => (
-                <Card key={user.user_id} style={{ width: '100%', backgroundColor: 'transparent', color: 'white' }}>
+                <Card key={user.user_id} style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text)' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div><strong>User Name:</strong> {user.user_name}</div>
                     <div><strong>Role:</strong> {user.user_role}</div>
@@ -329,7 +329,7 @@ const Users: React.FC = () => {
       </div>
 
       <Modal
-        title={<span style={{ color: 'white' }}>{isEditing ? "Edit User" : "Add New User"}</span>}
+        title={<span style={{ color: 'var(--color-heading)' }}>{isEditing ? "Edit User" : "Add New User"}</span>}
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
@@ -338,7 +338,7 @@ const Users: React.FC = () => {
         }}
         onOk={isEditing ? handleUpdate : handleSubmit}
       >
-        <div style={{ color: 'white' }}>
+        <div style={{ color: 'var(--color-text)' }}>
           <label>User Name</label>
           <Input
             placeholder="Enter user name"

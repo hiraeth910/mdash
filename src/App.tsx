@@ -62,8 +62,8 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     Modal.confirm({
-      title: <span style={{ color: 'white' }}>Confirm Logout</span>,
-      content: <span style={{ color: 'white' }}>Are you sure you want to log out?</span>,
+      title: <span style={{ color: 'var(--color-heading)' }}>Confirm Logout</span>,
+      content: <span style={{ color: 'var(--color-text)' }}>Are you sure you want to log out?</span>,
       onOk() {
         localStorage.clear();
         setUser(null, null);
@@ -74,14 +74,24 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <button
-        className="theme-toggle"
+      <div
         onClick={toggleTheme}
-        aria-label="Toggle theme"
-        title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        style={{
+          position: 'fixed',
+          top: '1rem',
+          right: '1.5rem',
+          zIndex: 9999,
+          cursor: 'pointer',
+          padding: '8px',
+          borderRadius: '50%',
+          backgroundColor: theme === 'dark' ? '#ffdf00' : '#87ceeb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
-        {theme === "dark" ? <Sun size={24} /> : <Moon size={24} />}
-      </button>
+        {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+      </div>
 
       <Routes>
         <Route path="/" element={<Login />} />

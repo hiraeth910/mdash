@@ -141,8 +141,8 @@ useEffect(()=>{console.log(users)},[users])
  };
 const showConfirm = () => {
    Modal.confirm({
-    title: <span style={{ color: 'white' }}>Are you sure?</span>,
-   content: <span style={{ color: 'white' }}>Once recalculated, data cannot be reverted. Be careful.</span>,
+    title: <span style={{ color: 'var(--color-heading)' }}>Are you sure?</span>,
+   content: <span style={{ color: 'var(--color-text)' }}>Once recalculated, data cannot be reverted. Be careful.</span>,
      onOk: () => {
       recalc();
      },
@@ -241,7 +241,7 @@ const showConfirm = () => {
             ))}
           </Select>
 {selectedUser && (
-  <p style={{ fontWeight: "bold", color: "white" }}>
+  <p style={{ fontWeight: "bold", color: "var(--color-text)" }}>
     User: {selectedUser.user_name}
   </p>
 )}
@@ -279,7 +279,7 @@ const showConfirm = () => {
       render: (text, record, index) => {
         const isLast = index === paymentData.length - 1;
         if (isLast) {
-          const color = record.res_win_amt < 0 ? 'red' : 'green';
+          const color = record.res_win_amt < 0 ? 'red' : '#00796B';
           return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
         }
         return text;
@@ -292,7 +292,7 @@ const showConfirm = () => {
       render: (text, record, index) => {
         const isLast = index === paymentData.length - 1;
         if (isLast) {
-          const color = record.res_win_amt < 0 ? 'red' : 'green';
+          const color = record.res_win_amt < 0 ? 'red' : '#00796B';
           return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
         }
         return text;
@@ -305,7 +305,7 @@ const showConfirm = () => {
       render: (text, record, index) => {
         const isLast = index === paymentData.length - 1;
         if (isLast) {
-          const color = record.res_win_amt < 0 ? 'red' : 'green';
+          const color = record.res_win_amt < 0 ? 'red' : '#00796B';
           return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
         }
         return text;
@@ -318,7 +318,7 @@ const showConfirm = () => {
       render: (text, record, index) => {
         const isLast = index === paymentData.length - 1;
         if (isLast) {
-          const color = record.res_win_amt < 0 ? 'red' : 'green';
+          const color = record.res_win_amt < 0 ? 'red' : '#00796B';
           return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
         }
         return text;
@@ -331,7 +331,7 @@ const showConfirm = () => {
       render: (text, record, index) => {
         const isLast = index === paymentData.length - 1;
         if (isLast) {
-          const color = record.res_win_amt < 0 ? 'red' : 'green';
+          const color = record.res_win_amt < 0 ? 'red' : '#00796B';
           return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
         }
         return text;
@@ -344,7 +344,7 @@ const showConfirm = () => {
       render: (text, record, index) => {
         const isLast = index === paymentData.length - 1;
         if (isLast) {
-          const color = record.res_win_amt < 0 ? 'red' : 'green';
+          const color = record.res_win_amt < 0 ? 'red' : '#00796B';
           return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
         }
         return text;

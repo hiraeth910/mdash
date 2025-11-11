@@ -393,7 +393,7 @@ if (name === "open_pana")  setOpenPana(value);
         </div>
 
         <Modal
-          title={<span style={{ color: 'white' }}>{isEditing ? "Edit Game" : "Add New Game"}</span>}
+          title={<span style={{ color: 'var(--color-heading)' }}>{isEditing ? "Edit Game" : "Add New Game"}</span>}
           open={modalVisible}
           onCancel={() => {
             setModalVisible(false);
@@ -402,7 +402,7 @@ if (name === "open_pana")  setOpenPana(value);
           }}
           onOk={isEditing ? handleUpdate : handleSubmit}
         >
-          <div style={{ color: 'white' }}>
+          <div style={{ color: 'var(--color-text)' }}>
             <label>Game Name</label>
             <Input
               placeholder="Enter game name"
@@ -436,8 +436,8 @@ if (name === "open_pana")  setOpenPana(value);
         <Modal
 title={
   <>
-    <span style={{ color: 'white' }}>Add / Edit Result for{" "}</span>
-    <span style={{ fontWeight: "700", fontSize: "1.2em", color: 'white' }}>
+    <span style={{ color: 'var(--color-heading)' }}>Add / Edit Result for{" "}</span>
+    <span style={{ fontWeight: "700", fontSize: "1.2em", color: 'var(--color-heading)' }}>
       {selectedGame?.gamename}
     </span>
   </>
@@ -449,7 +449,7 @@ title={
             disabled: !isOpenValid
           }}
         >
-          <div style={{ color: 'white' }}>
+          <div style={{ color: 'var(--color-text)' }}>
             <label>Game Date</label>
        <DatePicker
   value={resultDate ? dayjs(resultDate) : null}

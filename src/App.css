@@ -26,9 +26,8 @@
 
 .ant-modal-content {
   border-radius: 1rem !important;
-  background: var(--gradient-surface) !important;
-  border: 1px solid rgba(62, 207, 142, 0.16) !important;
-  counter-reset: white;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
 }
 
 .ant-modal-header {
@@ -70,7 +69,7 @@
 .ant-picker-input > input,
 .ant-input,
 .ant-input::placeholder {
-  color: var(--color-text) !important;
+  color: var(--color-text-muted) !important;
 }
 
 .ant-select-selection-placeholder {
@@ -180,6 +179,77 @@
   color: #fb923c;
   transform: translateY(-1px);
   border-color: rgba(251, 146, 60, 0.3);
+}
+
+/* Theme Toggle Switch */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.theme-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  display: flex;
+  align-items: center;
+  width: 60px;
+  height: 30px;
+  background: linear-gradient(135deg, #87ceeb 0%, #4682b4 100%);
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 26px;
+  height: 26px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle input[type="checkbox"]:checked + .toggle-slider {
+  background: linear-gradient(135deg, #ffff00 0%, #ffd700 100%);
+}
+
+.theme-toggle input[type="checkbox"]:checked + .toggle-slider::before {
+  transform: translateX(30px);
+}
+
+.sun-icon, .moon-icon {
+  position: absolute;
+  transition: opacity 0.3s ease;
+}
+
+.sun-icon {
+  left: 7px;
+  opacity: 0;
+}
+
+.moon-icon {
+  right: 7px;
+  opacity: 1;
+}
+
+.theme-toggle input[type="checkbox"]:checked + .toggle-slider .sun-icon {
+  opacity: 1;
+}
+
+.theme-toggle input[type="checkbox"]:checked + .toggle-slider .moon-icon {
+  opacity: 0;
 }
 
 /* Hide desktop logout on mobile */

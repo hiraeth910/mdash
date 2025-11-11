@@ -9,7 +9,7 @@ body {
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  background: rgba(7, 33, 37, 0.68);
+  background: rgba(var(--color-surface-rgb), 0.68);
   border-radius: 1.25rem;
   padding: clamp(1.25rem, 3vw, 2.5rem);
   box-shadow: var(--shadow-soft);
@@ -86,7 +86,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(17, 37, 42, 0.82);
+  background: rgba(var(--color-surface-rgb), 0.82);
   padding: clamp(0.75rem, 2vw, 1rem);
   border-radius: 0.85rem;
   box-shadow: var(--shadow-soft);
@@ -183,7 +183,7 @@ body {
   gap: 0.2rem;
   padding: 0.75rem 0.85rem;
   border-radius: 0.75rem;
-  background: rgba(17, 37, 42, 0.72);
+  background: rgba(var(--color-surface-rgb), 0.72);
   border: 1px solid rgba(62, 207, 142, 0.12);
 }
 
@@ -211,7 +211,7 @@ body {
 
 /* Ant Design component overrides to match theme */
 .ant-input, .ant-input-affix-wrapper {
-  background: rgba(17, 37, 42, 0.82) !important;
+  background: rgba(var(--color-surface-rgb), 0.82) !important;
   color: var(--color-text) !important;
   border: 1px solid rgba(62, 207, 142, 0.18) !important;
   border-radius: 0.5rem !important;
@@ -226,18 +226,18 @@ body {
 }
 
 .ant-select-selector {
-  background: rgba(17, 37, 42, 0.82) !important;
+  background: rgba(var(--color-surface-rgb), 0.82) !important;
   color: var(--color-text) !important;
   border: 1px solid rgba(255, 140, 0, 0.4) !important;
   border-radius: 0.5rem !important;
 }
 
 .ant-select-selection-placeholder {
-  color: #ffffff !important;
+  color: var(--color-text-muted) !important;
 }
 
 .ant-select-dropdown {
-  background: rgba(17, 37, 42, 0.82) !important;
+  background: rgba(var(--color-surface-rgb), 0.82) !important;
   border: 1px solid rgba(62, 207, 142, 0.18) !important;
 }
 
@@ -250,27 +250,27 @@ body {
 }
 
 .ant-modal-content {
-  background: rgba(7, 33, 37, 0.9) !important;
-  border: 1px solid rgba(62, 207, 142, 0.18) !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 1rem !important;
 }
 
 .ant-modal-header {
-  background: rgba(17, 37, 42, 0.82) !important;
-  border-bottom: 1px solid rgba(62, 207, 142, 0.18) !important;
+  background: var(--color-surface-muted) !important;
+  border-bottom: 1px solid var(--color-border) !important;
 }
 
 .ant-modal-title {
-  color: white;
+  color: var(--color-heading) !important;
 }
 
 .ant-modal-body {
-  background: rgba(7, 33, 37, 0.9) !important;
+  background: var(--color-surface) !important;
 }
 
 .ant-modal-footer {
-  background: rgba(7, 33, 37, 0.9) !important;
-  border-top: 1px solid rgba(62, 207, 142, 0.18) !important;
+  background: var(--color-surface) !important;
+  border-top: 1px solid var(--color-border) !important;
 }
 
 .ant-modal-close {
@@ -319,18 +319,32 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .games-sidebar__actions {
-    flex-direction: row;
-    flex-wrap: wrap;
+  .games-lists {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
   }
 
   .game-card {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+    aspect-ratio: 1;
+    padding: 1rem;
+  }
+
+  .game-details {
+    margin-bottom: 0.5rem;
   }
 
   .game-buttons {
     margin-top: 0.5rem;
+    flex-direction: row;
+    gap: 0.25rem;
+  }
+
+  .games-sidebar__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .table-header {

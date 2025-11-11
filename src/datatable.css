@@ -148,7 +148,7 @@
 .control-card__subtext {
   margin: 0;
   font-size: 0.9rem;
-  color: rgba(219, 239, 240, 0.64);
+  color: var(--color-text-muted);
 }
 
 .control-card__input-row {
@@ -163,21 +163,21 @@
   border-radius: 999px;
   padding: 0.6rem 1rem;
   font-size: 0.95rem;
-  background: rgba(17, 37, 42, 0.85);
+  background: rgba(var(--color-surface-rgb), 0.85);
   color: var(--color-text);
   transition: all 0.2s ease;
 }
 
 .control-input:hover {
   border-color: rgba(62, 207, 142, 0.4);
-  background: rgba(17, 37, 42, 0.95);
+  background: rgba(var(--color-surface-rgb), 0.95);
 }
 
 .control-input:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.24);
-  background: rgba(17, 37, 42, 1);
+  background: rgba(var(--color-surface-rgb), 1);
 }
 
 .controls-select-grid {
@@ -314,7 +314,7 @@
 }
 
 .ant-table-tbody > tr:nth-child(odd) {
-  background-color: rgba(17, 37, 42, 0.6) !important;
+  background-color: rgba(166, 177, 180, 0.6) !important;
 }
 
 .ant-table-tbody > tr:hover > td {
@@ -646,11 +646,13 @@
   border-top: 1px solid rgba(62, 207, 142, 0.18);
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
-  justify-content: space-around;
+  justify-content: flex-start;
   align-items: center;
   padding: 0.5rem 0;
   z-index: 1000;
   min-height: 60px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .bottom-navigator .nav-item {
@@ -664,8 +666,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  max-width: 80px;
+  flex: none;
+  width: 80px;
   text-align: center;
 }
 
@@ -693,8 +695,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  max-width: 80px;
+  flex: none;
+  width: 80px;
   cursor: pointer;
 }
 
@@ -755,20 +757,20 @@
 }
 
 .ant-modal-content {
-  background: var(--gradient-surface);
-  color: white;
+  background: var(--color-surface);
+  color: var(--color-text);
   border-radius: 0.75rem;
   box-shadow: var(--shadow-soft);
-  border: 1px solid rgba(62, 207, 142, 0.18);
+  border: 1px solid var(--color-border);
 }
 
 .ant-modal-body {
-  color: white;
+  color: var(--color-text);
   padding: 1rem;
 }
 
 .ant-modal-title {
-  color: white;
+  color: var(--color-heading);
   font-weight: 600;
 }
 
@@ -807,4 +809,13 @@
   .bottom-navigator .logout-btn {
     margin-top: 0.5rem;
   }
+}
+
+/* Theme overrides for Ant Design confirm modal text */
+.ant-modal-confirm-title {
+  color: var(--color-heading) !important;
+}
+
+.ant-modal-confirm-content {
+  color: var(--color-text) !important;
 }
