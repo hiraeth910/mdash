@@ -40,7 +40,14 @@ const Dashboard: React.FC = () => {
   //  [key: string]: { typename: string; data: any[] };
   //}>({});
 const [selectedUser, setSelectedUser] = useState<IUser | null>(null);
+const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+const [modalVisible, setModalVisible] = useState(false);
 useEffect(()=>{console.log(users)},[users])
+useEffect(() => {
+  const handleResize = () => setIsMobile(window.innerWidth < 768);
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
   const handleGroupChange = (groupName: string) => {
     setGrpname(groupName)
     const group = groups.find((group) => group["group_name"] === groupName);
@@ -228,19 +235,25 @@ const showConfirm = () => {
               setSelectedDate(date?.format("YYYY-MM-DD") || selectedDate)
             }
           />
-          <Select
-            className="group-select"
-            onChange={handleGroupChange}
-            getPopupContainer={() => document.body}
-            defaultValue="Select Group"
-          >
-            <option value="Select Group">Select Group</option>
-            {groups.map((group) => (
-              <Option key={group["group_id"]} value={group["group_name"]}>
-                {group["group_name"]}
-              </Option>
-            ))}
-          </Select>
+          {isMobile ? (
+            <Button onClick={() => setModalVisible(true)}>
+              {grpname || "Select Group"}
+            </Button>
+          ) : (
+            <Select
+              className="group-select"
+              onChange={handleGroupChange}
+              getPopupContainer={() => document.body}
+              defaultValue="Select Group"
+            >
+              <option value="Select Group">Select Group</option>
+              {groups.map((group) => (
+                <Option key={group["group_id"]} value={group["group_name"]}>
+                  {group["group_name"]}
+                </Option>
+              ))}
+            </Select>
+          )}
 {selectedUser && (
   <p style={{ fontWeight: "bold", color: "var(--color-text)" }}>
     User: {selectedUser.user_name}
@@ -403,6 +416,26 @@ const showConfirm = () => {
           </div>
         </div>
       )}
+      <Modal
+        title="Select Group"
+        open={modalVisible}
+        onCancel={() => setModalVisible(false)}
+        footer={null}
+      >
+        {groups.map((group) => (
+          <Button
+            key={group["group_id"]}
+            block
+            onClick={() => {
+              handleGroupChange(group["group_name"]);
+              setModalVisible(false);
+            }}
+            style={{ marginBottom: 8 }}
+          >
+            {group["group_name"]}
+          </Button>
+        ))}
+      </Modal>
     </div>
   );
 };

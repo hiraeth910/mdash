@@ -4,7 +4,7 @@ import { Table, Button, DatePicker, Grid, Select, Spin, message } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
 import "./datatable.css";
 import { IGame } from "./games";
@@ -44,6 +44,7 @@ interface RequestBody {
 const DataTables: React.FC = () => {
   const { gameid, gamename } = useParams<{ gameid: string; gamename: string }>();
   const { userRole, userId } = useUserStore();
+  const navigate = useNavigate();
   const [percentage, setPercentage] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -413,7 +414,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
             type="text"
             className="back-button"
             icon={<span style={{ fontSize: '20px' }}>←</span>}
-            onClick={() => window.history.back()}
+            onClick={() => navigate('/')}
           >
             Back
           </Button>
@@ -507,7 +508,10 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
               </div>
 
               <div>
-                <label>Group</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label>Group</label>
+                  <Button onClick={() => fetchData()} type="primary" size="small">Refresh</Button>
+                </div>
                 <Select
                   placeholder="Select Group"
                   value={selectedGroup ? selectedGroup.id : undefined}

@@ -314,7 +314,7 @@
 }
 
 .ant-table-tbody > tr:nth-child(odd) {
-  background-color: rgba(166, 177, 180, 0.6) !important;
+  background-color: var(--table-odd-row-bg) !important;
 }
 
 .ant-table-tbody > tr:hover > td {
