@@ -229,8 +229,9 @@ const showConfirm = () => {
             }
           />
           <Select
+            className="group-select"
             onChange={handleGroupChange}
-            style={{ width: 200 }}
+            getPopupContainer={() => document.body}
             defaultValue="Select Group"
           >
             <option value="Select Group">Select Group</option>

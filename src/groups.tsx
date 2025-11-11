@@ -182,13 +182,15 @@ const Groups: React.FC = () => {
           ))}
         </div>
       ) : (
-        <Table
-          columns={columns}
-          dataSource={filteredGroups}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-        />
+        <div className="table-container">
+          <Table
+            columns={columns}
+            dataSource={filteredGroups}
+            rowKey="id"
+            loading={loading}
+            pagination={{ pageSize: 10 }}
+          />
+        </div>
       )}
 <Modal
   title={<span style={{ color: 'var(--color-heading)' }}>{editingGroup ? "Edit Group" : "Add Group"}</span>}

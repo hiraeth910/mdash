@@ -2,7 +2,9 @@
 
 :root {
   --color-primary: #3ecf8e;
+  --color-primary-rgb: 62, 207, 142;
   --color-primary-strong: #1f9d6d;
+  --color-primary-strong-rgb: 31, 157, 109;
   --color-primary-10: rgba(62, 207, 142, 0.18);
   --color-secondary: #fdb022;
   --color-secondary-strong: #f59f0b;
@@ -35,7 +37,9 @@
 
 [data-theme="light"] {
   --color-primary: #ec4899;
+  --color-primary-rgb: 236, 72, 153;
   --color-primary-strong: #db2777;
+  --color-primary-strong-rgb: 219, 39, 119;
   --color-primary-10: rgba(236, 72, 153, 0.18);
   --color-secondary: #3b82f6;
   --color-secondary-strong: #2563eb;
@@ -187,7 +191,7 @@ button:focus-visible {
   background: var(--gradient-primary) !important;
   color: #0b1716 !important;
   border: none !important;
-  box-shadow: 0 22px 38px rgba(15, 157, 109, 0.38) !important;
+  box-shadow: 0 22px 38px rgba(var(--color-primary-strong-rgb), 0.38) !important;
 }
 
 .ant-btn-primary:hover:not(.ant-btn-disabled) {
