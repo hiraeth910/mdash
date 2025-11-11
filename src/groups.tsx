@@ -111,7 +111,7 @@ const Groups: React.FC = () => {
       render: (_, record) => (
         <>
           <EditFilled
-            style={{ color: "#1890ff", marginRight: 10, cursor: "pointer" }}
+            style={{ color: "#52c41a", marginRight: 10, cursor: "pointer" }}
             onClick={() => handleEditGroup(record)}
           />
           <DeleteFilled
@@ -163,7 +163,7 @@ const Groups: React.FC = () => {
                 <div><strong>Pana Payable:</strong> {group.pana_payable}</div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <EditFilled
-                    style={{ color: "#1890ff", cursor: "pointer" }}
+                    style={{ color: "#52c41a", cursor: "pointer" }}
                     onClick={() => handleEditGroup(group)}
                   />
                   <DeleteFilled

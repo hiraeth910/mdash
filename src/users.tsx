@@ -237,7 +237,7 @@ const Users: React.FC = () => {
   render: (_: unknown, record: IUser): JSX.Element => (
     <>
       <EditFilled
-        style={{ color: "#1890ff", marginRight: 10, cursor: "pointer" }}
+        style={{ color: "#52c41a", marginRight: 10, cursor: "pointer" }}
         onClick={() => handleEdit(record)}
       />
       <DeleteFilled
@@ -301,7 +301,7 @@ const Users: React.FC = () => {
                         <div><strong>Password:</strong> {user.user_password}</div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <EditFilled
-                            style={{ color: "#1890ff", cursor: "pointer" }}
+                            style={{ color: "#52c41a", cursor: "pointer" }}
                             onClick={() => handleEdit(user)}
                           />
                           <DeleteFilled
