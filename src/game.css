@@ -59,14 +59,14 @@ body {
 
 .games-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 1.75rem;
   width: 100%;
 }
 
 .games-lists {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, 280px);
+  justify-content: center;
   gap: 1.5rem;
 }
 
@@ -249,29 +249,6 @@ body {
   background: var(--color-primary-10) !important;
 }
 
-.ant-modal-content {
-  background: var(--color-surface) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: 1rem !important;
-}
-
-.ant-modal-header {
-  background: var(--color-surface-muted) !important;
-  border-bottom: 1px solid var(--color-border) !important;
-}
-
-.ant-modal-title {
-  color: var(--color-heading) !important;
-}
-
-.ant-modal-body {
-  background: var(--color-surface) !important;
-}
-
-.ant-modal-footer {
-  background: var(--color-surface) !important;
-  border-top: 1px solid var(--color-border) !important;
-}
 
 .ant-modal-close {
   color: var(--color-text) !important;

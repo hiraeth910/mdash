@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Button, Modal, Input, message, DatePicker, Select } from "antd";
+import React, { useEffect, useState } from "react";
+import { Button, Modal, Input, message, DatePicker } from "antd";
 import dayjs from "dayjs";
 import { EditOutlined, PlusCircleOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
@@ -8,7 +8,6 @@ import { apiClient } from "./utils/api";
 import "./game.css";
 import { checkAuthAndHandleLogout } from "./authcheck";
 
-const { Option } = Select;
 
 // Models / Interfaces
 export interface IGame {
@@ -47,13 +46,6 @@ const GamesPage: React.FC = () => {
   const [editingGame, setEditingGame] = useState<IGame | null>(null);
  
   const [id, setId] = useState<number>(-1);
-
-  const upcomingGames = useMemo(() => {
-    return games
-      .slice()
-      .sort((a, b) => a.gamedescription.localeCompare(b.gamedescription))
-      .slice(0, 4);
-  }, [games]);
 
   // New state for result modal
   const [resultModalVisible, setResultModalVisible] = useState<boolean>(false);
@@ -332,64 +324,7 @@ if (name === "open_pana")  setOpenPana(value);
             </div>
           </div>
 
-          {userRole === "admin" && (
-            <aside className="games-sidebar">
-              <div className="games-sidebar__card">
-                <h3>Quick Actions</h3>
-                <p>Manage schedules and capture results directly from this dashboard.</p>
-                <div className="games-sidebar__actions">
-                  <Button
-                    type="primary"
-                    className="btn-responsive"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditingGame(null);
-                      setModalVisible(true);
-                    }}
-                  >
-                    Add Game
-                  </Button>
-                  <Select
-                    placeholder="Select Game for Result"
-                    value={selectedGame ? selectedGame.gameid : undefined}
-                    onChange={(value: number) => {
-                      const game = games.find((g) => g.gameid === value);
-                      if (game) {
-                        setSelectedGame(game);
-                        openResultModal(game);
-                      }
-                    }}
-                    className="btn-responsive"
-                    style={{ width: "100%" }}
-                  >
-                    {games.map((game) => (
-                      <Option key={game.gameid} value={game.gameid}>
-                        {game.gamename}
-                      </Option>
-                    ))}
-                  </Select>
-                </div>
-              </div>
 
-              <div className="games-sidebar__card">
-                <h3>Upcoming Slots</h3>
-                <ul className="games-sidebar__list">
-                  {upcomingGames.length === 0 && (
-                    <li className="games-sidebar__empty">No games scheduled.</li>
-                  )}
-                  {upcomingGames.map((game) => {
-                    const [openTime, closeTime] = game.gamedescription.split("-");
-                    return (
-                      <li key={game.gameid}>
-                        <span>{game.gamename}</span>
-                        <span>{formatTime(openTime)} • {formatTime(closeTime)}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </aside>
-          )}
         </div>
 
         <Modal
