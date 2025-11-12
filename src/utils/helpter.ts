@@ -1,55 +1,42 @@
-export function compactLines(input: string): string {
-  // Split, trim, and filter out empty lines
-  const lines: string[] = input
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
+/**
+ * Fills incomplete lines by taking the next non-empty value that appears below them,
+ * while preserving blank lines (important for textarea behavior).
+ */
+export function fillWithNextValue(input: string): string {
+  // Split, but DO NOT filter out empty lines
+  const lines = input.split(/\r?\n/);
+  const output: string[] = new Array(lines.length);
+  let nextValue: string | null = null;
 
-  const output: string[] = [];
-  let buffer: string[] = [];
+  // Traverse from bottom → top to propagate values forward
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const raw = lines[i];
+    const line = raw.trim();
 
-  for (const line of lines) {
-    // Detect pattern "number=something"
-    const eqIndex = line.indexOf("=");
-    if (eqIndex !== -1) {
-      const key = line.slice(0, eqIndex).trim();
-      const value = line.slice(eqIndex + 1).trim();
-
-      if (value === "") {
-        // Has '=' but no value — collect key
-        buffer.push(key);
-      } else {
-        // Complete value found
-        if (buffer.length > 0) {
-          const keys = [...buffer, key];
-          output.push(`${keys.join(".")}=${value}`);
-          buffer = [];
-        } else {
-          output.push(`${key}=${value}`);
-        }
-      }
+    // Keep empty lines as-is
+    if (line === "") {
+      output[i] = raw; // maintain spacing and newline behavior
       continue;
     }
 
-    // Handle incomplete lines ending with any symbol (: ; , . + -)
-    if (/^\d+[\-\+\:\;\,\.]$/.test(line)) {
-      buffer.push(line.replace(/[\-\+\:\;\,\.]/, ""));
+    // Detect full key=value pair
+    if (/^[0-9A-Za-z]+=[0-9A-Za-z]+$/.test(line)) {
+      const [key, value] = line.split("=");
+      nextValue = value;
+      output[i] = `${key}=${value}`;
       continue;
     }
 
-    // Handle range patterns like "1-100"
-    if (/^\d+-\d+$/.test(line)) {
-      output.push(line);
+    // Incomplete (ends with any symbol)
+    if (/^[0-9A-Za-z]+[=\-\+\:\;\,\.]$/.test(line)) {
+      const key = line.slice(0, -1);
+      const symbol = line.slice(-1);
+      output[i] = `${key}${symbol}${nextValue ?? ""}`;
       continue;
     }
 
-    // Any other line, emit unchanged
-    output.push(line);
-  }
-
-  // Emit leftover buffer if not terminated
-  if (buffer.length > 0) {
-    output.push(`${buffer.join(".")}=`);
+    // Range patterns or unknown formats — keep unchanged
+    output[i] = line;
   }
 
   return output.join("\n");

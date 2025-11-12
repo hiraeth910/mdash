@@ -9,7 +9,7 @@ import moment from "moment";
 import { IGame } from "./games";
 import { IGroup } from "./userGames";
 import { checkAuthAndHandleLogout } from "./authcheck";
-import { compactLines } from "./utils/helpter";
+import {  fillWithNextValue } from "./utils/helpter";
 
 interface NumberEntry {
   number: string;
@@ -365,6 +365,31 @@ const InsertHistory: React.FC = () => {
     highlighterRef.current.scrollLeft = textareaRef.current.scrollLeft;
   };
 
+  const mapPosition = (original: string, cleaned: string, pos: number): number => {
+    const originalLines = original.split(/\r?\n/);
+    const cleanedLines = cleaned.split(/\r?\n/);
+    let currentPos = 0;
+    let newPos = 0;
+    for (let k = 0; k < originalLines.length; k++) {
+      const origLine = originalLines[k];
+      const cleanLine = cleanedLines[k] || "";
+      const removed = origLine.length - cleanLine.length;
+      const lineStart = currentPos;
+      const lineEnd = currentPos + origLine.length;
+      if (pos >= lineStart && pos < lineEnd) {
+        const posInLine = pos - lineStart;
+        if (posInLine < removed) {
+          return newPos;
+        } else {
+          return newPos + (posInLine - removed);
+        }
+      }
+      currentPos += origLine.length + (k < originalLines.length - 1 ? 1 : 0);
+      newPos += cleanLine.length + (k < cleanedLines.length - 1 ? 1 : 0);
+    }
+    return newPos;
+  };
+
   // ---------- Submit ----------
   const handleSubmit = async () => {
     if (!selectedGame || !selectedGroup) {
@@ -547,34 +572,48 @@ const InsertHistory: React.FC = () => {
             <textarea
               ref={textareaRef}
               value={inputValue}
-              onChange={(e) => {
-                const textarea = e.target as HTMLTextAreaElement;
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
-                const originalValue = e.target.value;
-               const cleaned = originalValue
-  .split(/\r?\n/)
-  .map(line =>
-    line.replace(
-      // [dd-mm( -yyyy optional ) or dd/mm( /yyyy optional )] (time optional)
-      // then ANY non-colon header (name or phone) ending with a colon
-      /^\s*\[\s*\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s+\d{1,2}:\d{2})?\s*\]\s*[^\n:]{1,200}:\s*/i,
-      ""
+           onChange={(e) => {
+  const textarea = e.target as HTMLTextAreaElement;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const originalValue = e.target.value;
+
+  // strip headers (your existing logic)
+  const cleaned = originalValue
+    .split(/\r?\n/)
+    .map((line) =>
+      line.replace(
+        /^\s*\[\s*\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s+\d{1,2}:\d{2})?\s*\]\s*[^\n:]{1,200}:\s*/i,
+        ""
+      )
     )
-  )
-  .join("\n");
+    .join("\n");
 
-const normalized = compactLines(cleaned);
-setInputValue(normalized);
+  const normalized = fillWithNextValue(cleaned);
+  setInputValue(normalized);
 
-                // Restore cursor position after state update
-                setTimeout(() => {
-                  if (textareaRef.current) {
-                    textareaRef.current.setSelectionRange(start, end);
-                  }
-                }, 0);
-                syncScroll();
-              }}
+  // map old cursor positions -> new positions using your mapPosition
+  const mappedStart = mapPosition(originalValue, normalized, start);
+  const mappedEnd = mapPosition(originalValue, normalized, end);
+
+  // clamp to valid range
+  const clamp = (n: number) => Math.max(0, Math.min(normalized.length, n));
+  const newStart = clamp(mappedStart);
+  const newEnd = clamp(mappedEnd);
+
+  // restore selection on next frame and sync scroll
+  requestAnimationFrame(() => {
+    if (textareaRef.current) {
+      try {
+        textareaRef.current.setSelectionRange(newStart, newEnd);
+      } catch (err) {
+        console.log(err)// ignore if browser doesn't allow
+      }
+      syncScroll();
+    }
+  });
+}}
+
               onInput={syncScroll}
               onScroll={syncScroll}
               onKeyUp={syncScroll}
