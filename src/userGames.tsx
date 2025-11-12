@@ -75,13 +75,38 @@ const Games: React.FC = () => {
       ),
     },
     {
-      title: "Description",
-      dataIndex: "gamedescription",
-      key: "gamedescription",
-      render: (text: string) => (
-        <span style={{ color: "green", fontSize: "16px" }}>{text}</span>
-      ),
-    },
+  title: "Description",
+  dataIndex: "gamedescription",
+  key: "gamedescription",
+  render: (text: string) => {
+    if (!text) return null;
+
+    // Convert times like "15:30-17:30" to "03:30 PM - 05:30 PM"
+    const [start, end] = text.split("-");
+    const formatTime = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      const date = new Date();
+      date.setHours(h, m || 0);
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    };
+
+    const formatted =
+      start && end
+        ? `${formatTime(start)} - ${formatTime(end)}`
+        : formatTime(start || text);
+
+    return (
+      <span style={{  fontWeight: "600", fontSize: "15px" }}>
+        {formatted}
+      </span>
+    );
+  },
+},
+
   ];
 
   // Handle Game Click

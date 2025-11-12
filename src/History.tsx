@@ -132,17 +132,28 @@ useEffect(() => {
         }
       }, [selectedDate,selectedGroup,selectedGame]);
       
-      // Fetch games for dropdown
-      const fetchGames = async () => {
-        try {
-          const stillLoggedIn = await checkAuthAndHandleLogout();
-  if (!stillLoggedIn) return;
-          const response = await apiClient.get("/games");
-          setGames(response.data);
-    } catch {
-      message.error("Failed to fetch games");
-    }
-  };
+      // new: fetch & sort games by first two digits (from gamedescription or gamename)
+const extractSortKey = (g: IGame) => {
+  const desc = (g as any).gamedescription || "";
+  const m = String(desc).trim().match(/^(\d{1,2})/);
+  if (m) return Number(m[1]);
+  const m2 = String(g.gamename || "").trim().match(/^(\d{1,2})/);
+  return m2 ? Number(m2[1]) : Number.MAX_SAFE_INTEGER; // moves non-digit entries to the end
+};
+
+const fetchGames = async () => {
+  try {
+    const stillLoggedIn = await checkAuthAndHandleLogout();
+    if (!stillLoggedIn) return;
+    const response = await apiClient.get("/games");
+    const gamesResp: IGame[] = response.data || [];
+    const sorted = gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b));
+    setGames(sorted);
+  } catch {
+    message.error("Failed to fetch games");
+  }
+};
+
   
   // Fetch types for dropdown
   const fetchTypes = async () => {
@@ -188,7 +199,8 @@ useEffect(() => {
 
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-
+const formatNumber = (value: number) =>
+  new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(Number(value) || 0);
   const tableTypes = [
     { key: "open", typeId: 4, title: "Open" },
     { key: "openPana", typeId: 3, title: "Open Pana" },
@@ -210,6 +222,9 @@ useEffect(() => {
           : true;
         return matchesNumber && matchesAmount;
       });
+      // skip entirely when there are no rows for this type
+if (filteredData.length === 0) return null;
+
 
     if (isMobile) {
       return (
@@ -242,17 +257,34 @@ useEffect(() => {
                     onChange={(e) => handleCheckboxChange(record.history_id, e.target.checked)}
                   />
                   <Button
-                    icon={<EditOutlined />}
-                    size="small"
-                    style={{ color: "blue" }}
-                    onClick={() => handleEdit(record)}
-                  />
-                  <Button
-                    icon={<DeleteOutlined />}
-                    size="small"
-                    danger
-                    onClick={() => handleDelete(record.history_id)}
-                  />
+  type="primary"
+  icon={<EditOutlined />}
+  onClick={() => handleEdit(record)}
+  style={{
+    backgroundColor: '#1677ff',
+    borderColor: '#1677ff',
+    color: '#fff',
+    marginLeft: 8,
+  }}
+>
+  Edit
+</Button>
+
+<Button
+  type="primary"
+  danger
+  icon={<DeleteOutlined />}
+  onClick={() => handleDelete(record.history_id)}
+  style={{
+    backgroundColor: '#ff4d4f',
+    borderColor: '#ff4d4f',
+    color: '#fff',
+    marginLeft: 8,
+  }}
+>
+  Delete
+</Button>
+
                 </div>
               </div>
             ))}
@@ -261,17 +293,24 @@ useEffect(() => {
       );
     }
 
-    return (
+    const totalForType = filteredData.reduce((s, r) => s + Number(r.history_amount || 0), 0);
+
+return (
+  <div className="table-container" key={key}>
+    <h3>
+      <span>{title}</span>
+      <span className="table-total">Total: {formatNumber(totalForType)}</span>
+    </h3>
+
+    {/* keep an inner fixed-height scroll area like datatables.tsx */}
+    <div style={{ height: 300, overflowY: "auto" }}>
       <Table
-        key={key}
         dataSource={filteredData}
         rowKey="history_id"
         size="small"
         bordered
         pagination={false}
-        title={() => title}
-  scroll={{ y: 300 }}
-          style={{ marginBottom: "20px", width: "100%", margin: "0 1rem 20px 1rem" }}
+        style={{ width: "100%", marginBottom: "0" }}
       >
         <Table.Column title="Number" dataIndex="history_number" key="history_number" />
         <Table.Column title="Amount" dataIndex="history_amount" key="history_amount" />
@@ -285,9 +324,7 @@ useEffect(() => {
           title="Modified At"
           dataIndex="history_modified_at"
           key="history_modified_at"
-          render={(date: string | null) =>
-            date ? dayjs(date).format("h:mm: A") : "N/A"
-          }
+          render={(date: string | null) => (date ? dayjs(date).format("h:mm A") : "N/A")}
         />
         <Table.Column
           title="Actions"
@@ -296,26 +333,17 @@ useEffect(() => {
             <>
               <Checkbox
                 checked={selectedIds.includes(record.history_id)}
-                onChange={(e) =>
-                  handleCheckboxChange(record.history_id, e.target.checked)
-                }
+                onChange={(e) => handleCheckboxChange(record.history_id, e.target.checked)}
               />
-              <Button
-                icon={<EditOutlined />}
-                style={{ color: "blue", marginLeft: 8 }}
-                onClick={() => handleEdit(record)}
-              />
-              <Button
-                icon={<DeleteOutlined />}
-                danger
-                onClick={() => handleDelete(record.history_id)}
-                style={{ marginLeft: 8 }}
-              />
+              <Button icon={<EditOutlined />} style={{ color: "blue", marginLeft: 8 }} onClick={() => handleEdit(record)} />
+              <Button icon={<DeleteOutlined />} danger onClick={() => handleDelete(record.history_id)} style={{ marginLeft: 8 }} />
             </>
           )}
         />
       </Table>
-    );
+    </div>
+  </div>
+);
   });
 
   // Handle edit click - also store the original record to compare changes
@@ -600,9 +628,16 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
           Delete Selected
         </Button>
       </div>
-      <div style={{ maxHeight: isMobile ? '80vh' : 'auto', overflowY: isMobile ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {filteredTables}
-      </div>
+     <div style={{ maxHeight: isMobile ? '80vh' : 'auto', overflowY: isMobile ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+  {displayedRecords.length === 0 ? (
+    <div className="placeholder" style={{ padding: 20, textAlign: "center" }}>
+      No history records found for the selected filters.
+    </div>
+  ) : (
+    filteredTables
+  )}
+</div>
+
         </div>
       )}
 
