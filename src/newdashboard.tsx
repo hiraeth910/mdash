@@ -146,7 +146,7 @@ const SummaryDashboard: React.FC = () => {
       dataIndex: "pnl",
       key: "pnl",
       render: (value: number) => (
-        <span style={{ color: value < 0 ? "red" : "#00796B", textAlign: "right", display: "block" }}>
+        <span style={{ color: value < 0 ? "red" : "#009416ff", textAlign: "right", display: "block" }}>
           {value}
         </span>
       ),
