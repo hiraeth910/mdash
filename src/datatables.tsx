@@ -108,7 +108,16 @@ const DataTables: React.FC = () => {
       const stillLoggedIn = await checkAuthAndHandleLogout();
       if (!stillLoggedIn) return;
       const gameresponse = await apiClient.get("/games");
-      setGames(gameresponse.data);
+      const gamesResp: IGame[] = gameresponse.data || [];
+      // same extract function locally
+      const extractSortKey = (g: IGame) => {
+        const desc = (g as any).gamedescription || "";
+        const m = String(desc).trim().match(/^(\d{1,2})/);
+        if (m) return Number(m[1]);
+        const m2 = String(g.gamename || "").trim().match(/^(\d{1,2})/);
+        return m2 ? Number(m2[1]) : Number.MAX_SAFE_INTEGER;
+      };
+      setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b)));
       const response = await apiClient.get("/users");
       const allUsers: IUser[] = response.data.users;
       const currentUser = allUsers.find((user: IUser) => user.user_id === userId);
