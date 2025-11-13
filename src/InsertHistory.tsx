@@ -52,7 +52,7 @@ const InsertHistory: React.FC = () => {
 
   const [invalidLines, setInvalidLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
   const [ambiguousLines, setAmbiguousLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
-
+  const prevInputRef = useRef<string>("");
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
   const highlighterRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -582,45 +582,86 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             <textarea
               ref={textareaRef}
               value={inputValue}
-           onChange={(e) => {
+     onChange={(e) => {
   const textarea = e.target as HTMLTextAreaElement;
   const start = textarea.selectionStart;
   const end = textarea.selectionEnd;
   const originalValue = e.target.value;
 
-  // strip headers (your existing logic)
+  // Step 1: Strip headers
   const cleaned = originalValue
     .split(/\r?\n/)
     .map((line) =>
       line.replace(
-  /^\s*\[\s*\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s+\d{1,2}:\d{2}(?:\s*[APMapm]{2})?)?\s*\][^:]*:\s*/,
-  ""
-)
+        /^\s*\[\s*\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s+\d{1,2}:\d{2}(?:\s*[APMapm]{2})?)?\s*\][^:]*:\s*/,
+        ""
+      )
     )
     .join("\n");
 
-  const normalized = fillWithNextValue(cleaned);
+  // Step 2: Only apply autofill if needed AND text has changed
+  const needsFilling = /^[0-9A-Za-z]+[=\-\+\:\;\,\.]$/m.test(cleaned);
+  const normalized = needsFilling ? fillWithNextValue(cleaned) : cleaned;
+
+  // Optimization: Skip update if nothing changed
+  if (normalized === prevInputRef.current) {
+    return;
+  }
+
+  prevInputRef.current = normalized;
   setInputValue(normalized);
 
-  // map old cursor positions -> new positions using your mapPosition
-  const mappedStart = mapPosition(originalValue, normalized, start);
-  const mappedEnd = mapPosition(originalValue, normalized, end);
-
-  // clamp to valid range
-  const clamp = (n: number) => Math.max(0, Math.min(normalized.length, n));
-  const newStart = clamp(mappedStart);
-  const newEnd = clamp(mappedEnd);
-
-  // restore selection on next frame and sync scroll
+  // Step 3: Intelligent cursor restoration
   requestAnimationFrame(() => {
-    if (textareaRef.current) {
-      try {
-        textareaRef.current.setSelectionRange(newStart, newEnd);
-      } catch (err) {
-        console.log(err)// ignore if browser doesn't allow
+    if (!textareaRef.current) return;
+
+    try {
+      let newStart = start;
+      let newEnd = end;
+
+      // If autofill added text, adjust cursor position
+      if (needsFilling && normalized.length > cleaned.length) {
+        // Find which line was affected
+        const originalLines = cleaned.split("\n");
+        const normalizedLines = normalized.split("\n");
+        
+        let charCount = 0;
+        let adjustedStart = start;
+        
+        for (let i = 0; i < originalLines.length; i++) {
+          const origLine = originalLines[i];
+          const normLine = normalizedLines[i] || "";
+          
+          // If cursor is on or before this line
+          if (start <= charCount + origLine.length + 1) {
+            // If this line was autofilled
+            if (normLine.length > origLine.length) {
+              // Keep cursor at same position within the line
+              const posInLine = start - charCount;
+              adjustedStart = charCount + Math.min(posInLine, origLine.length);
+            } else {
+              adjustedStart = charCount + (start - charCount);
+            }
+            break;
+          }
+          
+          charCount += origLine.length + 1; // +1 for newline
+        }
+        
+        newStart = Math.min(adjustedStart, normalized.length);
+        newEnd = Math.min(newStart + (end - start), normalized.length);
+      } else {
+        // Simple case: just clamp to new length
+        newStart = Math.min(start, normalized.length);
+        newEnd = Math.min(end, normalized.length);
       }
-      syncScroll();
+
+      textareaRef.current.setSelectionRange(newStart, newEnd);
+    } catch (err) {
+      console.warn("Could not restore selection:", err);
     }
+    
+    syncScroll();
   });
 }}
 

@@ -1,12 +1,8 @@
-/**
- * Fills incomplete lines by taking the next non-empty value that appears below them,
- * while preserving blank lines (important for textarea behavior).
- */
 export function fillWithNextValue(input: string): string {
-  // Split, but DO NOT filter out empty lines
   const lines = input.split(/\r?\n/);
-  const output: string[] = new Array(lines.length);
+  const output: string[] = [];
   let nextValue: string | null = null;
+  let hasChanges = false;
 
   // Traverse from bottom → top to propagate values forward
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -15,7 +11,7 @@ export function fillWithNextValue(input: string): string {
 
     // Keep empty lines as-is
     if (line === "") {
-      output[i] = raw; // maintain spacing and newline behavior
+      output[i] = raw;
       continue;
     }
 
@@ -31,13 +27,28 @@ export function fillWithNextValue(input: string): string {
     if (/^[0-9A-Za-z]+[=\-\+\:\;\,\.]$/.test(line)) {
       const key = line.slice(0, -1);
       const symbol = line.slice(-1);
-      output[i] = `${key}${symbol}${nextValue ?? ""}`;
+      const filled = `${key}${symbol}${nextValue ?? ""}`;
+      
+      // Mark if we actually made a change
+      if (filled !== line) {
+        hasChanges = true;
+      }
+      
+      output[i] = filled;
       continue;
     }
 
-    // Range patterns or unknown formats — keep unchanged
+    // Range patterns or unknown formats – keep unchanged
     output[i] = line;
   }
 
-  return output.join("\n");
+  // Return original if no changes were made (optimization)
+  return hasChanges ? output.join("\n") : input;
+}
+
+/**
+ * Check if input contains patterns that would trigger fillWithNextValue
+ */
+export function needsAutofill(input: string): boolean {
+  return /^[0-9A-Za-z]+[=\-\+\:\;\,\.]$/m.test(input);
 }
