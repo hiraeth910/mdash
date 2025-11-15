@@ -281,9 +281,10 @@ const showConfirm = () => {
         </div>
       ) : (
         <div className="payment-summary-container">
-          <div className="table-container">
+          <div className="table-container"  style={{maxHeight:'none', height: 'auto', overflow: 'visible' }}>
             <h3>Payment Summary</h3>
              <Table
+
   className="payment-summary-table"
   dataSource={paymentData}
   columns={[
@@ -368,7 +369,6 @@ const showConfirm = () => {
   ]}
   rowKey="game"
   pagination={false}
-  scroll={paymentData.length > 0 ? { y: 350 } : undefined}
   rowClassName={(_, index) => {
     if (index === paymentData.length - 1) {
       return "blink";
