@@ -375,30 +375,30 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     highlighterRef.current.scrollLeft = textareaRef.current.scrollLeft;
   };
 
-  const mapPosition = (original: string, cleaned: string, pos: number): number => {
-    const originalLines = original.split(/\r?\n/);
-    const cleanedLines = cleaned.split(/\r?\n/);
-    let currentPos = 0;
-    let newPos = 0;
-    for (let k = 0; k < originalLines.length; k++) {
-      const origLine = originalLines[k];
-      const cleanLine = cleanedLines[k] || "";
-      const removed = origLine.length - cleanLine.length;
-      const lineStart = currentPos;
-      const lineEnd = currentPos + origLine.length;
-      if (pos >= lineStart && pos < lineEnd) {
-        const posInLine = pos - lineStart;
-        if (posInLine < removed) {
-          return newPos;
-        } else {
-          return newPos + (posInLine - removed);
-        }
-      }
-      currentPos += origLine.length + (k < originalLines.length - 1 ? 1 : 0);
-      newPos += cleanLine.length + (k < cleanedLines.length - 1 ? 1 : 0);
-    }
-    return newPos;
-  };
+  // const mapPosition = (original: string, cleaned: string, pos: number): number => {
+  //   const originalLines = original.split(/\r?\n/);
+  //   const cleanedLines = cleaned.split(/\r?\n/);
+  //   let currentPos = 0;
+  //   let newPos = 0;
+  //   for (let k = 0; k < originalLines.length; k++) {
+  //     const origLine = originalLines[k];
+  //     const cleanLine = cleanedLines[k] || "";
+  //     const removed = origLine.length - cleanLine.length;
+  //     const lineStart = currentPos;
+  //     const lineEnd = currentPos + origLine.length;
+  //     if (pos >= lineStart && pos < lineEnd) {
+  //       const posInLine = pos - lineStart;
+  //       if (posInLine < removed) {
+  //         return newPos;
+  //       } else {
+  //         return newPos + (posInLine - removed);
+  //       }
+  //     }
+  //     currentPos += origLine.length + (k < originalLines.length - 1 ? 1 : 0);
+  //     newPos += cleanLine.length + (k < cleanedLines.length - 1 ? 1 : 0);
+  //   }
+  //   return newPos;
+  // };
 
   // ---------- Submit ----------
   const handleSubmit = async () => {
