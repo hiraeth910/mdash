@@ -53,6 +53,8 @@ const GamesPage: React.FC = () => {
   const [resultDate, setResultDate] = useState<string>(new Date().toISOString().split("T")[0]);
  const [openPana, setOpenPana]   = useState<string>("");
 const [closePana, setClosePana] = useState<string>("");
+const [dbOpenPana, setDbOpenPana] = useState<string>("");
+const [dbClosePana, setDbClosePana] = useState<string>("");
   
 
   const formatTime = (timeString: string): string => {
@@ -65,6 +67,7 @@ const [closePana, setClosePana] = useState<string>("");
     return `${formattedHour}:${minute.toString().padStart(2, "0")} ${suffix}`;
   };
 const isOpenValid  = /^\d{3}$/.test(openPana);
+const isCloseValid = /^\d{3}$/.test(closePana);
   useEffect(() => {
     fetchGames();
   }, []);
@@ -157,12 +160,16 @@ const isOpenValid  = /^\d{3}$/.test(openPana);
       const result = response.data[0]; // Assuming the API returns an array
       setOpenPana(result?.open_pana || '');
       setClosePana(result?.close_pana || '');
+      setDbOpenPana(result?.open_pana || '');
+      setDbClosePana(result?.close_pana || '');
       setId(result?.id || -1);
     } catch (error) {
       console.error(error);
       message.error("Failed to fetch game result");
       setOpenPana('');
       setClosePana('');
+      setDbOpenPana('');
+      setDbClosePana('');
     }
   };
 
@@ -181,12 +188,16 @@ const isOpenValid  = /^\d{3}$/.test(openPana);
           const result = response.data[0];
           setOpenPana(result?.open_pana || '');
           setClosePana(result?.close_pana || '');
+          setDbOpenPana(result?.open_pana || '');
+          setDbClosePana(result?.close_pana || '');
           setId(result?.id || -1);
         } catch (error) {
           console.error(error);
           message.error("Failed to fetch game result");
           setOpenPana('');
           setClosePana('');
+          setDbOpenPana('');
+          setDbClosePana('');
         }
       })();
     }
@@ -199,18 +210,23 @@ if (name === "open_pana")  setOpenPana(value);
   };
 
   const handleSubmitResult = async () => {
-    const resultData = {
+    const resultData: any = {
       id: id,
       gameid: selectedGame?.gameid,
       game_date: resultDate,
       openPana: openPana === '' ? null : openPana,
-      closePana: closePana === '' ? null : closePana,
     };
+
+    if (id !== -1) {
+      resultData.closePana = closePana === '' ? null : closePana;
+    }
 
     try {
       await apiClient.post("/game/result", resultData);
       message.success("Game result added/updated successfully!");
       setId(-1);
+      setDbOpenPana("");
+      setDbClosePana("");
       setResultModalVisible(false);
       fetchGames();
     } catch (error) {
@@ -381,7 +397,24 @@ title={
           onCancel={() => setResultModalVisible(false)}
           onOk={handleSubmitResult}
           okButtonProps={{
-            disabled: !isOpenValid
+            disabled: (() => {
+              const isChanged = openPana !== dbOpenPana || closePana !== dbClosePana;
+              if (!isChanged) return true;
+              
+              if (id === -1) {
+                // Initial entry: must have valid open, close is disabled
+                return !isOpenValid;
+              } else {
+                // Update entry: 
+                // 1. open must be valid (always)
+                // 2. if close is entered (non-empty), it must be valid
+                // 3. if close was already in DB, it must still be valid (covered by isCloseValid if they edit it)
+                const isCloseNowEntered = closePana !== "";
+                if (!isOpenValid) return true;
+                if (isCloseNowEntered && !isCloseValid) return true;
+                return false;
+              }
+            })()
           }}
         >
           <div style={{ color: 'var(--color-text)' }}>
