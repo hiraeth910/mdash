@@ -116,6 +116,19 @@
   width: 100%;
 }
 
+.history-toolbar__select .ant-select-selector {
+  min-height: 3.rem !important;
+  height: auto !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.history-toolbar__select .ant-select-selection-item {
+  font-size: 2.1875rem !important; /* 2.5x the default 0.875rem select text */
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+}
+
 /* Message cards */
 .history-message-card {
   background: var(--gradient-surface) !important;
