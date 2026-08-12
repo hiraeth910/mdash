@@ -1,14 +1,31 @@
 import { jsPDF } from "jspdf";
 import React, { useEffect, useState, useRef } from "react";
 import { Table, Button, DatePicker, Grid, Select, Spin, message } from "antd";
-import { CloseOutlined, PaperClipOutlined } from "@ant-design/icons";
+import { CloseOutlined, CopyOutlined, PaperClipOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
 import "./datatable.css";
-import { IGame } from "./games";
+import { IGame, IGameResult } from "./games";
 import { checkAuthAndHandleLogout } from "./authcheck";
+
+// Jodi type id — the two digit table that is bucketed by its first digit.
+const JODI_TYPE_ID = "2";
+
+// A pana is three digits; its ank is the last digit of their sum.
+const panaToAnk = (pana?: string | null): number | null => {
+  const value = String(pana ?? "").trim();
+  if (!/^\d{3}$/.test(value)) return null;
+  return value.split("").reduce((sum, digit) => sum + Number(digit), 0) % 10;
+};
+
+// First digit of a jodi number ("05" -> 0, "47" -> 4).
+const jodiDigit = (inumber: unknown): number => {
+  const parsed = parseInt(String(inumber), 10);
+  const num = Number.isNaN(parsed) ? 99 : Math.max(0, Math.min(99, parsed));
+  return Math.floor(num / 10);
+};
 
 export interface IGroup {
   id: number;
@@ -29,6 +46,7 @@ export interface IDataItem {
   __isBucket?: boolean;
   bucketLabel?: string;
   bucketIndex?: number;
+  bucketDigit?: number;
 }
 
 const { Option } = Select;
@@ -58,7 +76,11 @@ const DataTables: React.FC = () => {
   const [games, setGames] = useState<IGame[]>([]);
   const [selectedGame, setSelectedGame] = useState<IGame | null>(null);
   const [pickedGroups, setPickedGroups] = useState<IGroup[]>([]);
+  const [gameResult, setGameResult] = useState<IGameResult | null>(null);
   const scrollRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  const openAnk = panaToAnk(gameResult?.open_pana);
+  const closeAnk = panaToAnk(gameResult?.close_pana);
 
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
@@ -164,6 +186,44 @@ const DataTables: React.FC = () => {
       fetchData();
     }
   }, [selectedDate, selectedUser, selectedGroup, selectedUserId, selectedGame, pickedGroups]);
+
+  // Declared result for the game/date being viewed, so the jodi table can point
+  // at the row group the open ank landed on.
+  useEffect(() => {
+    if (!selectedGame) {
+      setGameResult(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const stillLoggedIn = await checkAuthAndHandleLogout();
+        if (!stillLoggedIn) return;
+        const response = await apiClient.get<IGameResult[]>("/get/game/result", {
+          params: { gameid: selectedGame.gameid, game_date: selectedDate },
+        });
+        if (!cancelled) setGameResult(response.data?.[0] ?? null);
+      } catch {
+        if (!cancelled) setGameResult(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedGame, selectedDate]);
+
+  // Bring the winning row group into view inside the jodi table's scroll box.
+  useEffect(() => {
+    if (openAnk === null || loading) return;
+    const timer = setTimeout(() => {
+      const container = scrollRefs.current[JODI_TYPE_ID];
+      const row = container?.querySelector(".result-hit-row, .result-bucket-row") as HTMLElement | null;
+      if (!container || !row) return;
+      const offset = row.getBoundingClientRect().top - container.getBoundingClientRect().top;
+      container.scrollTop += offset - container.clientHeight / 3;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [openAnk, groupedData, loading]);
 
     // helper: snap value to nearest/floor/ceil tens
 const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => {
@@ -370,13 +430,33 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
     });
   };
 
+  // Copies just the ten jodis of one row group (d0..d9) — no total line.
+  // Numbers with no entry are written as 0 so the block is always ten lines.
+  const copyBucketData = (digit: number, rows: IDataItem[]) => {
+    const amounts = new Map<string, number>();
+    rows.forEach((row) => {
+      if (row.__isBucket || jodiDigit(row.inumber) !== digit) return;
+      const key = String(parseInt(String(row.inumber), 10)).padStart(2, "0");
+      amounts.set(key, (amounts.get(key) ?? 0) + Number(row.adjusted_amount ?? row.total_amount ?? 0));
+    });
+
+    const lines: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const key = `${digit}${i}`;
+      lines.push(`${key}: ${amounts.get(key) ?? 0}`);
+    }
+
+    navigator.clipboard.writeText(lines.join("\n")).then(
+      () => message.success(`Copied ${digit}0-${digit}9`),
+      () => message.error("Failed to copy to clipboard")
+    );
+  };
+
   const buildBucketedData = (rows: any[], bucketTotalsOnly: boolean = false) => {
     const buckets = new Map<number, { label: string; total: number; rows: any[] }>();
 
     rows.forEach((r) => {
-      const n = parseInt(String(r.inumber), 10);
-      const num = Number.isNaN(n) ? 99 : Math.max(0, Math.min(99, n));
-      const start = Math.floor(num / 10) * 10;
+      const start = jodiDigit(r.inumber) * 10;
       const end = start + 9;
       const label = `${String(start).padStart(2, "0")}-${String(end).padStart(2, "0")}`;
       if (!buckets.has(start)) {
@@ -397,21 +477,21 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
         String(a.inumber).localeCompare(String(b.inumber), undefined, { numeric: true, sensitivity: "base" })
       );
 
- const numericLabel = String(bucketIndex );      if (bucketTotalsOnly) {
-        augmented.push({
-          __isBucket: true,
-          bucketLabel: `${numericLabel} Total`,
-          total_amount: bucket.total,
-          bucketIndex: bucketIndex++,
-        });
+      // Label by the digit the group actually holds, not by its position, so
+      // "4 Total" always means the 40-49 rows even when earlier groups are empty.
+      const bucketDigit = start / 10;
+      const bucketRow = {
+        __isBucket: true,
+        bucketLabel: `${bucketDigit} Total`,
+        bucketDigit,
+        total_amount: bucket.total,
+        bucketIndex: bucketIndex++,
+      };
+      if (bucketTotalsOnly) {
+        augmented.push(bucketRow);
       } else {
         bucket.rows.forEach((r) => augmented.push(r));
-        augmented.push({
-          __isBucket: true,
-          bucketLabel: `${numericLabel} Total`,
-          total_amount: bucket.total,
-          bucketIndex: bucketIndex++,
-        });
+        augmented.push(bucketRow);
       }
     }
 
@@ -604,6 +684,31 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
               </Button>
             </div>
           </div>
+
+          <div className="control-card">
+            <p className="control-card__title">Result</p>
+            {gameResult ? (
+              <div className="result-grid">
+                <div className="result-cell">
+                  <span className="result-cell__label">Open</span>
+                  <span className="result-cell__pana">{gameResult.open_pana || "—"}</span>
+                  <span className="result-cell__ank">{openAnk !== null ? openAnk : "—"}</span>
+                </div>
+                <div className="result-cell">
+                  <span className="result-cell__label">Close</span>
+                  <span className="result-cell__pana">{gameResult.close_pana || "—"}</span>
+                  <span className="result-cell__ank">{closeAnk !== null ? closeAnk : "—"}</span>
+                </div>
+              </div>
+            ) : (
+              <span className="control-empty-chip">No result declared for this date</span>
+            )}
+            <p className="control-card__subtext">
+              {openAnk !== null
+                ? `Jodi ${openAnk}0-${openAnk}9 highlighted below`
+                : "Ank is the last digit of the pana's digit sum"}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -619,7 +724,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
 const percentageNum = Number(percentage) || 0;
 
 // original (possibly bucketed) table rows
-const isType2 = String(typeid) === "2";
+const isType2 = String(typeid) === JODI_TYPE_ID;
 const tableData = isType2 ? buildBucketedData(data) : data.slice();
 
 // build adjusted rows and recompute bucket totals (if any)
@@ -688,7 +793,18 @@ const columns = [
     },
     render: (_: any, record: any) => {
       if (record.__isBucket) {
-        return <strong>{record.bucketLabel}</strong>;
+        return (
+          <span className="bucket-label">
+            <strong>{record.bucketLabel}</strong>
+            <Button
+              type="text"
+              size="small"
+              title={`Copy ${record.bucketDigit}0-${record.bucketDigit}9`}
+              icon={<CopyOutlined />}
+              onClick={() => copyBucketData(record.bucketDigit, adjustedRows)}
+            />
+          </span>
+        );
       }
       return <span>{record.inumber}</span>;
     },
@@ -726,7 +842,15 @@ const tableContent = (
       columns={columns}
       rowKey={(record: any) => (record.__isBucket ? `bucket-${record.bucketIndex}` : `${record.inumber}`)}
       pagination={false}
-      rowClassName={(record: any) => (record.__isBucket ? "bucket-row" : "")}
+      rowClassName={(record: any) => {
+        const classes: string[] = [];
+        if (record.__isBucket) classes.push("bucket-row");
+        if (isType2 && openAnk !== null) {
+          const digit = record.__isBucket ? record.bucketDigit : jodiDigit(record.inumber);
+          if (digit === openAnk) classes.push(record.__isBucket ? "result-bucket-row" : "result-hit-row");
+        }
+        return classes.join(" ");
+      }}
     />
   </div>
 );
@@ -736,6 +860,18 @@ const tableContent = (
               <div className="table-container" key={typeid}>
                 <h3>
                   <span>{typename}</span>
+                  {isType2 && openAnk !== null && (
+                    <span className="result-chip">
+                      <span>Ank {openAnk}</span>
+                      <Button
+                        type="text"
+                        size="small"
+                        title={`Copy ${openAnk}0-${openAnk}9`}
+                        icon={<CopyOutlined />}
+                        onClick={() => copyBucketData(openAnk, adjustedRows)}
+                      />
+                    </span>
+                  )}
                   <span className={`table-total ${isType2 ? "table-total--accent" : ""}`}>
                     Total: {formatNumber(adjustedGroupTotal)}
                   </span>

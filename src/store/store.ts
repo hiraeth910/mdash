@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { isSessionExpired, clearStoredSession } from "../utils/session";
 
 interface UserState {
   userRole: string | null;
@@ -14,9 +15,16 @@ interface ThemeState {
   setTheme: (theme: "light" | "dark") => void;
 }
 
-// Read initial values from localStorage
-const storedRole = localStorage.getItem("role");
-const storedUserId = localStorage.getItem("userId");
+// Read initial values from localStorage. A stored login older than the
+// session TTL is discarded here so a stale role/userId never boots the app
+// straight past the login screen.
+let storedRole = localStorage.getItem("role");
+let storedUserId = localStorage.getItem("userId");
+if ((storedRole || storedUserId) && isSessionExpired()) {
+  clearStoredSession();
+  storedRole = null;
+  storedUserId = null;
+}
 
 export const useUserStore = create<UserState>()(
   persist(
@@ -39,8 +47,7 @@ export const useUserStore = create<UserState>()(
       },
       logout: () => {
         set({ userRole: null, userId: null });
-        localStorage.removeItem("role");
-        localStorage.removeItem("userId");
+        clearStoredSession();
       },
     }),
     {

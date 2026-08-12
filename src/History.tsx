@@ -8,6 +8,7 @@ import { apiClient } from "./utils/api";
 import { IGroup } from "./userGames";
 import { IGame } from "./games";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import { useDragSelect } from "./utils/useDragSelect";
 import "./datatable.css";
 
 interface HistoryRecord {
@@ -58,6 +59,28 @@ const HistoryTable: React.FC = () => {
   const [games, setGames] = useState<IGame[]>([]);
   const [selectedGame, setSelectedGame] = useState<IGame | null>(null);
   const [displayedRecords, setDisplayedRecords] = useState(historyData);
+
+  // Press and drag across rows to select/clear a run of records.
+  const { isDragging, getDragHandleProps } = useDragSelect({
+    isSelected: (id) => selectedIds.includes(id),
+    setSelected: (id, selected) =>
+      setSelectedIds((prev) =>
+        selected ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter((x) => x !== id)
+      ),
+  });
+
+  // The whole row is the drag surface (not just the checkbox), but a press
+  // that starts on Edit/Delete must still act as a normal button click.
+  const getRowDragProps = (id: number) => {
+    const base = getDragHandleProps(id);
+    return {
+      ...base,
+      onPointerDown: (event: React.PointerEvent<HTMLElement>) => {
+        if ((event.target as HTMLElement).closest("button, .ant-btn")) return;
+        base.onPointerDown(event);
+      },
+    };
+  };
 
 useEffect(() => {
   const newDisplayedRecords = historyData
@@ -232,7 +255,14 @@ if (filteredData.length === 0) return null;
           <h3 style={{ textAlign: "center", marginBottom: "1rem", color: "var(--color-heading)" }}>{title}</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {filteredData.map((record) => (
-              <div key={record.history_id} className="mobile-card" style={{ position: "relative" }}>
+              <div
+                key={record.history_id}
+                style={{ position: "relative" }}
+                {...getRowDragProps(record.history_id)}
+                className={`mobile-card select-cell${
+                  selectedIds.includes(record.history_id) ? " mobile-card--selected" : ""
+                }`}
+              >
                 <div className="mobile-card__row">
                   <span className="mobile-card__label">Number</span>
                   <span className="mobile-card__value">{record.history_number}</span>
@@ -311,6 +341,13 @@ return (
         bordered
         pagination={false}
         style={{ width: "100%", marginBottom: "0" }}
+        onRow={(record: HistoryRecord) => {
+          const dragProps = getRowDragProps(record.history_id);
+          return {
+            ...dragProps,
+            className: `${dragProps.className}${selectedIds.includes(record.history_id) ? " selected-row" : ""}`,
+          };
+        }}
       >
         <Table.Column title="Number" dataIndex="history_number" key="history_number" />
         <Table.Column title="Amount" dataIndex="history_amount" key="history_amount" />
@@ -540,7 +577,7 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
   };
 
   return (
-    <div className="data-page">
+    <div className={`data-page${isDragging ? " is-drag-selecting" : ""}`}>
       <div className="header">
         <Link to={`/userGames`}>Games</Link>
         <Link to={'/insert'}>Insert</Link>
@@ -614,10 +651,10 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
           value={searchAmount}
           onChange={(e) => setSearchAmount(e.target.value)}
           style={{ width: 200 }}
-        /><input 
-  type="checkbox" 
-  onChange={handleSelectAll} 
-  checked={selectedIds.length === displayedRecords.length && displayedRecords.length > 0} 
+        /><input
+  type="checkbox"
+  onChange={handleSelectAll}
+  checked={selectedIds.length === displayedRecords.length && displayedRecords.length > 0}
 /> Select All
           <Button
           type="primary"
@@ -625,8 +662,12 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
           onClick={handleDeleteSelected}
           disabled={!selectedIds.length}
         >
-          Delete Selected
+          Delete Selected{selectedIds.length ? ` (${selectedIds.length})` : ""}
         </Button>
+        {selectedIds.length > 0 && (
+          <Button onClick={() => setSelectedIds([])}>Clear</Button>
+        )}
+        <span className="drag-select-hint">Tip: press a checkbox and drag over the rows to select many at once.</span>
       </div>
      <div style={{ maxHeight: isMobile ? '80vh' : 'auto', overflowY: isMobile ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
   {displayedRecords.length === 0 ? (

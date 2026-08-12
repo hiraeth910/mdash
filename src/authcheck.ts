@@ -1,11 +1,18 @@
 import { useUserStore } from "./store/store";
 import { apiClient } from "./utils/api";
+import { isSessionExpired } from "./utils/session";
 
 export async function checkAuthAndHandleLogout(): Promise<boolean | void> {
   try {
     const userId = useUserStore.getState().userId;
     if (userId == null) return; // No logged-in user, skip
-    
+
+    if (isSessionExpired()) {
+      useUserStore.getState().logout();
+      window.location.href = '/';
+      return;
+    }
+
     const response = await apiClient.get('/authorize', {
       headers: {
         'x-userid': userId, // number is fine; axios/stringify handles it

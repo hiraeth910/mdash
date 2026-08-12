@@ -3,6 +3,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./login.css";
 import { useUserStore } from "./store/store";
 import { loginUser } from "./utils/api";
+import { recordLogin } from "./utils/session";
 
 const Login: React.FC = () => {
   const [userId, setUserId] = useState("");
@@ -39,6 +40,7 @@ const Login: React.FC = () => {
       setUser(response.role, response.id);
       localStorage.setItem("role", response.role);
       localStorage.setItem("userId", response.id);
+      recordLogin();
       window.location.href = response.role === "user" ? "/userGames" : "/games";
     } else {
       setError(response.message || "Invalid credentials");
