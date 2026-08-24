@@ -55,7 +55,7 @@
   border: 2px solid var(--color-border);
   border-radius: 0.5rem;
   font-size: 1rem;
-  background: rgba(17, 37, 42, 0.85);
+  background: var(--input-bg);
   color: var(--color-text);
   transition: all 0.2s ease;
   margin-bottom: 1rem;
@@ -63,12 +63,12 @@
 
 .form-control:hover {
   border-color: rgba(62, 207, 142, 0.4);
-  background: rgba(17, 37, 42, 0.95);
+  background: var(--input-bg-hover);
 }
 
 .form-control:focus {
   border-color: var(--color-primary);
-  background: rgba(17, 37, 42, 1);
+  background: var(--input-bg-focus);
   outline: none;
   box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.24);
 }
@@ -120,7 +120,7 @@
 }
 
 .btn-primary:disabled {
-  background: rgba(17, 37, 42, 0.6);
+  background: var(--input-bg-disabled);
   cursor: not-allowed;
   box-shadow: none;
   transform: none;

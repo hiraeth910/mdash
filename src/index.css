@@ -33,7 +33,11 @@
   --gradient-hero: linear-gradient(145deg, rgba(4, 30, 26, 0.95) 0%, rgba(31, 157, 109, 0.82) 100%);
   --shadow-soft: 0 18px 38px rgba(3, 15, 20, 0.42);
   --shadow-hover: 0 28px 46px rgba(3, 15, 20, 0.56);
-  --table-odd-row-bg: rgba(132, 172, 142, 0.3);
+  --table-odd-row-bg: rgba(132, 172, 142, 0.2);
+  --input-bg: rgba(17, 37, 42, 0.85);
+  --input-bg-hover: rgba(17, 37, 42, 0.95);
+  --input-bg-focus: rgba(17, 37, 42, 1);
+  --input-bg-disabled: rgba(17, 37, 42, 0.6);
 }
 
 [data-theme="light"] {
@@ -70,7 +74,11 @@
   --gradient-hero: linear-gradient(145deg, rgba(253, 242, 248, 0.95) 0%, rgba(236, 72, 153, 0.82) 100%);
   --shadow-soft: 0 18px 38px rgba(236, 72, 153, 0.15);
   --shadow-hover: 0 28px 46px rgba(236, 72, 153, 0.22);
-  --table-odd-row-bg: rgba(76, 71, 71, 0.192);
+  --table-odd-row-bg: rgba(76, 71, 71, 0.12);
+  --input-bg: rgba(253, 242, 248, 0.85);
+  --input-bg-hover: rgba(253, 242, 248, 0.95);
+  --input-bg-focus: rgba(253, 242, 248, 1);
+  --input-bg-disabled: rgba(253, 242, 248, 0.6);
 }
 
 * {
