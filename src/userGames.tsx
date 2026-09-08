@@ -134,7 +134,7 @@ const Games: React.FC = () => {
 
     if (selectedGame) {
       navigate(
-        `/insert/${selectedGame.gameid}/${encodeURIComponent(selectedGame.gamename)}/${selectedGroup.id}/${selectedGroup.groupname}/${selectedTime}`,
+        `/insert/${selectedGame.gameid}/${encodeURIComponent(selectedGame.gamename)}/${selectedGroup.id}/${encodeURIComponent(selectedGroup.groupname)}/${selectedTime}`,
         {
           state: { group: selectedGroup, selectedTime },
         }
