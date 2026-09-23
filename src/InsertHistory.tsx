@@ -10,6 +10,7 @@ import { IGame } from "./games";
 import { IGroup } from "./userGames";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import {  fillWithNextValue } from "./utils/helpter";
+import { fileToBase64 } from "./utils/imageCompress";
 
 interface NumberEntry {
   number: string;
@@ -52,6 +53,8 @@ const InsertHistory: React.FC = () => {
 
   const [invalidLines, setInvalidLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
   const [ambiguousLines, setAmbiguousLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
+  const [pastedImagePreviews, setPastedImagePreviews] = useState<string[]>([]);
+  const [extractingImages, setExtractingImages] = useState(false);
   const prevInputRef = useRef<string>("");
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
   const highlighterRef = useRef<HTMLDivElement | null>(null);
@@ -375,6 +378,46 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     highlighterRef.current.scrollLeft = textareaRef.current.scrollLeft;
   };
 
+  // ---------- Paste-an-image-to-extract-text ----------
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
+    if (imageItems.length === 0) return; // let normal text paste proceed
+
+    e.preventDefault();
+
+    if (imageItems.length > 2) {
+      message.warning("You can paste at most 2 images at a time.");
+      return;
+    }
+
+    const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
+    if (files.length === 0) return;
+
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setPastedImagePreviews(previews);
+    setExtractingImages(true);
+
+    try {
+      const encoded = await Promise.all(files.map((f) => fileToBase64(f)));
+      const response = await apiClient.post("/extract-bet-image", {
+        images: encoded.map((c) => ({ data: c.base64, mediaType: c.mediaType })),
+      });
+      const extractedText: string = response.data?.text || "";
+      if (extractedText) {
+        setInputValue((prev) => (prev.trim() ? `${prev}\n${extractedText}` : extractedText));
+      } else {
+        message.warning("No text could be extracted from the image(s).");
+      }
+    } catch (err) {
+      console.error("Image extraction failed:", err);
+      message.error("Failed to extract text from image(s).");
+    } finally {
+      setExtractingImages(false);
+      previews.forEach((url) => URL.revokeObjectURL(url));
+      setPastedImagePreviews([]);
+    }
+  };
+
   // const mapPosition = (original: string, cleaned: string, pos: number): number => {
   //   const originalLines = original.split(/\r?\n/);
   //   const cleanedLines = cleaned.split(/\r?\n/);
@@ -669,9 +712,23 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               onScroll={syncScroll}
               onKeyUp={syncScroll}
               onClick={syncScroll}
-              placeholder="Enter numbers separated by comma, space, or dash"
+              onPaste={handlePaste}
+              placeholder="Enter numbers separated by comma, space, or dash — or paste an image (up to 2)"
             />
           </div>
+
+          {(extractingImages || pastedImagePreviews.length > 0) && (
+            <div className="pasted-images-row">
+              {pastedImagePreviews.map((src, i) => (
+                <img key={i} src={src} alt="Pasted bet slip" className="pasted-image-thumb" />
+              ))}
+              {extractingImages && (
+                <span className="pasted-images-status">
+                  <Spin size="small" /> Extracting text from image{pastedImagePreviews.length > 1 ? "s" : ""}…
+                </span>
+              )}
+            </div>
+          )}
 
           <Button type="primary" className="btn-responsive" onClick={handleSubmit} disabled={isBlocked}>
             Update
