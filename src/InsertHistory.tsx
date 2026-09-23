@@ -394,19 +394,12 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   };
 
   // ---------- Paste-an-image-to-extract-text ----------
-  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
-    if (imageItems.length === 0) return; // let normal text paste proceed
-
-    e.preventDefault();
-
-    if (imageItems.length > 2) {
-      message.warning("You can paste at most 2 images at a time.");
+  const extractFromImages = async (files: File[], endpoint: string) => {
+    if (files.length === 0) return;
+    if (files.length > 2) {
+      message.warning("You can use at most 2 images at a time.");
       return;
     }
-
-    const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
-    if (files.length === 0) return;
 
     const previews = files.map((f) => URL.createObjectURL(f));
     setPastedImagePreviews(previews);
@@ -414,7 +407,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
     try {
       const encoded = await Promise.all(files.map((f) => fileToBase64(f)));
-      const response = await apiClient.post("/extract-bet-image", {
+      const response = await apiClient.post(endpoint, {
         images: encoded.map((c) => ({ data: c.base64, mediaType: c.mediaType })),
       });
       const extractedText: string = response.data?.text || "";
@@ -430,6 +423,38 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       setExtractingImages(false);
       previews.forEach((url) => URL.revokeObjectURL(url));
       setPastedImagePreviews([]);
+    }
+  };
+
+  // Pasting directly into the textarea uses the cheaper default model.
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
+    if (imageItems.length === 0) return; // let normal text paste proceed
+
+    e.preventDefault();
+    const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
+    extractFromImages(files, "/extract-bet-image");
+  };
+
+  // The explicit Paste button uses a pricier, more accurate model for when it's worth it.
+  const handlePasteButtonClick = async () => {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      const files: File[] = [];
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((t) => t.startsWith("image/"));
+        if (!imageType) continue;
+        const blob = await item.getType(imageType);
+        files.push(new File([blob], "pasted-image", { type: imageType }));
+      }
+      if (files.length === 0) {
+        message.warning("No image found on the clipboard.");
+        return;
+      }
+      extractFromImages(files, "/extract-bet-image-gemini");
+    } catch (err) {
+      console.error("Clipboard read failed:", err);
+      message.error("Couldn't read an image from the clipboard. Copy an image first, then click Paste.");
     }
   };
 
@@ -731,6 +756,14 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               placeholder="Enter numbers separated by comma, space, or dash — or paste an image (up to 2)"
             />
           </div>
+
+          <Button
+            className="btn-ghost btn-responsive"
+            onClick={handlePasteButtonClick}
+            disabled={extractingImages}
+          >
+            Paste image (high accuracy)
+          </Button>
 
           {(extractingImages || pastedImagePreviews.length > 0) && (
             <div className="pasted-images-row">
