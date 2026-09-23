@@ -231,6 +231,11 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           prevNonEmptyIdx = i;
           continue;
         }
+        if (amount === 1) {
+          ambigs.push({ line: i, raw: rawLine, reason: "amount of 1 is usually a misread shared/bracket amount — please verify" });
+          prevNonEmptyIdx = i;
+          continue;
+        }
 
         let anyInvalidNum = false;
         numberTokens.forEach((num) => {
@@ -262,6 +267,11 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         const num = pairMatch[1];
         const amtStr = pairMatch[2].replace(/,/g, "");
         const amt = parseInt(amtStr, 10);
+        if (amt === 1) {
+          ambigs.push({ line: i, raw: rawLine, reason: "amount of 1 is usually a misread shared/bracket amount — please verify" });
+          prevNonEmptyIdx = i;
+          continue;
+        }
         if (isValidNumber(num) && !Number.isNaN(amt) && amt > 0) {
           const len = num.length;
           const mapping = getMapping(len);
@@ -289,6 +299,11 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         const amount = parseInt(amountStr, 10);
         if (Number.isNaN(amount) || amount <= 0) {
           invalids.push({ line: i, raw: rawLine, reason: "invalid trailing amount" });
+          prevNonEmptyIdx = i;
+          continue;
+        }
+        if (amount === 1) {
+          ambigs.push({ line: i, raw: rawLine, reason: "amount of 1 is usually a misread shared/bracket amount — please verify" });
           prevNonEmptyIdx = i;
           continue;
         }
