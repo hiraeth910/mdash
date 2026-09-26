@@ -281,6 +281,7 @@ if (name === "open_pana")  setOpenPana(value);
                             handleEdit(game);
                           }}
                         />
+                        {userRole === "superadmin" && (
                         <Button
                           type="default"
                           danger
@@ -290,6 +291,7 @@ if (name === "open_pana")  setOpenPana(value);
                             openResultModal(game);
                           }}
                         />
+                        )}
                       </div>
                     </div>
                   );
@@ -325,6 +327,7 @@ if (name === "open_pana")  setOpenPana(value);
                             handleEdit(game);
                           }}
                         />
+                        {userRole === "superadmin" && (
                         <Button
                           type="default"
                           danger
@@ -334,6 +337,7 @@ if (name === "open_pana")  setOpenPana(value);
                             openResultModal(game);
                           }}
                         />
+                        )}
                       </div>
                     </div>
                   );
