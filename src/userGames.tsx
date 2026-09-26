@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Table, Modal, Select, message } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
+import { isAdminRole } from "./utils/session";
 import { apiClient } from "./utils/api";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import "./usergames.css";
@@ -111,7 +112,7 @@ const Games: React.FC = () => {
 
   // Handle Game Click
   const handleGameClick = (record: IGame) => {
-    if (userRole === "admin") {
+    if (isAdminRole(userRole)) {
       navigate(`/data/${record.gameid}/${encodeURIComponent(record.gamename)}/admin/admin`);
       return;
     }

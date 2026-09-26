@@ -132,7 +132,7 @@ const App: React.FC = () => {
         <Route
           path="/users"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
               <Users />
             </ProtectedRoute>
           }
@@ -141,7 +141,7 @@ const App: React.FC = () => {
         <Route
           path="/groups"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
               <Groups />
             </ProtectedRoute>
           }
@@ -149,7 +149,7 @@ const App: React.FC = () => {
         <Route
           path="/history-viewer"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
               <HistoryViewer />
             </ProtectedRoute>
           }

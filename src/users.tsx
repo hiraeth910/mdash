@@ -12,6 +12,7 @@ import { EditFilled, DeleteFilled } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { apiClient } from "./utils/api";
 import { useUserStore } from "./store/store";
+import { isAdminRole } from "./utils/session";
 import "./game.css";
 import { checkAuthAndHandleLogout } from "./authcheck";
 
@@ -26,8 +27,10 @@ export interface IGroup {
 export interface IUser {
   user_id: number;
   user_name: string;
-  user_password: string;
+  // null when the server withholds another admin's password
+  user_password: string | null;
   user_role: string;
+  admin_id: number | null;
   group_ids: number[];
   last_login: string;
   created_at: string;
@@ -42,8 +45,15 @@ export interface INewUser {
   group_ids: number[];
 }
 
+const errorMessage = (error: unknown, fallback: string): string => {
+  const data = (error as { response?: { data?: { message?: string } } })?.response?.data;
+  return data?.message || fallback;
+};
+
 const Users: React.FC = () => {
   const { userRole } = useUserStore();
+  const isSuperAdmin = userRole === "superadmin";
+  const defaultRole = isSuperAdmin ? "admin" : "";
   const [users, setUsers] = useState<IUser[]>([]);
   const [groups, setGroups] = useState<IGroup[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -53,23 +63,16 @@ const Users: React.FC = () => {
   const [newUser, setNewUser] = useState<INewUser>({
     userid: "",
     password: "",
-    role: "",
+    role: defaultRole,
     group_ids: [],
   });
   const [searchText, setSearchText] = useState<string>("");
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
 
-  // Fetch groups on mount.
+  // Groups first (users are shown with group names), then users - even when the account has no groups yet.
   useEffect(() => {
     fetchGroups();
   }, []);
-
-  // Once groups are loaded, fetch users.
-  useEffect(() => {
-    if (groups.length > 0) {
-      fetchUsers();
-    }
-  }, [groups]);
 
   // Handle window resize for mobile detection
   useEffect(() => {
@@ -82,21 +85,24 @@ const Users: React.FC = () => {
 
   const fetchGroups = async () => {
     setLoading(true);
+    let groupList: IGroup[] = [];
     try {
       const stillLoggedIn = await checkAuthAndHandleLogout();
   if (!stillLoggedIn) return;
       // Assuming your /groups endpoint returns an array of IGroup objects.
       const response = await apiClient.get<IGroup[]>("/groups");
-      setGroups(response.data);
+      groupList = response.data;
+      setGroups(groupList);
     } catch (error) {
       console.error(error)
       message.error("Failed to fetch groups");
     } finally {
       setLoading(false);
     }
+    await fetchUsers(groupList);
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (groupList: IGroup[] = groups) => {
     setLoading(true);
     try {
       const stillLoggedIn = await checkAuthAndHandleLogout();
@@ -105,8 +111,8 @@ const Users: React.FC = () => {
       const response = await apiClient.get<{ users: IUser[] }>("/users");
       // Map each user’s group_ids to group names from the groups state.
       const fetchedUsers = response.data.users.map((user) => {
-        const groupNames = user.group_ids?.map((id) => {
-          const grp = groups.find((group) => group.group_id === id);
+        const groupNames = (user.group_ids || []).map((id) => {
+          const grp = groupList.find((group) => group.group_id === id);
           return grp ? grp.group_name : "Missing";
         });
         return { ...user, groups: groupNames };
@@ -152,14 +158,15 @@ const Users: React.FC = () => {
     } catch (error) {
             console.error(error)
 
-      message.error("Failed to add user");
+      message.error(errorMessage(error, "Failed to add user"));
     }
   };
 
   const handleEdit = (record: IUser) => {
     setNewUser({
       userid: record.user_name,
-      password: record.user_password,
+      // Left empty when hidden; the server keeps the current password.
+      password: record.user_password ?? "",
       role: record.user_role,
       group_ids: record.group_ids,
     });
@@ -186,7 +193,7 @@ const Users: React.FC = () => {
     } catch (error) {
             console.error(error)
 
-      message.error("Failed to update user");
+      message.error(errorMessage(error, "Failed to update user"));
     }
   };
 
@@ -198,7 +205,7 @@ const Users: React.FC = () => {
     } catch (error) {
             console.error(error)
 
-      message.error("Failed to delete user");
+      message.error(errorMessage(error, "Failed to delete user"));
     }
   };
 
@@ -215,21 +222,31 @@ const Users: React.FC = () => {
     },
     {
       title: "Role",
-      dataIndex: "user_role",
       key: "user_role",
+      render: (_: unknown, record: IUser) => roleLabel(record),
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            title: "Account",
+            key: "account",
+            render: (_: unknown, record: IUser) => accountName(record),
+          },
+        ]
+      : []),
     {
       title: "Access to Groups",
       dataIndex: "groups",
       key: "groups",
-      render: (groups: string[]) => groups.join(", "),
+      render: (groups?: string[]) => (groups || []).join(", "),
     },
-    ...(userRole === "admin"
+    ...(isAdminRole(userRole)
       ? [
           {
             title: "Password",
             dataIndex: "user_password",
             key: "user_password",
+            render: (password: string | null) => password ?? "—",
           },
         {
   title: "Actions",
@@ -252,9 +269,23 @@ const Users: React.FC = () => {
       : []),
   ];
 
+  const accountName = (record: IUser) =>
+    users.find((u) => u.user_id === record.admin_id)?.user_name ?? "—";
+
+  const roleLabel = (record: IUser) => {
+    if (record.user_role === "superadmin") return "Super admin";
+    if (record.user_role === "admin" && record.user_id === record.admin_id) return "Admin (account owner)";
+    return record.user_role === "admin" ? "Admin" : "User";
+  };
+
+  // The owner and the super admin keep their role; everyone else can switch between admin and user.
+  const roleLocked =
+    isEditing && !!selectedUser &&
+    (selectedUser.user_role === "superadmin" || selectedUser.user_id === selectedUser.admin_id);
+
   return (
     <div className="container">
-      {userRole === "admin" && (
+      {isAdminRole(userRole) && (
         <div className="header top-nav">
           <Link to="/users" className="active">
             Users
@@ -280,7 +311,7 @@ const Users: React.FC = () => {
             onClick={() => {
               setIsEditing(false);
               setSelectedUser(null);
-              setNewUser({ userid: "", password: "", role: "", group_ids: [] });
+              setNewUser({ userid: "", password: "", role: defaultRole, group_ids: [] });
               setModalVisible(true);
             }}
           >
@@ -294,11 +325,12 @@ const Users: React.FC = () => {
                 <Card key={user.user_id} style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text)' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div><strong>User Name:</strong> {user.user_name}</div>
-                    <div><strong>Role:</strong> {user.user_role}</div>
+                    <div><strong>Role:</strong> {roleLabel(user)}</div>
+                    {isSuperAdmin && <div><strong>Account:</strong> {accountName(user)}</div>}
                     <div><strong>Access to Groups:</strong> {user.groups?.join(', ')}</div>
-                    {userRole === 'admin' && (
+                    {isAdminRole(userRole) && (
                       <>
-                        <div><strong>Password:</strong> {user.user_password}</div>
+                        <div><strong>Password:</strong> {user.user_password ?? "—"}</div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <EditFilled
                             style={{ color: "#52c41a", cursor: "pointer" }}
@@ -334,7 +366,7 @@ const Users: React.FC = () => {
         onCancel={() => {
           setModalVisible(false);
           setSelectedUser(null);
-          setNewUser({ userid: "", password: "", role: "", group_ids: [] });
+          setNewUser({ userid: "", password: "", role: defaultRole, group_ids: [] });
         }}
         onOk={isEditing ? handleUpdate : handleSubmit}
         bodyStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}
@@ -350,7 +382,7 @@ const Users: React.FC = () => {
           <label>Password</label>
           <Input
             type="password"
-            placeholder="Enter password"
+            placeholder={isEditing ? "Leave empty to keep the current password" : "Enter password"}
             name="password"
             value={newUser.password}
             onChange={handleInputChange}
@@ -360,11 +392,27 @@ const Users: React.FC = () => {
             placeholder="Select role"
             value={newUser.role}
             onChange={handleRoleChange}
+            disabled={roleLocked}
             style={{ width: "100%", marginBottom: "1rem" }}
           >
-            <Option value="admin">Admin</Option>
-            <Option value="user">User</Option>
+            {isSuperAdmin && !isEditing ? (
+              <Option value="admin">Admin (new separate account)</Option>
+            ) : roleLocked && selectedUser ? (
+              <Option value={newUser.role}>{roleLabel(selectedUser)}</Option>
+            ) : (
+              <>
+                <Option value="admin">Admin</Option>
+                <Option value="user">User</Option>
+              </>
+            )}
           </Select>
+          {isSuperAdmin && !isEditing && (
+            <p style={{ marginBottom: "1rem" }}>
+              The new admin gets an empty account and creates their own groups and users.
+            </p>
+          )}
+          {!isSuperAdmin && (
+          <>
           <label>Groups</label>
          <Select
     mode="multiple"
@@ -381,6 +429,8 @@ const Users: React.FC = () => {
       </Option>
     ))}
   </Select>
+          </>
+          )}
         </div>
       </Modal>
       

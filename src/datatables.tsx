@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
+import { isAdminRole } from "./utils/session";
 import "./datatable.css";
 import { IGame, IGameResult } from "./games";
 import { checkAuthAndHandleLogout } from "./authcheck";
@@ -145,8 +146,8 @@ const DataTables: React.FC = () => {
       const currentUser = allUsers.find((user: IUser) => user.user_id === userId);
       const filteredUsers = allUsers.filter((user: IUser) => user.user_id !== userId);
       setUsers(filteredUsers);
-      setSelectedUser(userRole === "admin" ? "Game" : currentUser?.user_name || null);
-      if (userRole !== "admin") {
+      setSelectedUser(isAdminRole(userRole) ? "Game" : currentUser?.user_name || null);
+      if (!isAdminRole(userRole)) {
         setSelectedUserId(currentUser?.user_id ?? null);
       }
     } catch {
@@ -500,7 +501,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
 
   return (
     <div className="page-content data-page">
-      {userRole !== "admin" ? (
+      {!isAdminRole(userRole) ? (
         <div className="header">
           <Link to={`/userGames`}>Games</Link>
           <Link to={"/insert"}>Insert</Link>
@@ -554,7 +555,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
           ))}
         </Select>
 
-        {userRole === "admin" && (
+        {isAdminRole(userRole) && (
           <Button
             type="primary"
             onClick={() => window.location.href = '/history-viewer'}
@@ -575,10 +576,10 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
                 <Select
                   value={selectedUser || undefined}
                   onChange={handleUserChange}
-                  disabled={userRole !== "admin"}
+                  disabled={!isAdminRole(userRole)}
                   style={{ width: "100%" }}
                 >
-                  {userRole === "admin" && <Option value="Game">Game</Option>}
+                  {isAdminRole(userRole) && <Option value="Game">Game</Option>}
                   {users.map((user: any) => (
                     <Option key={user.user_id} value={user.user_name}>
                       {user.user_name}

@@ -5,6 +5,7 @@ import "./game.css";
 import { Link } from "react-router-dom";
 import { apiClient } from "./utils/api";
 import { useUserStore } from "./store/store";
+import { isAdminRole } from "./utils/session";
 import { checkAuthAndHandleLogout } from "./authcheck";
 interface Game{
   name:string,
@@ -108,7 +109,7 @@ const Types: React.FC = () => {
       key: "gamename",
     },
 
-    ...(userRole === "admin"
+    ...(isAdminRole(userRole)
       ? [
           {
             title: "Actions",
@@ -129,7 +130,7 @@ const Types: React.FC = () => {
 
   return (
     <div className="container">
-      {userRole === "admin" && (
+      {isAdminRole(userRole) && (
         <div className="header">
           <Link to="/users">Users</Link>
           <Link to="/types" className="active">

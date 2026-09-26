@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { EditOutlined, PlusCircleOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
+import { isAdminRole } from "./utils/session";
 import { apiClient } from "./utils/api";
 import "./game.css";
 import { checkAuthAndHandleLogout } from "./authcheck";
@@ -238,7 +239,7 @@ if (name === "open_pana")  setOpenPana(value);
   return (
     <>
       <div className="container">
-        {userRole === "admin" && (
+        {isAdminRole(userRole) && (
           <div className="header top-nav">
             <Link to="/users">Users</Link>
             <Link to="/games" className="active">
