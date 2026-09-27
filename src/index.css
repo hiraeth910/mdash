@@ -421,6 +421,11 @@ button:focus-visible {
   background: var(--color-surface) !important;
 }
 
+/* antd paints the header white by default, which hides the light title in dark mode */
+.ant-modal-header {
+  background: transparent !important;
+}
+
 .ant-modal-title,
 .ant-modal-body,
 .ant-modal-body span {
