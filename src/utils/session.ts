@@ -19,4 +19,12 @@ export const clearStoredSession = () => {
   localStorage.removeItem("role");
   localStorage.removeItem("userId");
   localStorage.removeItem("loginAt");
+  localStorage.removeItem("token");
+  sessionStorage.removeItem("user-store");
 };
+
+// Sessions stored before the server issued tokens cannot call the API.
+export const hasToken = (): boolean => !!localStorage.getItem("token");
+
+export const isAdminRole = (role: string | null): boolean =>
+  role === "admin" || role === "superadmin";

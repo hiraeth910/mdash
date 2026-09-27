@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { isSessionExpired, clearStoredSession } from "../utils/session";
+import { isSessionExpired, clearStoredSession, hasToken } from "../utils/session";
 
 interface UserState {
   userRole: string | null;
@@ -20,7 +20,7 @@ interface ThemeState {
 // straight past the login screen.
 let storedRole = localStorage.getItem("role");
 let storedUserId = localStorage.getItem("userId");
-if ((storedRole || storedUserId) && isSessionExpired()) {
+if ((storedRole || storedUserId) && (isSessionExpired() || !hasToken())) {
   clearStoredSession();
   storedRole = null;
   storedUserId = null;

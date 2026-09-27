@@ -6,8 +6,10 @@ import { Group } from "./models/group"; // Import Group interface
 import { apiClient } from "./utils/api";
 import { Link } from "react-router-dom";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import { useUserStore } from "./store/store";
 
 const Groups: React.FC = () => {
+  const { userRole } = useUserStore();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [search, setSearch] = useState<string>("");
@@ -149,9 +151,13 @@ const Groups: React.FC = () => {
         onChange={(e) => setSearch(e.target.value)}
         style={{ marginBottom: 16, width: 300 }}
       />
+      {userRole === "superadmin" ? (
+        <p style={{ marginBottom: 16 }}>Groups are created by each admin inside their own account.</p>
+      ) : (
       <Button type="primary" onClick={handleAddGroup} style={{ marginBottom: 16 }}>
         Add Group
       </Button>
+      )}
       {isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
           {filteredGroups.map((group) => (

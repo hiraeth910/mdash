@@ -3,7 +3,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./login.css";
 import { useUserStore } from "./store/store";
 import { loginUser } from "./utils/api";
-import { recordLogin } from "./utils/session";
+import { recordLogin, hasToken } from "./utils/session";
 
 const Login: React.FC = () => {
   const [userId, setUserId] = useState("");
@@ -17,7 +17,7 @@ const Login: React.FC = () => {
   useEffect(() => {
     const storedRole = localStorage.getItem("role");
     const storedUserId = localStorage.getItem("userId");
-    if (storedRole && storedUserId) {
+    if (storedRole && storedUserId && hasToken()) {
       setUser(storedRole, Number(storedUserId));
       window.location.href = storedRole === "user" ? "/userGames" : "/games";
     }
@@ -36,7 +36,8 @@ const Login: React.FC = () => {
 
     const response = await loginUser(trimmedUserId, password);
 
-    if (response.role) {
+    if (response.role && response.token) {
+      localStorage.setItem("token", response.token);
       setUser(response.role, response.id);
       localStorage.setItem("role", response.role);
       localStorage.setItem("userId", response.id);

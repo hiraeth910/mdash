@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
 import { Link, useParams } from "react-router-dom";
 import { useUserStore } from "./store/store";
+import { isAdminRole } from "./utils/session";
 import "./datatable.css";
 const { Option } = Select;
 import pdfMake from "pdfmake/build/pdfmake";
@@ -211,7 +212,7 @@ const showConfirm = () => {
 
   return (
     <div className="data-page">
-      {userRole != "admin" ? (
+      {!isAdminRole(userRole) ? (
         <div className="header top-nav">
           <Link to={`/insert/${gameid}/${gamename}`}>INSERT</Link>
           <Link to={`/history/${gameid}/${gamename}`}>HISTORY</Link>
