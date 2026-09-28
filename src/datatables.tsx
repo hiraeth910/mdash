@@ -79,6 +79,8 @@ const DataTables: React.FC = () => {
   const [pickedGroups, setPickedGroups] = useState<IGroup[]>([]);
   const [gameResult, setGameResult] = useState<IGameResult | null>(null);
   const scrollRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  // Every filter change refetches; a slower earlier response must not overwrite a newer one.
+  const latestFetchId = useRef(0);
 
   const openAnk = panaToAnk(gameResult?.open_pana);
   const closeAnk = panaToAnk(gameResult?.close_pana);
@@ -250,6 +252,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
 
 
   const fetchData = async () => {
+    const fetchId = ++latestFetchId.current;
     setLoading(true);
     try {
       let endpoint = "";
@@ -271,6 +274,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
         };
       }
       const response = await apiClient.post(endpoint, requestBody);
+      if (fetchId !== latestFetchId.current) return;
       setTotal(response.data.reduce((sum: number, item: IDataItem) => sum + item.total_amount, 0));
 
       // Group by type id
@@ -283,9 +287,9 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
       });
       setGroupedData(orderedGroupedData);
     } catch {
-      message.error("Failed to fetch data");
+      if (fetchId === latestFetchId.current) message.error("Failed to fetch data");
     } finally {
-      setLoading(false);
+      if (fetchId === latestFetchId.current) setLoading(false);
     }
   };
 
