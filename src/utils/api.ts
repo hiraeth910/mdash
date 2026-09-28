@@ -1,6 +1,6 @@
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { clearStoredSession } from './session';
+import { clearStoredSession, getTabToken } from './session';
 
 // Create API client
 export const apiClient = axios.create({
@@ -10,7 +10,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = getTabToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

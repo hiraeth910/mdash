@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { isSessionExpired, clearStoredSession, hasToken } from "../utils/session";
+import { isSessionExpired, clearStoredSession, hasToken, getTabRole, getTabUserId } from "../utils/session";
 
 interface UserState {
   userRole: string | null;
@@ -15,11 +15,10 @@ interface ThemeState {
   setTheme: (theme: "light" | "dark") => void;
 }
 
-// Read initial values from localStorage. A stored login older than the
-// session TTL is discarded here so a stale role/userId never boots the app
-// straight past the login screen.
-let storedRole = localStorage.getItem("role");
-let storedUserId = localStorage.getItem("userId");
+// Read this tab's login. A stored login older than the session TTL is discarded
+// here so a stale role/userId never boots the app straight past the login screen.
+let storedRole = getTabRole();
+let storedUserId = getTabUserId();
 if ((storedRole || storedUserId) && (isSessionExpired() || !hasToken())) {
   clearStoredSession();
   storedRole = null;
@@ -33,17 +32,7 @@ export const useUserStore = create<UserState>()(
       userId: storedUserId ? Number(storedUserId) : null,
       setUser: (role, id) => {
         set({ userRole: role, userId: id });
-        // Ensure localStorage is in sync
-        if (role !== null) {
-          localStorage.setItem("role", role);
-        } else {
-          localStorage.removeItem("role");
-        }
-        if (id !== null) {
-          localStorage.setItem("userId", id.toString());
-        } else {
-          localStorage.removeItem("userId");
-        }
+        if (role === null || id === null) clearStoredSession();
       },
       logout: () => {
         set({ userRole: null, userId: null });

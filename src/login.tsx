@@ -3,7 +3,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./login.css";
 import { useUserStore } from "./store/store";
 import { loginUser } from "./utils/api";
-import { recordLogin, hasToken } from "./utils/session";
+import { saveLogin, hasToken, getTabRole, getTabUserId } from "./utils/session";
 
 const Login: React.FC = () => {
   const [userId, setUserId] = useState("");
@@ -13,10 +13,10 @@ const Login: React.FC = () => {
   const setUser = useUserStore((state) => state.setUser);
   const [error, setError] = useState("");
 
-  // Check localStorage on initial load.
+  // Skip the login screen when this tab is already logged in.
   useEffect(() => {
-    const storedRole = localStorage.getItem("role");
-    const storedUserId = localStorage.getItem("userId");
+    const storedRole = getTabRole();
+    const storedUserId = getTabUserId();
     if (storedRole && storedUserId && hasToken()) {
       setUser(storedRole, Number(storedUserId));
       window.location.href = storedRole === "user" ? "/userGames" : "/games";
@@ -37,11 +37,8 @@ const Login: React.FC = () => {
     const response = await loginUser(trimmedUserId, password);
 
     if (response.role && response.token) {
-      localStorage.setItem("token", response.token);
+      saveLogin(response.role, response.id, response.token);
       setUser(response.role, response.id);
-      localStorage.setItem("role", response.role);
-      localStorage.setItem("userId", response.id);
-      recordLogin();
       window.location.href = response.role === "user" ? "/userGames" : "/games";
     } else {
       setError(response.message || "Invalid credentials");
