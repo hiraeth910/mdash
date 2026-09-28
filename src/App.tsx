@@ -114,11 +114,19 @@ const App: React.FC = () => {
         />
         <Route
           path="/insert/:gameid/:gamename/:groupid/:groupname/:typ"
-          element={userRole ? <InsertHistory /> : <Navigate to="/" replace />}
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <InsertHistory />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/insert"
-          element={userRole ? <InsertHistory /> : <Navigate to="/" replace />}
+          element={
+            <ProtectedRoute allowedRoles={["user"]}>
+              <InsertHistory />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/history/:gameId/:gamename"
