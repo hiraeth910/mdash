@@ -1113,3 +1113,14 @@ body.drag-selecting,
 .settlement-tabs .ant-tabs-ink-bar {
   background: #3ecf8e;
 }
+
+/* Group picker: the owning admin, shown smaller next to the group name */
+.group-option {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.group-option__admin {
+  font-size: 11px;
+  opacity: 0.65;
+}

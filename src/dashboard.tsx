@@ -128,9 +128,10 @@ const Dashboard: React.FC = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleGroupChange = (groupName: string) => {
-    setGrpname(groupName);
-    const group = groups.find((group) => group["group_name"] === groupName);
+  // Group names are only unique within an account, so the pickers select by id.
+  const handleGroupChange = (groupId: number | string) => {
+    const group = groups.find((group) => group["group_id"] === groupId);
+    setGrpname(group ? group["group_name"] : undefined);
     setSelectedGroupId(group ? group["group_id"] : null);
     if (group && group["group_id"] && users) {
       // Find the first user whose group_ids include the selected group_id
@@ -139,6 +140,18 @@ const Dashboard: React.FC = () => {
     } else {
       setSelectedUser(null);
     }
+  };
+
+  // The platform admin sees every account's groups, so each option also names the admin it belongs to.
+  const groupOptionText = (group: { group_name: string; admin_id?: number | null }) => {
+    const owner =
+      userRole === "superadmin" ? users.find((u) => u.user_id === group.admin_id)?.user_name : undefined;
+    return (
+      <span className="group-option">
+        {group.group_name}
+        {owner && <small className="group-option__admin">{owner}</small>}
+      </span>
+    );
   };
 
   useEffect(() => {
@@ -393,11 +406,13 @@ const Dashboard: React.FC = () => {
               onChange={handleGroupChange}
               getPopupContainer={() => document.body}
               defaultValue="Select Group"
+              optionLabelProp="label"
+              popupMatchSelectWidth={false}
             >
-              <option value="Select Group">Select Group</option>
+              <Option value="Select Group" label="Select Group">Select Group</Option>
               {groups.map((group) => (
-                <Option key={group["group_id"]} value={group["group_name"]}>
-                  {group["group_name"]}
+                <Option key={group["group_id"]} value={group["group_id"]} label={group["group_name"]}>
+                  {groupOptionText(group)}
                 </Option>
               ))}
             </Select>
@@ -659,12 +674,12 @@ const Dashboard: React.FC = () => {
             key={group["group_id"]}
             block
             onClick={() => {
-              handleGroupChange(group["group_name"]);
+              handleGroupChange(group["group_id"]);
               setModalVisible(false);
             }}
             style={{ marginBottom: 8 }}
           >
-            {group["group_name"]}
+            {groupOptionText(group)}
           </Button>
         ))}
       </Modal>
