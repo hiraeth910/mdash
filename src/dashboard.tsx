@@ -283,28 +283,6 @@ const Dashboard: React.FC = () => {
             ],
           },
         },
-        ...(settlement.winners.length
-          ? [
-              { text: "Winning numbers", style: "section" },
-              {
-                table: {
-                  headerRows: 1,
-                  widths: ["*", "auto", "auto", "auto", "auto", "auto"],
-                  body: [
-                    ["Game", "Type", "Number", "Bet", "Times", "Winning"].map((t) => ({ text: t, bold: true })),
-                    ...settlement.winners.map((w) => [
-                      w.res_game.trim(),
-                      w.res_type,
-                      w.res_bet_on,
-                      num(w.res_bet_amt),
-                      num(w.res_payable_times),
-                      num(w.res_win_amt),
-                    ]),
-                  ],
-                },
-              },
-            ]
-          : []),
       ],
       styles: {
         header: { fontSize: 18, bold: true, marginBottom: 4 },
