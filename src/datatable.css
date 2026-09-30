@@ -936,3 +936,162 @@ body.drag-selecting,
 .mobile-card--selected {
   background-color: var(--color-primary-10) !important;
 }
+
+/* Settlement: per-game table, calculation panel, adjustment */
+.settlement .settle-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.settlement-total-row td {
+  font-weight: 700;
+  background: var(--color-surface-muted) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.settlement-calc {
+  max-width: 560px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.settlement-calc__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.settlement-calc__row:last-child {
+  border-bottom: none;
+}
+
+.settlement-calc__row label {
+  display: flex;
+  flex-direction: column;
+  color: var(--color-text);
+}
+
+.settlement-calc__row label small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.settlement-calc__result,
+.settlement-calc__final {
+  font-weight: 700;
+}
+
+.settlement-calc__final {
+  font-size: 1.1rem;
+  background: var(--color-surface-muted);
+}
+
+.settlement-calc__result.is-negative,
+.settlement-calc__final.is-negative {
+  color: var(--color-danger);
+}
+
+.settlement-calc__result.is-positive,
+.settlement-calc__final.is-positive {
+  color: var(--color-success);
+}
+
+/* Day page (platform admin): one draggable table per admin */
+.day-grand-total {
+  display: flex;
+  justify-content: space-between;
+  max-width: 420px;
+  margin: 20px auto 4px;
+  padding: 12px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font-weight: 700;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-hint {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin: 4px 0 16px;
+}
+
+.day-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+  align-items: start;
+  padding: 0 16px 24px;
+}
+
+.day-admin-card {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  overflow: hidden;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.day-admin-card.is-dragging {
+  opacity: 0.5;
+}
+
+.day-admin-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-surface-muted);
+  color: var(--color-heading);
+  cursor: grab;
+  user-select: none;
+}
+
+.day-admin-card__handle {
+  color: var(--color-text-muted);
+}
+
+.day-admin-card__title {
+  flex: 1;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day-admin-card__total {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-admin-card__header .ant-btn {
+  color: var(--color-text);
+}
+
+.settlement .ant-collapse {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.settlement .ant-collapse > .ant-collapse-item {
+  border-color: var(--color-border);
+}
+
+.settlement .ant-collapse-header,
+.settlement .ant-collapse-header .ant-collapse-expand-icon {
+  color: var(--color-text) !important;
+}
+
+.settlement .ant-collapse-content {
+  background: transparent;
+  border-color: var(--color-border);
+}
