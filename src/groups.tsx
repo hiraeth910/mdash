@@ -80,8 +80,9 @@ const Groups: React.FC = () => {
         message.success("Group updated successfully!");
       } else {
         // Add New Group
-        const response = await apiClient.post<{ success: boolean; data: Group[] }>("/groups", values);
-        if (response.data.data[0]?.groupname === values.groupname) {
+        // The server returns the group either way; its message says whether this account already had it.
+        const response = await apiClient.post<{ success: boolean; data: (Group & { message?: string })[] }>("/groups", values);
+        if (response.data.data[0]?.message === "Group already exists") {
           message.error("Group name already exists!");
         } else {
           message.success("Group added successfully!");

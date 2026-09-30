@@ -275,7 +275,7 @@ const Users: React.FC = () => {
   const roleLabel = (record: IUser) => {
     if (record.user_role === "superadmin") return "Super admin";
     if (record.user_role === "admin" && record.user_id === record.admin_id) return "Admin (account owner)";
-    return record.user_role === "admin" ? "Admin" : "User";
+    return record.user_role === "admin" ? "Sub-admin" : "User";
   };
 
   // The owner and the super admin keep their role; everyone else can switch between admin and user.
@@ -401,7 +401,7 @@ const Users: React.FC = () => {
               <Option value={newUser.role}>{roleLabel(selectedUser)}</Option>
             ) : (
               <>
-                <Option value="admin">Admin</Option>
+                <Option value="admin">Sub-admin (full access to this account)</Option>
                 <Option value="user">User</Option>
               </>
             )}
