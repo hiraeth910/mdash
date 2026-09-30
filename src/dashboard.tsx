@@ -233,9 +233,9 @@ const Dashboard: React.FC = () => {
               [
                 { text: "Game", bold: true },
                 { text: "Total bet", bold: true, alignment: "right" },
-                { text: "Single", bold: true, alignment: "right" },
-                { text: "Jodi", bold: true, alignment: "right" },
-                { text: "Pana", bold: true, alignment: "right" },
+                { text: "Single win", bold: true, alignment: "right" },
+                { text: "Jodi win", bold: true, alignment: "right" },
+                { text: "Pana win", bold: true, alignment: "right" },
                 { text: "Total winning", bold: true, alignment: "right" },
               ],
               ...settlement.games.map((g) => [g.game, num(g.bet), num(g.single), num(g.jodi), num(g.pana), num(g.win)]),
@@ -305,9 +305,9 @@ const Dashboard: React.FC = () => {
   const gameColumns = [
     { title: "Game", dataIndex: "game", key: "game" },
     { title: "Total bet", dataIndex: "bet", key: "bet", align: "right" as const, render: amountCell },
-    { title: "Single", dataIndex: "single", key: "single", align: "right" as const, render: amountCell },
-    { title: "Jodi", dataIndex: "jodi", key: "jodi", align: "right" as const, render: amountCell },
-    { title: "Pana", dataIndex: "pana", key: "pana", align: "right" as const, render: amountCell },
+    { title: "Single win", dataIndex: "single", key: "single", align: "right" as const, render: amountCell },
+    { title: "Jodi win", dataIndex: "jodi", key: "jodi", align: "right" as const, render: amountCell },
+    { title: "Pana win", dataIndex: "pana", key: "pana", align: "right" as const, render: amountCell },
     { title: "Total winning", dataIndex: "win", key: "win", align: "right" as const, render: amountCell },
   ];
 
