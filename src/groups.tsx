@@ -10,6 +10,8 @@ import { useUserStore } from "./store/store";
 
 const Groups: React.FC = () => {
   const { userRole } = useUserStore();
+  // The platform admin only views groups; each admin manages the groups in their own account.
+  const canManage = userRole !== "superadmin";
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [search, setSearch] = useState<string>("");
@@ -108,6 +110,8 @@ const Groups: React.FC = () => {
     { title: "Commission", dataIndex: "commission", key: "commission" },
     { title: "Non-Pana Payable", dataIndex: "nonpana_payable", key: "nonpana_payable" },
     { title: "Pana Payable", dataIndex: "pana_payable", key: "pana_payable" },
+  ];
+  if (canManage) columns.push(
     {
       title: "Actions",
       key: "actions",
@@ -130,7 +134,7 @@ const Groups: React.FC = () => {
         </>
       ),
     },
-  ];
+  );
 
   return (
     <div style={{paddingBottom:'40px'}}>
@@ -152,8 +156,8 @@ const Groups: React.FC = () => {
         onChange={(e) => setSearch(e.target.value)}
         style={{ marginBottom: 16, width: 300 }}
       />
-      {userRole === "superadmin" ? (
-        <p style={{ marginBottom: 16 }}>Groups are created by each admin inside their own account.</p>
+      {!canManage ? (
+        <p style={{ marginBottom: 16 }}>Groups are created and edited by each admin inside their own account.</p>
       ) : (
       <Button type="primary" onClick={handleAddGroup} style={{ marginBottom: 16 }}>
         Add Group
@@ -168,7 +172,7 @@ const Groups: React.FC = () => {
                 <div><strong>Commission:</strong> {group.commission}</div>
                 <div><strong>Non-Pana Payable:</strong> {group.nonpana_payable}</div>
                 <div><strong>Pana Payable:</strong> {group.pana_payable}</div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                {canManage && <div style={{ display: 'flex', gap: '8px' }}>
                   <EditFilled
                     style={{ color: "#52c41a", cursor: "pointer" }}
                     onClick={() => handleEditGroup(group)}
@@ -183,7 +187,7 @@ const Groups: React.FC = () => {
                       })
                     }
                   />
-                </div>
+                </div>}
               </div>
             </Card>
           ))}
