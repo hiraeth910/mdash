@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Table, Button, DatePicker, Select, Spin, message, Modal, InputNumber, Collapse } from "antd";
+import { Table, Button, DatePicker, Select, Spin, message, Modal, InputNumber, Tabs } from "antd";
 import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
 import { Link, useParams } from "react-router-dom";
@@ -120,6 +120,7 @@ const Dashboard: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [modalVisible, setModalVisible] = useState(false);
   const [adjustment, setAdjustment] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<string>("settlement");
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -221,10 +222,56 @@ const Dashboard: React.FC = () => {
     });
   };
 
+  // The original settlement table labels its last row "payment" or "due".
+  const summaryRows = useMemo(
+    () =>
+      paymentData.map((row, index) =>
+        index === paymentData.length - 1 ? { ...row, res_game: row.res_win_amt < 0 ? "payment" : "due" } : row
+      ),
+    [paymentData]
+  );
+
+  const exportToCSV = () => {
+    const tableBody = [
+      ["Game", "Type", "Bet On", "Bet Amount", "Payable Times", "Win Amount"],
+      ...summaryRows.map(({ res_game, res_type, res_bet_on, res_bet_amt, res_payable_times, res_win_amt }) => [
+        res_game,
+        res_type,
+        res_bet_on,
+        res_bet_amt,
+        res_payable_times,
+        res_win_amt,
+      ]),
+    ];
+    const groupLabel = grpname ?? "All Groups";
+    const formattedDate = dayjs(selectedDate).format("YYYY-MM-DD");
+    const docDefinition = {
+      content: [
+        { text: `Final Payment Data for group (${groupLabel}) - ${formattedDate}`, style: "header" },
+        { text: `Generated on: ${dayjs().format("YYYY-MM-DD HH:mm:ss")}`, style: "subheader" },
+        {
+          table: {
+            headerRows: 1,
+            widths: ["*", "*", "*", "*", "*", "*"],
+            body: tableBody,
+          },
+        },
+      ],
+      styles: {
+        header: {
+          fontSize: 18,
+          bold: true,
+          marginBottom: 15,
+        },
+      },
+    };
+    pdfMake.createPdf(docDefinition as never).download(`${selectedDate}(${grpname}).pdf`);
+  };
+
   const settlement = useMemo(() => buildSettlement(paymentData), [paymentData]);
   const finalAmount = settlement ? settlement.conclusion + (adjustment || 0) : 0;
 
-  const downloadSettlement = () => {
+  const downloadBill = () => {
     if (!settlement) return;
     const groupLabel = grpname ?? "All Groups";
     const date = dayjs(selectedDate).format("YYYY-MM-DD");
@@ -232,7 +279,7 @@ const Dashboard: React.FC = () => {
     const docDefinition = {
       pageOrientation: "landscape",
       content: [
-        { text: `Settlement — ${groupLabel} — ${date}`, style: "header" },
+        { text: `Bill — ${groupLabel} — ${date}`, style: "header" },
         { text: `Generated on: ${dayjs().format("YYYY-MM-DD HH:mm:ss")}`, style: "subheader" },
         {
           table: {
@@ -290,7 +337,7 @@ const Dashboard: React.FC = () => {
         section: { fontSize: 13, bold: true, margin: [0, 14, 0, 6] },
       },
     };
-    pdfMake.createPdf(docDefinition as never).download(`Settlement_${date}(${groupLabel}).pdf`);
+    pdfMake.createPdf(docDefinition as never).download(`Bill_${date}(${groupLabel}).pdf`);
   };
 
   const amountCell = (v: number | null) => <span className="settle-num">{fmt(v)}</span>;
@@ -311,15 +358,6 @@ const Dashboard: React.FC = () => {
       ],
     },
     { title: "Total winning", dataIndex: "win", key: "win", align: "right" as const, render: amountCell },
-  ];
-
-  const winnerColumns = [
-    { title: "Game", dataIndex: "res_game", key: "g", render: (t: string) => t.trim() },
-    { title: "Type", dataIndex: "res_type", key: "t" },
-    { title: "Number", dataIndex: "res_bet_on", key: "n" },
-    { title: "Bet", dataIndex: "res_bet_amt", key: "b", align: "right" as const, render: amountCell },
-    { title: "Times", dataIndex: "res_payable_times", key: "p", align: "right" as const },
-    { title: "Winning", dataIndex: "res_win_amt", key: "w", align: "right" as const, render: amountCell },
   ];
 
   return (
@@ -374,105 +412,247 @@ const Dashboard: React.FC = () => {
           >
             Recalculate
           </Button>
-          <Button type="primary" onClick={downloadSettlement} disabled={!settlement}>
-            Download settlement
-          </Button>
+          {activeTab === "settlement" ? (
+            <Button type="primary" onClick={exportToCSV}>
+              Export as Excel
+            </Button>
+          ) : (
+            <Button type="primary" onClick={downloadBill} disabled={!settlement}>
+              Download bill
+            </Button>
+          )}
         </div>
       </div>
       {loading ? (
         <div className="loading-container">
           <Spin size="large" />
         </div>
-      ) : settlement ? (
-        <div className="payment-summary-container settlement">
-          <div className="table-container" style={{ maxHeight: "none", height: "auto", overflow: "visible" }}>
-            <h3>Settlement by game</h3>
-            <Table
-              className="settlement-table"
-              dataSource={settlement.games}
-              columns={gameColumns}
-              rowKey="key"
-              pagination={false}
-              size={isMobile ? "small" : "middle"}
-              scroll={{ x: "max-content" }}
-              locale={{ emptyText: "No bets for this group on this date" }}
-              summary={() => (
-                <Table.Summary.Row className="settlement-total-row">
-                  <Table.Summary.Cell index={0}>Total</Table.Summary.Cell>
-                  <Table.Summary.Cell index={1} align="right">{fmt(settlement.totalBet)}</Table.Summary.Cell>
-                  <Table.Summary.Cell index={2} />
-                  <Table.Summary.Cell index={3} />
-                  <Table.Summary.Cell index={4} />
-                  <Table.Summary.Cell index={5} />
-                  <Table.Summary.Cell index={6} />
-                  <Table.Summary.Cell index={7} align="right">{fmt(settlement.totalWin)}</Table.Summary.Cell>
-                </Table.Summary.Row>
-              )}
-            />
-
-            <h3 style={{ marginTop: 24 }}>Calculation</h3>
-            <div className="settlement-calc">
-              <div className="settlement-calc__row">
-                <span>Total bet amount</span>
-                <span>{fmt(settlement.totalBet)}</span>
+      ) : (
+        <Tabs
+          className="settlement-tabs"
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: "settlement",
+              label: "Settlement",
+              children: (
+                <div className="payment-summary-container">
+                  <div className="table-container"  style={{maxHeight:'none', height: 'auto', overflow: 'visible' }}>
+                    <h3>Payment Summary</h3>
+                     <Table
+        
+          className="payment-summary-table"
+          dataSource={summaryRows}
+          columns={[
+            {
+              title: "Game",
+              dataIndex: "res_game",
+              key: "res_game",
+              render: (text, record, index) => {
+                const isLast = index === summaryRows.length - 1;
+                if (isLast) {
+                  const color = record.res_win_amt < 0 ? 'red' : '#00796B';
+                  return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
+                }
+                return text;
+              }
+            },
+            {
+              title: "Type",
+              dataIndex: "res_type",
+              key: "res_type",
+              render: (text, record, index) => {
+                const isLast = index === summaryRows.length - 1;
+                if (isLast) {
+                  const color = record.res_win_amt < 0 ? 'red' : '#00796B';
+                  return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
+                }
+                return text;
+              }
+            },
+            {
+              title: "Bet On",
+              dataIndex: "res_bet_on",
+              key: "res_bet_on",
+              render: (text, record, index) => {
+                const isLast = index === summaryRows.length - 1;
+                if (isLast) {
+                  const color = record.res_win_amt < 0 ? 'red' : '#00796B';
+                  return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
+                }
+                return text;
+              }
+            },
+            {
+              title: "Bet Amount",
+              dataIndex: "res_bet_amt",
+              key: "res_bet_amt",
+              render: (text, record, index) => {
+                const isLast = index === summaryRows.length - 1;
+                if (isLast) {
+                  const color = record.res_win_amt < 0 ? 'red' : '#00796B';
+                  return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
+                }
+                return text;
+              }
+            },
+            {
+              title: "Payable Times",
+              dataIndex: "res_payable_times",
+              key: "res_payable_times",
+              render: (text, record, index) => {
+                const isLast = index === summaryRows.length - 1;
+                if (isLast) {
+                  const color = record.res_win_amt < 0 ? 'red' : '#00796B';
+                  return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
+                }
+                return text;
+              }
+            },
+            {
+              title: "Win Amount",
+              dataIndex: "res_win_amt",
+              key: "res_win_amt",
+              render: (text, record, index) => {
+                const isLast = index === summaryRows.length - 1;
+                if (isLast) {
+                  const color = record.res_win_amt < 0 ? 'red' : '#00796B';
+                  return <span style={{ color, fontWeight: 'bold' }}>{text}</span>;
+                }
+                return text;
+              }
+            },
+          ]}
+          rowKey="game"
+          pagination={false}
+          rowClassName={(_, index) => {
+            if (index === summaryRows.length - 1) {
+              return "blink";
+            }
+            return "";
+          }}
+        />
+        
+        <div className="payment-summary-cards">
+          {summaryRows.map((row, index) => {
+            const isLast = index === summaryRows.length - 1;
+            const cardClass = isLast
+              ? (row.res_win_amt < 0 ? "negative-row" : "positive-row")
+              : "";
+            return (
+              <div key={index} className={`mobile-card ${cardClass} ${isLast ? 'blink' : ''}`}>
+                <div className="mobile-card__row">
+                  <span className="mobile-card__label">Game</span>
+                  <span className="mobile-card__value">{row.res_game}</span>
+                </div>
+                <div className="mobile-card__row">
+                  <span className="mobile-card__label">Type</span>
+                  <span className="mobile-card__value">{row.res_type}</span>
+                </div>
+                <div className="mobile-card__row">
+                  <span className="mobile-card__label">Bet On</span>
+                  <span className="mobile-card__value">{row.res_bet_on}</span>
+                </div>
+                <div className="mobile-card__row">
+                  <span className="mobile-card__label">Bet Amount</span>
+                  <span className="mobile-card__value">{row.res_bet_amt}</span>
+                </div>
+                <div className="mobile-card__row">
+                  <span className="mobile-card__label">Payable Times</span>
+                  <span className="mobile-card__value">{row.res_payable_times}</span>
+                </div>
+                <div className="mobile-card__row">
+                  <span className="mobile-card__label">Win Amount</span>
+                  <span className="mobile-card__value">{row.res_win_amt}</span>
+                </div>
               </div>
-              <div className="settlement-calc__row">
-                <span>{settlement.commissionLabel}</span>
-                <span>{fmt(settlement.commission)}</span>
-              </div>
-              <div className="settlement-calc__row">
-                <span>Remaining</span>
-                <span>{fmt(settlement.remaining)}</span>
-              </div>
-              <div className="settlement-calc__row">
-                <span>Total winning</span>
-                <span>{fmt(-settlement.totalWin)}</span>
-              </div>
-              <div className={`settlement-calc__row settlement-calc__result ${settlement.conclusion < 0 ? "is-negative" : "is-positive"}`}>
-                <span>{conclusionLabel(settlement.conclusion)} (payable/receivable)</span>
-                <span>{fmt(settlement.conclusion)}</span>
-              </div>
-              <div className="settlement-calc__row settlement-calc__adjust">
-                <label htmlFor="settlement-adjustment">
-                  Adjustment
-                  <small>Positive adds, negative subtracts. Not saved; goes into the download.</small>
-                </label>
-                <InputNumber
-                  id="settlement-adjustment"
-                  value={adjustment}
-                  onChange={(v) => setAdjustment(Number(v) || 0)}
-                  style={{ width: 160 }}
-                />
-              </div>
-              <div className={`settlement-calc__row settlement-calc__final ${finalAmount < 0 ? "is-negative" : "is-positive"}`}>
-                <span>Final {conclusionLabel(finalAmount).toLowerCase()}</span>
-                <span>{fmt(finalAmount)}</span>
-              </div>
-            </div>
-
-            {settlement.winners.length > 0 && (
-              <Collapse
-                style={{ marginTop: 24 }}
-                items={[
-                  {
-                    key: "winners",
-                    label: `Winning numbers (${settlement.winners.length})`,
-                    children: (
-                      <Table
-                        dataSource={settlement.winners.map((w, i) => ({ ...w, key: i }))}
-                        columns={winnerColumns}
-                        pagination={false}
-                        size="small"
-                        scroll={{ x: "max-content" }}
-                      />
-                    ),
-                  },
-                ]}
-              />
-            )}
-          </div>
+            );
+          })}
         </div>
-      ) : null}
+        
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "bills",
+              label: "Bills",
+              children: settlement ? (
+                <div className="payment-summary-container settlement">
+                  <div className="table-container" style={{ maxHeight: "none", height: "auto", overflow: "visible" }}>
+                    <h3>Bill by game</h3>
+                    <Table
+                      className="settlement-table"
+                      dataSource={settlement.games}
+                      columns={gameColumns}
+                      rowKey="key"
+                      pagination={false}
+                      size={isMobile ? "small" : "middle"}
+                      scroll={{ x: "max-content" }}
+                      locale={{ emptyText: "No bets for this group on this date" }}
+                      summary={() => (
+                        <Table.Summary.Row className="settlement-total-row">
+                          <Table.Summary.Cell index={0}>Total</Table.Summary.Cell>
+                          <Table.Summary.Cell index={1} align="right">{fmt(settlement.totalBet)}</Table.Summary.Cell>
+                          <Table.Summary.Cell index={2} />
+                          <Table.Summary.Cell index={3} />
+                          <Table.Summary.Cell index={4} />
+                          <Table.Summary.Cell index={5} />
+                          <Table.Summary.Cell index={6} />
+                          <Table.Summary.Cell index={7} align="right">{fmt(settlement.totalWin)}</Table.Summary.Cell>
+                        </Table.Summary.Row>
+                      )}
+                    />
+
+                    <h3 style={{ marginTop: 24 }}>Calculation</h3>
+                    <div className="settlement-calc">
+                      <div className="settlement-calc__row">
+                        <span>Total bet amount</span>
+                        <span>{fmt(settlement.totalBet)}</span>
+                      </div>
+                      <div className="settlement-calc__row">
+                        <span>{settlement.commissionLabel}</span>
+                        <span>{fmt(settlement.commission)}</span>
+                      </div>
+                      <div className="settlement-calc__row">
+                        <span>Remaining</span>
+                        <span>{fmt(settlement.remaining)}</span>
+                      </div>
+                      <div className="settlement-calc__row">
+                        <span>Total winning</span>
+                        <span>{fmt(-settlement.totalWin)}</span>
+                      </div>
+                      <div className={`settlement-calc__row settlement-calc__result ${settlement.conclusion < 0 ? "is-negative" : "is-positive"}`}>
+                        <span>{conclusionLabel(settlement.conclusion)} (payable/receivable)</span>
+                        <span>{fmt(settlement.conclusion)}</span>
+                      </div>
+                      <div className="settlement-calc__row settlement-calc__adjust">
+                        <label htmlFor="settlement-adjustment">
+                          Adjustment
+                          <small>Positive adds, negative subtracts. Not saved; goes into the download.</small>
+                        </label>
+                        <InputNumber
+                          id="settlement-adjustment"
+                          value={adjustment}
+                          onChange={(v) => setAdjustment(Number(v) || 0)}
+                          style={{ width: 160 }}
+                        />
+                      </div>
+                      <div className={`settlement-calc__row settlement-calc__final ${finalAmount < 0 ? "is-negative" : "is-positive"}`}>
+                        <span>Final {conclusionLabel(finalAmount).toLowerCase()}</span>
+                        <span>{fmt(finalAmount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: 24 }}>Select a group to see its bill.</div>
+              ),
+            },
+          ]}
+        />
+      )}
       <Modal title="Select Group" open={modalVisible} onCancel={() => setModalVisible(false)} footer={null}>
         {groups.map((group) => (
           <Button

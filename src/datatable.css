@@ -1095,3 +1095,21 @@ body.drag-selecting,
   background: transparent;
   border-color: var(--color-border);
 }
+
+/* Settlement / Bills tabs */
+.settlement-tabs .ant-tabs-tab {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 4px;
+}
+.settlement-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+  color: var(--color-text);
+  opacity: 0.75;
+}
+.settlement-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #3ecf8e;
+  opacity: 1;
+}
+.settlement-tabs .ant-tabs-ink-bar {
+  background: #3ecf8e;
+}
