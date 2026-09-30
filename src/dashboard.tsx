@@ -26,9 +26,11 @@ type GameRow = {
   key: string;
   game: string;
   bet: number;
-  single: number;
-  jodi: number | null;
-  pana: number;
+  open: number;
+  jodi: number;
+  openPana: number;
+  close: number;
+  closePana: number;
   win: number;
 };
 
@@ -63,24 +65,31 @@ const buildSettlement = (rows: PaymentData[]): Settlement | null => {
       .filter((w) => normName(w.res_game) === game && w.res_type === type)
       .reduce((s, w) => s + Number(w.res_win_amt || 0), 0);
 
-  const games: GameRow[] = [];
-  rows.forEach((r, i) => {
+  // One row per game: the open and close summary rows are added together, and the winnings are
+  // split by bet type.
+  const byGame = new Map<string, GameRow>();
+  rows.forEach((r) => {
     if (r.res_type !== "") return;
     const m = r.res_game.trim().match(/^(.*?)\s*\((open|close)\)$/);
     if (!m) return;
     const name = m[1].trim().replace(/\s+/g, " ");
-    const side = m[2] as "open" | "close";
     const key = normName(name);
-    games.push({
-      key: `${i}`,
-      game: `${name} (${side})`,
-      bet: Number(r.res_bet_amt || 0),
-      single: winsFor(key, side),
-      jodi: side === "open" ? winsFor(key, "jodi") : null,
-      pana: winsFor(key, `${side} pana`),
-      win: Number(r.res_win_amt || 0),
-    });
+    const row = byGame.get(key) ?? {
+      key,
+      game: name,
+      bet: 0,
+      open: winsFor(key, "open"),
+      jodi: winsFor(key, "jodi"),
+      openPana: winsFor(key, "open pana"),
+      close: winsFor(key, "close"),
+      closePana: winsFor(key, "close pana"),
+      win: 0,
+    };
+    row.bet += Number(r.res_bet_amt || 0);
+    row.win += Number(r.res_win_amt || 0);
+    byGame.set(key, row);
   });
+  const games = [...byGame.values()];
 
   return {
     games,
@@ -228,20 +237,26 @@ const Dashboard: React.FC = () => {
         {
           table: {
             headerRows: 1,
-            widths: ["*", "auto", "auto", "auto", "auto", "auto"],
+            widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
             body: [
-              [
-                { text: "Game", bold: true },
-                { text: "Total bet", bold: true, alignment: "right" },
-                { text: "Single win", bold: true, alignment: "right" },
-                { text: "Jodi win", bold: true, alignment: "right" },
-                { text: "Pana win", bold: true, alignment: "right" },
-                { text: "Total winning", bold: true, alignment: "right" },
-              ],
-              ...settlement.games.map((g) => [g.game, num(g.bet), num(g.single), num(g.jodi), num(g.pana), num(g.win)]),
+              ["Game", "Total bet", "Open win", "Jodi win", "Open pana win", "Close win", "Close pana win", "Total winning"].map(
+                (t, i) => ({ text: t, bold: true, alignment: i === 0 ? "left" : "right" })
+              ),
+              ...settlement.games.map((g) => [
+                g.game,
+                num(g.bet),
+                num(g.open),
+                num(g.jodi),
+                num(g.openPana),
+                num(g.close),
+                num(g.closePana),
+                num(g.win),
+              ]),
               [
                 { text: "Total", bold: true },
                 { ...num(settlement.totalBet), bold: true },
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -305,9 +320,18 @@ const Dashboard: React.FC = () => {
   const gameColumns = [
     { title: "Game", dataIndex: "game", key: "game" },
     { title: "Total bet", dataIndex: "bet", key: "bet", align: "right" as const, render: amountCell },
-    { title: "Single win", dataIndex: "single", key: "single", align: "right" as const, render: amountCell },
-    { title: "Jodi win", dataIndex: "jodi", key: "jodi", align: "right" as const, render: amountCell },
-    { title: "Pana win", dataIndex: "pana", key: "pana", align: "right" as const, render: amountCell },
+    {
+      title: "Winning",
+      key: "winning",
+      align: "center" as const,
+      children: [
+        { title: "Open", dataIndex: "open", key: "open", align: "right" as const, render: amountCell },
+        { title: "Jodi", dataIndex: "jodi", key: "jodi", align: "right" as const, render: amountCell },
+        { title: "Open pana", dataIndex: "openPana", key: "openPana", align: "right" as const, render: amountCell },
+        { title: "Close", dataIndex: "close", key: "close", align: "right" as const, render: amountCell },
+        { title: "Close pana", dataIndex: "closePana", key: "closePana", align: "right" as const, render: amountCell },
+      ],
+    },
     { title: "Total winning", dataIndex: "win", key: "win", align: "right" as const, render: amountCell },
   ];
 
@@ -401,7 +425,9 @@ const Dashboard: React.FC = () => {
                   <Table.Summary.Cell index={2} />
                   <Table.Summary.Cell index={3} />
                   <Table.Summary.Cell index={4} />
-                  <Table.Summary.Cell index={5} align="right">{fmt(settlement.totalWin)}</Table.Summary.Cell>
+                  <Table.Summary.Cell index={5} />
+                  <Table.Summary.Cell index={6} />
+                  <Table.Summary.Cell index={7} align="right">{fmt(settlement.totalWin)}</Table.Summary.Cell>
                 </Table.Summary.Row>
               )}
             />
