@@ -299,10 +299,7 @@ const Dashboard: React.FC = () => {
       { label: "Remaining", value: settlement.remaining },
     ];
     if (oldBalance > 0) {
-      lines.push(
-        { label: oldType === "due" ? "Old due (added)" : "Old payment (subtracted)", value: oldDelta },
-        { label: "Remaining after old balance", value: settlement.remaining + oldDelta }
-      );
+      lines.push({ label: oldType === "due" ? "Old due (added)" : "Old payment (subtracted)", value: oldDelta });
     }
     return [
       ...lines,
@@ -312,43 +309,39 @@ const Dashboard: React.FC = () => {
   };
 
   const billImageTitle = () => `Bill — ${grpname ?? "All Groups"} — ${dayjs(selectedDate).format("YYYY-MM-DD")}`;
-  const imageName = (part: string) => `Bill_${dayjs(selectedDate).format("YYYY-MM-DD")}(${grpname ?? "All Groups"})_${part}.png`;
-
-  const downloadBillTableImage = () => {
+  const downloadBillImage = () => {
     if (!settlement) return;
     downloadTableImage({
       title: billImageTitle(),
-      subtitle: "Bill by game",
-      fileName: imageName("table"),
-      columns: [
-        { header: "Game" },
-        ...["Total bet", "Open win", "Jodi win", "Open pana win", "Close win", "Close pana win", "Total winning"].map((header) => ({
-          header,
-          align: "right" as const,
-        })),
+      fileName: `Bill_${dayjs(selectedDate).format("YYYY-MM-DD")}(${grpname ?? "All Groups"}).png`,
+      sections: [
+        {
+          heading: "Bill by game",
+          columns: [
+            { header: "Game" },
+            ...["Total bet", "Open win", "Jodi win", "Open pana win", "Close win", "Close pana win", "Total winning"].map((header) => ({
+              header,
+              align: "right" as const,
+            })),
+          ],
+          rows: [
+            ...settlement.games.map((g) => ({
+              cells: [g.game, fmt(g.bet), fmt(g.open), fmt(g.jodi), fmt(g.openPana), fmt(g.close), fmt(g.closePana), fmt(g.win)],
+            })),
+            { cells: ["Total", fmt(settlement.totalBet), "", "", "", "", "", fmt(settlement.totalWin)], bold: true, shaded: true },
+          ],
+        },
+        {
+          heading: "Calculation",
+          columns: [{ header: "Calculation" }, { header: "Amount", align: "right" }],
+          rows: calcLines().map((l) => ({
+            cells: [l.label, fmt(l.value)],
+            bold: l.strong,
+            shaded: l.strong,
+            tone: l.strong ? (l.value < 0 ? ("negative" as const) : ("positive" as const)) : undefined,
+          })),
+        },
       ],
-      rows: [
-        ...settlement.games.map((g) => ({
-          cells: [g.game, fmt(g.bet), fmt(g.open), fmt(g.jodi), fmt(g.openPana), fmt(g.close), fmt(g.closePana), fmt(g.win)],
-        })),
-        { cells: ["Total", fmt(settlement.totalBet), "", "", "", "", "", fmt(settlement.totalWin)], bold: true, shaded: true },
-      ],
-    }).catch(() => message.error("Could not create the image"));
-  };
-
-  const downloadCalculationImage = () => {
-    if (!settlement) return;
-    downloadTableImage({
-      title: billImageTitle(),
-      subtitle: "Calculation",
-      fileName: imageName("calculation"),
-      columns: [{ header: "Calculation" }, { header: "Amount", align: "right" }],
-      rows: calcLines().map((l) => ({
-        cells: [l.label, fmt(l.value)],
-        bold: l.strong,
-        shaded: l.strong,
-        tone: l.strong ? (l.value < 0 ? ("negative" as const) : ("positive" as const)) : undefined,
-      })),
     }).catch(() => message.error("Could not create the image"));
   };
 
@@ -498,11 +491,8 @@ const Dashboard: React.FC = () => {
               <Button type="primary" onClick={downloadBill} disabled={!settlement}>
                 Download bill
               </Button>
-              <Button onClick={downloadBillTableImage} disabled={!settlement}>
-                Table image
-              </Button>
-              <Button onClick={downloadCalculationImage} disabled={!settlement}>
-                Calculation image
+              <Button onClick={downloadBillImage} disabled={!settlement}>
+                Download image
               </Button>
             </>
           )}
@@ -730,12 +720,6 @@ const Dashboard: React.FC = () => {
                           style={{ width: 160 }}
                         />
                       </div>
-                      {oldBalance > 0 && (
-                        <div className="settlement-calc__row settlement-calc__after-old">
-                          <span>Remaining after old balance</span>
-                          <span>{fmt(settlement.remaining + oldDelta)}</span>
-                        </div>
-                      )}
                       <div className="settlement-calc__row">
                         <span>Total winning</span>
                         <span>{fmt(-settlement.totalWin)}</span>
