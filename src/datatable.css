@@ -970,13 +970,14 @@ body.drag-selecting,
   border-bottom: none;
 }
 
-.settlement-calc__row label {
+.settlement-calc__old {
   display: flex;
   flex-direction: column;
+  gap: 4px;
   color: var(--color-text);
 }
 
-.settlement-calc__row label small {
+.settlement-calc__old small {
   color: var(--color-text-muted);
   font-size: 12px;
 }

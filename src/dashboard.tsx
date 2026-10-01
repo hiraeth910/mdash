@@ -11,6 +11,7 @@ import pdfMake from "pdfmake/build/pdfmake";
 import { vfs } from "pdfmake/build/vfs_fonts";
 import { IUser } from "./users";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import { downloadTableImage } from "./utils/tableImage";
 
 pdfMake.vfs = vfs;
 export interface PaymentData {
@@ -119,7 +120,9 @@ const Dashboard: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<IUser | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [modalVisible, setModalVisible] = useState(false);
-  const [adjustment, setAdjustment] = useState<number>(0);
+  // Balance carried over from earlier: an old due is taken off the remaining, an old payment is added to it.
+  const [oldType, setOldType] = useState<"due" | "payment">("due");
+  const [oldAmount, setOldAmount] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<string>("settlement");
 
   useEffect(() => {
@@ -163,7 +166,7 @@ const Dashboard: React.FC = () => {
     if (selectedGroupId !== null) {
       fetchData();
     }
-    setAdjustment(0);
+    setOldAmount(0);
   }, [selectedDate, selectedGroupId]);
 
   const fetchGroups = async () => {
@@ -282,7 +285,72 @@ const Dashboard: React.FC = () => {
   };
 
   const settlement = useMemo(() => buildSettlement(paymentData), [paymentData]);
-  const finalAmount = settlement ? settlement.conclusion + (adjustment || 0) : 0;
+  const oldBalance = oldAmount || 0;
+  const oldDelta = oldType === "payment" ? oldBalance : -oldBalance;
+  const finalAmount = settlement ? settlement.conclusion + oldDelta : 0;
+  const finalLabel = `Final ${conclusionLabel(finalAmount).toLowerCase()}`;
+
+  // The calculation as shown on screen, in the PDF and in the image.
+  const calcLines = (): { label: string; value: number; strong?: boolean }[] => {
+    if (!settlement) return [];
+    const lines = [
+      { label: "Total bet amount", value: settlement.totalBet },
+      { label: settlement.commissionLabel, value: settlement.commission },
+      { label: "Remaining", value: settlement.remaining },
+    ];
+    if (oldBalance > 0) {
+      lines.push(
+        { label: oldType === "payment" ? "Old payment (added)" : "Old due (subtracted)", value: oldDelta },
+        { label: "Remaining after old balance", value: settlement.remaining + oldDelta }
+      );
+    }
+    return [
+      ...lines,
+      { label: "Total winning", value: -settlement.totalWin },
+      { label: finalLabel, value: finalAmount, strong: true },
+    ];
+  };
+
+  const billImageTitle = () => `Bill — ${grpname ?? "All Groups"} — ${dayjs(selectedDate).format("YYYY-MM-DD")}`;
+  const imageName = (part: string) => `Bill_${dayjs(selectedDate).format("YYYY-MM-DD")}(${grpname ?? "All Groups"})_${part}.png`;
+
+  const downloadBillTableImage = () => {
+    if (!settlement) return;
+    downloadTableImage({
+      title: billImageTitle(),
+      subtitle: "Bill by game",
+      fileName: imageName("table"),
+      columns: [
+        { header: "Game" },
+        ...["Total bet", "Open win", "Jodi win", "Open pana win", "Close win", "Close pana win", "Total winning"].map((header) => ({
+          header,
+          align: "right" as const,
+        })),
+      ],
+      rows: [
+        ...settlement.games.map((g) => ({
+          cells: [g.game, fmt(g.bet), fmt(g.open), fmt(g.jodi), fmt(g.openPana), fmt(g.close), fmt(g.closePana), fmt(g.win)],
+        })),
+        { cells: ["Total", fmt(settlement.totalBet), "", "", "", "", "", fmt(settlement.totalWin)], bold: true, shaded: true },
+      ],
+    }).catch(() => message.error("Could not create the image"));
+  };
+
+  const downloadCalculationImage = () => {
+    if (!settlement) return;
+    downloadTableImage({
+      title: billImageTitle(),
+      subtitle: "Calculation",
+      fileName: imageName("calculation"),
+      columns: [{ header: "Calculation" }, { header: "Amount", align: "right" }],
+      rows: calcLines().map((l) => ({
+        cells: [l.label, fmt(l.value)],
+        bold: l.strong,
+        shaded: l.strong,
+        tone: l.strong ? (l.value < 0 ? ("negative" as const) : ("positive" as const)) : undefined,
+      })),
+    }).catch(() => message.error("Could not create the image"));
+  };
 
   const downloadBill = () => {
     if (!settlement) return;
@@ -330,16 +398,10 @@ const Dashboard: React.FC = () => {
           table: {
             widths: ["*", "auto"],
             body: [
-              ["Total bet amount", num(settlement.totalBet)],
-              [settlement.commissionLabel, num(settlement.commission)],
-              ["Remaining", num(settlement.remaining)],
-              ["Total winning", num(-settlement.totalWin)],
-              [`${conclusionLabel(settlement.conclusion)} (payable/receivable)`, num(settlement.conclusion)],
-              ["Adjustment", num(adjustment || 0)],
-              [
-                { text: `Final ${conclusionLabel(finalAmount).toLowerCase()}`, bold: true },
-                { ...num(finalAmount), bold: true },
-              ],
+              ...calcLines().map((l) => [
+                l.strong ? { text: l.label, bold: true } : l.label,
+                l.strong ? { ...num(l.value), bold: true } : num(l.value),
+              ]),
             ],
           },
         },
@@ -432,9 +494,17 @@ const Dashboard: React.FC = () => {
               Export as Excel
             </Button>
           ) : (
-            <Button type="primary" onClick={downloadBill} disabled={!settlement}>
-              Download bill
-            </Button>
+            <>
+              <Button type="primary" onClick={downloadBill} disabled={!settlement}>
+                Download bill
+              </Button>
+              <Button onClick={downloadBillTableImage} disabled={!settlement}>
+                Table image
+              </Button>
+              <Button onClick={downloadCalculationImage} disabled={!settlement}>
+                Calculation image
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -634,28 +704,44 @@ const Dashboard: React.FC = () => {
                         <span>Remaining</span>
                         <span>{fmt(settlement.remaining)}</span>
                       </div>
+                      <div className="settlement-calc__row settlement-calc__adjust">
+                        <div className="settlement-calc__old">
+                          <Select
+                            className="old-balance-type"
+                            value={oldType}
+                            onChange={setOldType}
+                            getPopupContainer={() => document.body}
+                            style={{ width: 150 }}
+                            options={[
+                              { value: "due", label: "Old due" },
+                              { value: "payment", label: "Old payment" },
+                            ]}
+                          />
+                          <small>
+                            {oldType === "due" ? "Subtracted from the remaining." : "Added to the remaining."} Not saved; goes into the downloads.
+                          </small>
+                        </div>
+                        <InputNumber
+                          id="old-balance-amount"
+                          aria-label="Old balance amount"
+                          min={0}
+                          value={oldAmount}
+                          onChange={(v) => setOldAmount(Math.max(Number(v) || 0, 0))}
+                          style={{ width: 160 }}
+                        />
+                      </div>
+                      {oldBalance > 0 && (
+                        <div className="settlement-calc__row settlement-calc__after-old">
+                          <span>Remaining after old balance</span>
+                          <span>{fmt(settlement.remaining + oldDelta)}</span>
+                        </div>
+                      )}
                       <div className="settlement-calc__row">
                         <span>Total winning</span>
                         <span>{fmt(-settlement.totalWin)}</span>
                       </div>
-                      <div className={`settlement-calc__row settlement-calc__result ${settlement.conclusion < 0 ? "is-negative" : "is-positive"}`}>
-                        <span>{conclusionLabel(settlement.conclusion)} (payable/receivable)</span>
-                        <span>{fmt(settlement.conclusion)}</span>
-                      </div>
-                      <div className="settlement-calc__row settlement-calc__adjust">
-                        <label htmlFor="settlement-adjustment">
-                          Adjustment
-                          <small>Positive adds, negative subtracts. Not saved; goes into the download.</small>
-                        </label>
-                        <InputNumber
-                          id="settlement-adjustment"
-                          value={adjustment}
-                          onChange={(v) => setAdjustment(Number(v) || 0)}
-                          style={{ width: 160 }}
-                        />
-                      </div>
                       <div className={`settlement-calc__row settlement-calc__final ${finalAmount < 0 ? "is-negative" : "is-positive"}`}>
-                        <span>Final {conclusionLabel(finalAmount).toLowerCase()}</span>
+                        <span>{finalLabel}</span>
                         <span>{fmt(finalAmount)}</span>
                       </div>
                     </div>
