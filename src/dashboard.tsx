@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<IUser | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [modalVisible, setModalVisible] = useState(false);
-  // Balance carried over from earlier: an old due is taken off the remaining, an old payment is added to it.
+  // Balance carried over from earlier: an old due is added to the remaining, an old payment is taken off it.
   const [oldType, setOldType] = useState<"due" | "payment">("due");
   const [oldAmount, setOldAmount] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<string>("settlement");
@@ -286,7 +286,7 @@ const Dashboard: React.FC = () => {
 
   const settlement = useMemo(() => buildSettlement(paymentData), [paymentData]);
   const oldBalance = oldAmount || 0;
-  const oldDelta = oldType === "payment" ? oldBalance : -oldBalance;
+  const oldDelta = oldType === "due" ? oldBalance : -oldBalance;
   const finalAmount = settlement ? settlement.conclusion + oldDelta : 0;
   const finalLabel = `Final ${conclusionLabel(finalAmount).toLowerCase()}`;
 
@@ -300,7 +300,7 @@ const Dashboard: React.FC = () => {
     ];
     if (oldBalance > 0) {
       lines.push(
-        { label: oldType === "payment" ? "Old payment (added)" : "Old due (subtracted)", value: oldDelta },
+        { label: oldType === "due" ? "Old due (added)" : "Old payment (subtracted)", value: oldDelta },
         { label: "Remaining after old balance", value: settlement.remaining + oldDelta }
       );
     }
@@ -718,7 +718,7 @@ const Dashboard: React.FC = () => {
                             ]}
                           />
                           <small>
-                            {oldType === "due" ? "Subtracted from the remaining." : "Added to the remaining."} Not saved; goes into the downloads.
+                            {oldType === "due" ? "Added to the remaining." : "Subtracted from the remaining."} Not saved; goes into the downloads.
                           </small>
                         </div>
                         <InputNumber
