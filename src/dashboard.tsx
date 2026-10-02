@@ -37,6 +37,8 @@ const Dashboard: React.FC = () => {
   // Balance carried over from earlier: an old due is added to the remaining, an old payment is taken off it.
   const [oldType, setOldType] = useState<"due" | "payment">("due");
   const [oldAmount, setOldAmount] = useState<number | null>(null);
+  // L/D %: the share (1-100) taken off the day's due or payment. Platform admin only.
+  const [ldPercent, setLdPercent] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>("settlement");
 
   useEffect(() => {
@@ -81,6 +83,7 @@ const Dashboard: React.FC = () => {
       fetchData();
     }
     setOldAmount(null);
+    setLdPercent(null);
   }, [selectedDate, selectedGroupId]);
 
   const fetchGroups = async () => {
@@ -201,7 +204,17 @@ const Dashboard: React.FC = () => {
   const settlement = useMemo(() => buildSettlement(paymentData), [paymentData]);
   const oldBalance = oldAmount || 0;
   const oldDelta = oldType === "due" ? oldBalance : -oldBalance;
-  const finalAmount = settlement ? settlement.conclusion + oldDelta : 0;
+
+  // The percent keeps the sign of the due/payment it is taken from and is subtracted from it, so a
+  // payment (negative) shrinks towards zero and a due (positive) does too: day = amount - percent of amount.
+  const round2 = (v: number) => Math.round(v * 100) / 100;
+  const isSuper = userRole === "superadmin";
+  const ldPct = isSuper && ldPercent ? ldPercent : 0;
+  const ldBase = settlement ? settlement.conclusion : 0;
+  const ldAmount = round2((ldBase * ldPct) / 100);
+  const dayAmount = round2(ldBase - ldAmount);
+  const dayLabel = dayAmount < 0 ? "Day's payment" : "Day's due";
+  const finalAmount = settlement ? round2(dayAmount + oldDelta) : 0;
   const finalLabel = `Final ${conclusionLabel(finalAmount).toLowerCase()}`;
 
   // The calculation as shown on screen, in the PDF and in the image.
@@ -215,6 +228,9 @@ const Dashboard: React.FC = () => {
       { label: "Total winning", value: -settlement.totalWin },
       { label: conclusionLabel(settlement.conclusion), value: settlement.conclusion },
     ];
+    if (ldPct > 0) {
+      lines.push({ label: `L/D ${ldPct}%`, value: ldAmount }, { label: dayLabel, value: dayAmount });
+    }
     if (oldBalance > 0) {
       lines.push({ label: oldType === "due" ? "Old due" : "Old payment", value: oldDelta });
     }
@@ -668,9 +684,38 @@ const Dashboard: React.FC = () => {
                         <span>{fmt(-settlement.totalWin)}</span>
                       </div>
                       <div className={`settlement-calc__row settlement-calc__result ${settlement.conclusion < 0 ? "is-negative" : "is-positive"}`}>
-                        <span>{conclusionLabel(settlement.conclusion)}</span>
+                        <span className="settlement-calc__ld">
+                          <span>{conclusionLabel(settlement.conclusion)}</span>
+                          {isSuper && (
+                            <>
+                              <label htmlFor="ld-percent">L/D %</label>
+                              <InputNumber
+                                id="ld-percent"
+                                min={1}
+                                max={100}
+                                precision={0}
+                                controls={false}
+                                value={ldPercent}
+                                onChange={(v) => setLdPercent(v === null ? null : Math.min(100, Math.max(1, Math.round(Number(v)))))}
+                                style={{ width: 72 }}
+                              />
+                            </>
+                          )}
+                        </span>
                         <span>{fmt(settlement.conclusion)}</span>
                       </div>
+                      {ldPct > 0 && (
+                        <>
+                          <div className="settlement-calc__row">
+                            <span>L/D {ldPct}%</span>
+                            <span>{fmt(ldAmount)}</span>
+                          </div>
+                          <div className={`settlement-calc__row settlement-calc__result ${dayAmount < 0 ? "is-negative" : "is-positive"}`}>
+                            <span>{dayLabel}</span>
+                            <span>{fmt(dayAmount)}</span>
+                          </div>
+                        </>
+                      )}
                       <div className="settlement-calc__row settlement-calc__adjust">
                         <div className="settlement-calc__old">
                           <Select
