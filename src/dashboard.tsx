@@ -309,11 +309,12 @@ const Dashboard: React.FC = () => {
   };
 
   const billImageTitle = () => `Bill — ${grpname ?? "All Groups"} — ${dayjs(selectedDate).format("YYYY-MM-DD")}`;
-  const billImage = (): TableImage | null => {
+  // The detailed picture adds the per-type winning numbers under the calculation.
+  const billImage = (detailed = false): TableImage | null => {
     if (!settlement) return null;
     return {
       title: billImageTitle(),
-      fileName: `Bill_${dayjs(selectedDate).format("YYYY-MM-DD")}(${grpname ?? "All Groups"}).png`,
+      fileName: `Bill_${dayjs(selectedDate).format("YYYY-MM-DD")}(${grpname ?? "All Groups"})${detailed ? "_detailed" : ""}.png`,
       sections: [
         {
           heading: "Bill by game",
@@ -341,26 +342,51 @@ const Dashboard: React.FC = () => {
             tone: l.strong ? (l.value < 0 ? ("negative" as const) : ("positive" as const)) : undefined,
           })),
         },
+        ...(detailed && settlement.winners.length
+          ? [
+              {
+                heading: "Winning numbers (detail)",
+                columns: [
+                  { header: "Game" },
+                  { header: "Type" },
+                  { header: "Number", align: "right" as const },
+                  { header: "Bet", align: "right" as const },
+                  { header: "Times", align: "right" as const },
+                  { header: "Winning", align: "right" as const },
+                ],
+                rows: settlement.winners.map((w) => ({
+                  cells: [
+                    w.res_game.trim(),
+                    w.res_type,
+                    String(w.res_bet_on),
+                    fmt(w.res_bet_amt),
+                    String(w.res_payable_times),
+                    fmt(w.res_win_amt),
+                  ],
+                })),
+              },
+            ]
+          : []),
       ],
     };
   };
 
-  const downloadBillImage = () => {
-    const image = billImage();
+  const downloadBillImage = (detailed = false) => {
+    const image = billImage(detailed);
     if (image) downloadTableImage(image).catch(() => message.error("Could not create the image"));
   };
 
   // Puts the bill picture on the clipboard so it can be pasted into a chat. Browsers that cannot copy
   // images get the picture downloaded instead.
-  const copyBillImage = async () => {
-    const image = billImage();
+  const copyBillImage = async (detailed = false) => {
+    const image = billImage(detailed);
     if (!image) return;
     const blobPromise = renderTableImage(image);
     try {
       await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
       message.success("Image copied. Paste it where you want to send it.");
     } catch {
-      downloadBillImage();
+      downloadBillImage(detailed);
       message.info("Couldn't copy the image here, so it was downloaded instead.");
     }
   };
@@ -429,6 +455,15 @@ const Dashboard: React.FC = () => {
   };
 
   const amountCell = (v: number | null) => <span className="settle-num">{fmt(v)}</span>;
+
+  const winnerColumns = [
+    { title: "Game", dataIndex: "res_game", key: "g", render: (t: string) => t.trim() },
+    { title: "Type", dataIndex: "res_type", key: "t" },
+    { title: "Number", dataIndex: "res_bet_on", key: "n", align: "right" as const },
+    { title: "Bet", dataIndex: "res_bet_amt", key: "b", align: "right" as const, render: amountCell },
+    { title: "Times", dataIndex: "res_payable_times", key: "p", align: "right" as const },
+    { title: "Winning", dataIndex: "res_win_amt", key: "w", align: "right" as const, render: amountCell },
+  ];
 
   const gameColumns = [
     { title: "Game", dataIndex: "game", key: "game" },
@@ -511,11 +546,14 @@ const Dashboard: React.FC = () => {
               <Button type="primary" onClick={downloadBill} disabled={!settlement}>
                 Download bill
               </Button>
-              <Button onClick={downloadBillImage} disabled={!settlement}>
-                Download image
+              <Button onClick={() => downloadBillImage(true)} disabled={!settlement}>
+                Detailed download
               </Button>
-              <Button onClick={copyBillImage} disabled={!settlement}>
+              <Button onClick={() => copyBillImage(false)} disabled={!settlement}>
                 Copy image
+              </Button>
+              <Button onClick={() => copyBillImage(true)} disabled={!settlement}>
+                Detailed copy
               </Button>
             </>
           )}
@@ -756,6 +794,20 @@ const Dashboard: React.FC = () => {
                         <span>{fmt(finalAmount)}</span>
                       </div>
                     </div>
+
+                    {settlement.winners.length > 0 && (
+                      <>
+                        <h3 style={{ marginTop: 24 }}>Winning numbers (detail)</h3>
+                        <Table
+                          className="settlement-table settlement-detail-table"
+                          dataSource={settlement.winners.map((w, i) => ({ ...w, key: i }))}
+                          columns={winnerColumns}
+                          pagination={false}
+                          size={isMobile ? "small" : "middle"}
+                          scroll={{ x: "max-content" }}
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
