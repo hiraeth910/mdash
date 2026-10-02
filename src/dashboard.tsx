@@ -293,19 +293,18 @@ const Dashboard: React.FC = () => {
   // The calculation as shown on screen, in the PDF and in the image.
   const calcLines = (): { label: string; value: number; strong?: boolean }[] => {
     if (!settlement) return [];
+    // Payment is what we owe them (winnings above the remaining), due is what they owe us.
     const lines = [
       { label: "Total bet amount", value: settlement.totalBet },
       { label: settlement.commissionLabel, value: settlement.commission },
       { label: "Remaining", value: settlement.remaining },
+      { label: "Total winning", value: -settlement.totalWin },
+      { label: conclusionLabel(settlement.conclusion), value: settlement.conclusion },
     ];
     if (oldBalance > 0) {
-      lines.push({ label: oldType === "due" ? "Old due (added)" : "Old payment (subtracted)", value: oldDelta });
+      lines.push({ label: oldType === "due" ? "Old due" : "Old payment", value: oldDelta });
     }
-    return [
-      ...lines,
-      { label: "Total winning", value: -settlement.totalWin },
-      { label: finalLabel, value: finalAmount, strong: true },
-    ];
+    return [...lines, { label: finalLabel, value: finalAmount, strong: true }];
   };
 
   const billImageTitle = () => `Bill — ${grpname ?? "All Groups"} — ${dayjs(selectedDate).format("YYYY-MM-DD")}`;
@@ -694,6 +693,14 @@ const Dashboard: React.FC = () => {
                         <span>Remaining</span>
                         <span>{fmt(settlement.remaining)}</span>
                       </div>
+                      <div className="settlement-calc__row">
+                        <span>Total winning</span>
+                        <span>{fmt(-settlement.totalWin)}</span>
+                      </div>
+                      <div className={`settlement-calc__row settlement-calc__result ${settlement.conclusion < 0 ? "is-negative" : "is-positive"}`}>
+                        <span>{conclusionLabel(settlement.conclusion)}</span>
+                        <span>{fmt(settlement.conclusion)}</span>
+                      </div>
                       <div className="settlement-calc__row settlement-calc__adjust">
                         <div className="settlement-calc__old">
                           <Select
@@ -708,7 +715,7 @@ const Dashboard: React.FC = () => {
                             ]}
                           />
                           <small>
-                            {oldType === "due" ? "Added to the remaining." : "Subtracted from the remaining."} Not saved; goes into the downloads.
+                            {oldType === "due" ? "They owe us: added to the result." : "We owe them: subtracted from the result."} Not saved; goes into the downloads.
                           </small>
                         </div>
                         <InputNumber
@@ -719,10 +726,6 @@ const Dashboard: React.FC = () => {
                           onChange={(v) => setOldAmount(Math.max(Number(v) || 0, 0))}
                           style={{ width: 160 }}
                         />
-                      </div>
-                      <div className="settlement-calc__row">
-                        <span>Total winning</span>
-                        <span>{fmt(-settlement.totalWin)}</span>
                       </div>
                       <div className={`settlement-calc__row settlement-calc__final ${finalAmount < 0 ? "is-negative" : "is-positive"}`}>
                         <span>{finalLabel}</span>
