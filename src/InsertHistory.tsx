@@ -11,6 +11,7 @@ import { IGroup } from "./userGames";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import {  fillWithNextValue } from "./utils/helpter";
 import { fileToBase64 } from "./utils/imageCompress";
+import { ocrBetPairs } from "./utils/ocr";
 
 interface NumberEntry {
   number: string;
@@ -56,6 +57,12 @@ const InsertHistory: React.FC = () => {
   const [pastedImagePreviews, setPastedImagePreviews] = useState<string[]>([]);
   const [extractingImages, setExtractingImages] = useState(false);
   const prevInputRef = useRef<string>("");
+
+  // Text set from code (an image paste, or clearing after Update) must count as the previous value,
+  // otherwise deleting it by hand looks like "no change" and the box refuses to clear.
+  useEffect(() => {
+    prevInputRef.current = inputValue;
+  }, [inputValue]);
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
   const highlighterRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -394,7 +401,12 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   };
 
   // ---------- Paste-an-image-to-extract-text ----------
-  const extractFromImages = async (files: File[], endpoint: string) => {
+  // Reads the images with `extract` and appends the resulting lines to the input box.
+  const extractFromImages = async (
+    files: File[],
+    extract: (files: File[]) => Promise<string>,
+    emptyMessage = "No text could be extracted from the image(s)."
+  ) => {
     if (files.length === 0) return;
     if (files.length > 2) {
       message.warning("You can use at most 2 images at a time.");
@@ -406,15 +418,11 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     setExtractingImages(true);
 
     try {
-      const encoded = await Promise.all(files.map((f) => fileToBase64(f)));
-      const response = await apiClient.post(endpoint, {
-        images: encoded.map((c) => ({ data: c.base64, mediaType: c.mediaType })),
-      });
-      const extractedText: string = response.data?.text || "";
+      const extractedText = await extract(files);
       if (extractedText) {
         setInputValue((prev) => (prev.trim() ? `${prev}\n${extractedText}` : extractedText));
       } else {
-        message.warning("No text could be extracted from the image(s).");
+        message.warning(emptyMessage);
       }
     } catch (err) {
       console.error("Image extraction failed:", err);
@@ -426,17 +434,33 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     }
   };
 
-  // Pasting directly into the textarea uses the cheaper default model.
+  // Sends the images to the server, which reads them with an AI model.
+  const readWithAi = (endpoint: string) => async (files: File[]) => {
+    const encoded = await Promise.all(files.map((f) => fileToBase64(f)));
+    const response = await apiClient.post(endpoint, {
+      images: encoded.map((c) => ({ data: c.base64, mediaType: c.mediaType })),
+    });
+    return (response.data?.text as string) || "";
+  };
+
+  // Reads typed lists in the browser with OCR: free, instant and nothing is uploaded.
+  const readWithOcr = async (files: File[]) => {
+    const pairs: string[] = [];
+    for (const file of files) pairs.push(...(await ocrBetPairs(file)));
+    return pairs.join("\n");
+  };
+
+  // Pasting directly into the textarea uses the AI model, which also handles handwriting.
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
     if (imageItems.length === 0) return; // let normal text paste proceed
 
     e.preventDefault();
     const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
-    extractFromImages(files, "/extract-bet-image");
+    extractFromImages(files, readWithAi("/extract-bet-image"));
   };
 
-  // The explicit Paste button uses a pricier, more accurate model for when it's worth it.
+  // The Paste button reads typed screenshots with OCR and fills the box above.
   const handlePasteButtonClick = async () => {
     try {
       const clipboardItems = await navigator.clipboard.read();
@@ -451,7 +475,11 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         message.warning("No image found on the clipboard.");
         return;
       }
-      extractFromImages(files, "/extract-bet-image-gemini");
+      extractFromImages(
+        files,
+        readWithOcr,
+        "No entries found. For handwriting, click in the box and paste the image there instead."
+      );
     } catch (err) {
       console.error("Clipboard read failed:", err);
       message.error("Couldn't read an image from the clipboard. Copy an image first, then click Paste.");
@@ -762,7 +790,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             onClick={handlePasteButtonClick}
             disabled={extractingImages}
           >
-            Paste image (high accuracy)
+            Paste image (OCR)
           </Button>
 
           {(extractingImages || pastedImagePreviews.length > 0) && (
