@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import { apiClient } from "./utils/api";
 import { checkAuthAndHandleLogout } from "./authcheck";
-import { buildSettlement, fmt, normName, type PaymentData } from "./utils/settlement";
+import { fmt, normName, sideRows, type PaymentData } from "./utils/settlement";
 import { COMPARE_COLUMNS, compareGames, type CompareColumn, type CompareGroup, type GameMismatch } from "./utils/compare";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 import "./datatable.css";
@@ -24,7 +24,8 @@ interface IUserRow {
 interface NameSection {
   name: string;
   admins: string[];
-  total: number;
+  total: number; // rows compared: an open and a close row per game
+  gameCount: number;
   mismatches: GameMismatch[];
 }
 
@@ -39,13 +40,8 @@ type TableRow = {
 };
 
 const HEADINGS: Record<CompareColumn, string> = {
-  bet: "Total bet",
-  open: "Open win",
-  jodi: "Jodi win",
-  openPana: "Open pana win",
-  close: "Close win",
-  closePana: "Close pana win",
-  win: "Total winning",
+  bet: "Bet amount",
+  win: "Win amount",
 };
 
 const Compare: React.FC = () => {
@@ -111,7 +107,7 @@ const Compare: React.FC = () => {
                 return {
                   groupId: g.group_id,
                   adminName: adminNamesRef.current[g.admin_id ?? -1] || `Admin #${g.admin_id}`,
-                  games: buildSettlement(res.data)?.games ?? [],
+                  games: sideRows(res.data),
                 };
               })
             );
@@ -145,8 +141,11 @@ const Compare: React.FC = () => {
   ];
 
   const tableRows = (mismatches: GameMismatch[]): TableRow[] =>
-    mismatches.flatMap((m, band) =>
-      m.rows.map((r) => ({
+    mismatches.flatMap((m, index) => {
+      // an open and a close row of the same game share a band
+      const base = (x: GameMismatch) => x.key.replace(/ \((open|close)\)$/, "");
+      const band = mismatches.slice(0, index + 1).filter((x, i, all) => i === 0 || base(x) !== base(all[i - 1])).length;
+      return m.rows.map((r) => ({
         key: `${m.key}-${r.groupId}`,
         game: m.game,
         admin: r.adminName,
@@ -154,8 +153,8 @@ const Compare: React.FC = () => {
         missing: r.row === null,
         values: Object.fromEntries(COMPARE_COLUMNS.map((c) => [c, r.row ? r.row[c] : null])) as Record<CompareColumn, number | null>,
         differs: r.differs,
-      }))
-    );
+      }));
+    });
 
   const totalDiffs = sections.reduce((n, s) => n + s.mismatches.length, 0);
 
@@ -221,7 +220,7 @@ const Compare: React.FC = () => {
           {!loading && ready && repeated.length > 0 && (
             <span className="compare-summary">
               {repeated.length} group name{repeated.length > 1 ? "s" : ""} used by more than one admin ·{" "}
-              {totalDiffs === 0 ? "everything tallies" : `${totalDiffs} game${totalDiffs > 1 ? "s" : ""} differ`}
+              {totalDiffs === 0 ? "everything tallies" : `${totalDiffs} row${totalDiffs > 1 ? "s" : ""} differ`}
             </span>
           )}
         </div>
@@ -243,12 +242,12 @@ const Compare: React.FC = () => {
               </h3>
               {s.mismatches.length === 0 ? (
                 <p className="compare-ok">
-                  {s.total === 0 ? "No bets in these groups on this date." : `All ${s.total} game${s.total > 1 ? "s" : ""} match.`}
+                  {s.total === 0 ? "No bets in these groups on this date." : `All ${s.gameCount} game${s.gameCount > 1 ? "s" : ""} match.`}
                 </p>
               ) : (
                 <>
                   <p className="compare-note">
-                    {s.mismatches.length} of {s.total} game{s.total > 1 ? "s" : ""} differ. Differing figures are marked.
+                    {s.mismatches.length} of {s.total} rows differ (each game's open and close rows are compared on their own). Differing figures are marked.
                   </p>
                   <Table
                     className="settlement-table compare-table"

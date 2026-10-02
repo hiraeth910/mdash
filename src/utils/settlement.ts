@@ -87,3 +87,15 @@ export const buildSettlement = (rows: PaymentData[]): Settlement | null => {
     conclusion: Number(conclusion.res_win_amt || 0),
   };
 };
+
+// One of the two summary rows a game has in the Settlement tab, e.g. "Sri Devi (open)" and "Sri Devi (close)".
+export type SideRow = { key: string; game: string; bet: number; win: number };
+
+export const sideRows = (rows: PaymentData[]): SideRow[] =>
+  rows.flatMap((r) => {
+    if (r.res_type !== "") return [];
+    const m = r.res_game.trim().match(/^(.*?)\s*\((open|close)\)$/);
+    if (!m) return [];
+    const name = m[1].trim().replace(/\s+/g, " ");
+    return [{ key: `${normName(name)} (${m[2]})`, game: `${name} (${m[2]})`, bet: Number(r.res_bet_amt || 0), win: Number(r.res_win_amt || 0) }];
+  });
