@@ -6,13 +6,15 @@ export type CompareColumn = (typeof COMPARE_COLUMNS)[number];
 
 export interface CompareGroup {
   groupId: number;
-  adminName: string; // the admin account the group belongs to, not a user
+  adminName: string; // the admin account the group belongs to
+  userName: string; // the user(s) the group is assigned to
   games: SideRow[]; // the open and close rows of every game
 }
 
 export interface CompareRow {
   groupId: number;
   adminName: string;
+  userName: string;
   row: SideRow | null; // null: this group has no such row
   differs: Record<CompareColumn, boolean>; // columns whose value is not the same in every group
 }
@@ -56,7 +58,7 @@ export const compareGames = (groups: CompareGroup[]): { total: number; gameCount
       key,
       game,
       diff: Object.fromEntries(COMPARE_COLUMNS.map((c) => [c, gap(c)])) as Record<CompareColumn, number>,
-      rows: groups.map((g, i) => ({ groupId: g.groupId, adminName: g.adminName, row: rows[i], differs })),
+      rows: groups.map((g, i) => ({ groupId: g.groupId, adminName: g.adminName, userName: g.userName, row: rows[i], differs })),
     });
   });
   const gameCount = new Set(order.map((o) => o.key.replace(/ \((open|close)\)$/, ""))).size;

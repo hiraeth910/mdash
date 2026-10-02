@@ -18,7 +18,9 @@ interface IGroupRow {
 interface IUserRow {
   user_id: number;
   user_name: string;
+  user_role: string;
   admin_id: number | null;
+  group_ids: number[] | null;
 }
 
 interface NameSection {
@@ -36,7 +38,7 @@ type TableRow = {
   groupSize: number;
   diff: Record<CompareColumn, number>;
   game: string;
-  admin: string;
+  user: string;
   band: number;
   missing: boolean;
   values: Record<CompareColumn, number | null>;
@@ -58,6 +60,9 @@ const Compare: React.FC = () => {
   const latestLoad = useRef(0);
   const adminNamesRef = useRef(adminNames);
   adminNamesRef.current = adminNames;
+  const [plainUsers, setPlainUsers] = useState<IUserRow[]>([]);
+  const plainUsersRef = useRef(plainUsers);
+  plainUsersRef.current = plainUsers;
 
   useEffect(() => {
     (async () => {
@@ -72,6 +77,7 @@ const Compare: React.FC = () => {
           if (u.admin_id !== null && u.user_id === u.admin_id) names[u.user_id] = u.user_name;
         });
         setAdminNames(names);
+        setPlainUsers(usersRes.data.users.filter((u) => u.user_role === "user"));
         setGroups(groupsRes.data);
       } catch {
         message.error("Failed to load groups");
@@ -108,9 +114,16 @@ const Compare: React.FC = () => {
                   groupid: g.group_id,
                   gameid: 0,
                 });
+                const adminName = adminNamesRef.current[g.admin_id ?? -1] || `Admin #${g.admin_id}`;
+                // the users this group is assigned to, found the way the Users screen links them (group ids)
+                const assigned = plainUsersRef.current
+                  .filter((u) => (u.group_ids || []).map(Number).includes(g.group_id))
+                  .map((u) => u.user_name)
+                  .sort((a, b) => a.localeCompare(b));
                 return {
                   groupId: g.group_id,
-                  adminName: adminNamesRef.current[g.admin_id ?? -1] || `Admin #${g.admin_id}`,
+                  adminName,
+                  userName: assigned.join(", ") || `No user (${adminName})`,
                   games: sideRows(res.data),
                 };
               })
@@ -130,7 +143,7 @@ const Compare: React.FC = () => {
 
   const columns = [
     { title: "Game", dataIndex: "game", key: "game" },
-    { title: "Admin", dataIndex: "admin", key: "admin" },
+    { title: "User", dataIndex: "user", key: "user" },
     ...COMPARE_COLUMNS.map((c) => ({
       title: HEADINGS[c],
       key: c,
@@ -173,7 +186,7 @@ const Compare: React.FC = () => {
         groupSize: m.rows.length,
         diff: m.diff,
         game: m.game,
-        admin: r.adminName,
+        user: r.userName,
         band,
         missing: r.row === null,
         values: Object.fromEntries(COMPARE_COLUMNS.map((c) => [c, r.row ? r.row[c] : null])) as Record<CompareColumn, number | null>,
@@ -196,14 +209,14 @@ const Compare: React.FC = () => {
         heading: `${s.name} — ${s.admins.join(" · ")}`,
         columns: [
           { header: "Game" },
-          { header: "Admin" },
+          { header: "User" },
           ...COMPARE_COLUMNS.map((c) => ({ header: HEADINGS[c], align: "right" as const })),
           { header: "Difference", align: "center" as const },
         ],
         rows: tableRows(s.mismatches).map((r) => ({
           cells: [
             r.game,
-            r.admin,
+            r.user,
             ...COMPARE_COLUMNS.map((c, i) => (r.missing ? (i === 0 ? "No data" : "") : fmt(r.values[c]))),
             // the picture cannot merge cells, so the difference sits on the middle row of its group
             r.middle ? `Bet ${fmt(r.diff.bet)} · Win ${fmt(r.diff.win)}` : "",
