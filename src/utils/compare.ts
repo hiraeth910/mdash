@@ -21,6 +21,8 @@ export interface GameMismatch {
   key: string;
   game: string;
   rows: CompareRow[];
+  // The biggest gap between any two groups in each column (a group with no row counts as 0).
+  diff: Record<CompareColumn, number>;
 }
 
 // A game has two rows (open and close) and each is compared on its own across the groups. Rows where
@@ -46,9 +48,14 @@ export const compareGames = (groups: CompareGroup[]): { total: number; gameCount
     ) as Record<CompareColumn, boolean>;
     const same = present.length === rows.length && !COMPARE_COLUMNS.some((c) => differs[c]);
     if (same) return;
+    const gap = (c: CompareColumn) => {
+      const values = rows.map((r) => (r ? r[c] : 0));
+      return Math.round((Math.max(...values) - Math.min(...values)) * 100) / 100;
+    };
     mismatches.push({
       key,
       game,
+      diff: Object.fromEntries(COMPARE_COLUMNS.map((c) => [c, gap(c)])) as Record<CompareColumn, number>,
       rows: groups.map((g, i) => ({ groupId: g.groupId, adminName: g.adminName, row: rows[i], differs })),
     });
   });

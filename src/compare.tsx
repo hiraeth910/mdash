@@ -31,6 +31,10 @@ interface NameSection {
 
 type TableRow = {
   key: string;
+  first: boolean; // first row of a game's group of rows: carries the merged Difference cell
+  middle: boolean; // the row of the group that carries the difference in the copied image
+  groupSize: number;
+  diff: Record<CompareColumn, number>;
   game: string;
   admin: string;
   band: number;
@@ -138,6 +142,23 @@ const Compare: React.FC = () => {
           <span className={r.differs[c] ? "compare-diff" : undefined}>{fmt(r.values[c])}</span>
         ),
     })),
+    {
+      // One cell per game row-group, merged over its rows and centred: the biggest gap in bet and in win.
+      title: "Difference",
+      key: "difference",
+      align: "center" as const,
+      onCell: (r: TableRow) => ({ rowSpan: r.first ? r.groupSize : 0 }),
+      render: (_: unknown, r: TableRow) =>
+        r.first ? (
+          <div className="compare-difference">
+            {COMPARE_COLUMNS.map((c) => (
+              <span key={c}>
+                {c === "bet" ? "Bet" : "Win"} <strong className={r.diff[c] ? "compare-gap" : undefined}>{fmt(r.diff[c])}</strong>
+              </span>
+            ))}
+          </div>
+        ) : null,
+    },
   ];
 
   const tableRows = (mismatches: GameMismatch[]): TableRow[] =>
@@ -145,8 +166,12 @@ const Compare: React.FC = () => {
       // an open and a close row of the same game share a band
       const base = (x: GameMismatch) => x.key.replace(/ \((open|close)\)$/, "");
       const band = mismatches.slice(0, index + 1).filter((x, i, all) => i === 0 || base(x) !== base(all[i - 1])).length;
-      return m.rows.map((r) => ({
+      return m.rows.map((r, i) => ({
         key: `${m.key}-${r.groupId}`,
+        first: i === 0,
+        middle: i === Math.floor((m.rows.length - 1) / 2),
+        groupSize: m.rows.length,
+        diff: m.diff,
         game: m.game,
         admin: r.adminName,
         band,
@@ -173,15 +198,18 @@ const Compare: React.FC = () => {
           { header: "Game" },
           { header: "Admin" },
           ...COMPARE_COLUMNS.map((c) => ({ header: HEADINGS[c], align: "right" as const })),
+          { header: "Difference", align: "center" as const },
         ],
         rows: tableRows(s.mismatches).map((r) => ({
           cells: [
             r.game,
             r.admin,
             ...COMPARE_COLUMNS.map((c, i) => (r.missing ? (i === 0 ? "No data" : "") : fmt(r.values[c]))),
+            // the picture cannot merge cells, so the difference sits on the middle row of its group
+            r.middle ? `Bet ${fmt(r.diff.bet)} · Win ${fmt(r.diff.win)}` : "",
           ],
           shaded: r.band % 2 === 1,
-          marked: r.missing ? [] : COMPARE_COLUMNS.flatMap((c, i) => (r.differs[c] ? [i + 2] : [])),
+          marked: [...(r.missing ? [] : COMPARE_COLUMNS.flatMap((c, i) => (r.differs[c] ? [i + 2] : []))), ...(r.middle ? [COMPARE_COLUMNS.length + 2] : [])],
         })),
       })),
     };

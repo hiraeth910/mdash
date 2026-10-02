@@ -1151,7 +1151,8 @@ body.drag-selecting,
   color: var(--color-primary);
   font-weight: 600;
 }
-.compare-diff {
+.compare-diff,
+.compare-gap {
   color: #f5a524;
   font-weight: 700;
 }
@@ -1182,4 +1183,17 @@ body.drag-selecting,
 .compare-table .ant-table-tbody > tr > td {
   padding-left: 1.25rem !important;
   padding-right: 1.25rem !important;
+}
+
+/* Compare: the merged, centred Difference cell */
+.compare-table .ant-table-tbody > tr > td.ant-table-cell[rowspan] {
+  vertical-align: middle;
+  text-align: center;
+}
+.compare-difference {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
 }

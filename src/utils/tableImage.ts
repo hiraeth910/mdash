@@ -1,6 +1,6 @@
 import { saveAs } from "file-saver";
 
-export type ImageColumn = { header: string; align?: "left" | "right" };
+export type ImageColumn = { header: string; align?: "left" | "right" | "center" };
 export type ImageRow = {
   cells: string[];
   bold?: boolean;
@@ -87,7 +87,7 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
     const cell = (text: string, col: number, x: number, y: number) => {
       const align = columns[col].align ?? "left";
       ctx.textAlign = align;
-      ctx.fillText(text, align === "right" ? x + widths[col] - PAD_X : x + PAD_X, y + ROW_H / 2);
+      ctx.fillText(text, align === "right" ? x + widths[col] - PAD_X : align === "center" ? x + widths[col] / 2 : x + PAD_X, y + ROW_H / 2);
     };
 
     if (sec.heading) {
