@@ -684,37 +684,32 @@ const Dashboard: React.FC = () => {
                         <span>{fmt(-settlement.totalWin)}</span>
                       </div>
                       <div className={`settlement-calc__row settlement-calc__result ${settlement.conclusion < 0 ? "is-negative" : "is-positive"}`}>
-                        <span className="settlement-calc__ld">
-                          <span>{conclusionLabel(settlement.conclusion)}</span>
-                          {isSuper && (
-                            <>
-                              <label htmlFor="ld-percent">L/D %</label>
-                              <InputNumber
-                                id="ld-percent"
-                                min={1}
-                                max={100}
-                                precision={0}
-                                controls={false}
-                                value={ldPercent}
-                                onChange={(v) => setLdPercent(v === null ? null : Math.min(100, Math.max(1, Math.round(Number(v)))))}
-                                style={{ width: 72 }}
-                              />
-                            </>
-                          )}
-                        </span>
+                        <span>{conclusionLabel(settlement.conclusion)}</span>
                         <span>{fmt(settlement.conclusion)}</span>
                       </div>
+                      {isSuper && (
+                        <div className="settlement-calc__row">
+                          <span className="settlement-calc__ld">
+                            <label htmlFor="ld-percent">L/D %</label>
+                            <InputNumber
+                              id="ld-percent"
+                              min={1}
+                              max={100}
+                              precision={0}
+                              controls={false}
+                              value={ldPercent}
+                              onChange={(v) => setLdPercent(v === null ? null : Math.min(100, Math.max(1, Math.round(Number(v)))))}
+                              style={{ width: 72 }}
+                            />
+                          </span>
+                          <span>{ldPct > 0 ? fmt(ldAmount) : ""}</span>
+                        </div>
+                      )}
                       {ldPct > 0 && (
-                        <>
-                          <div className="settlement-calc__row">
-                            <span>L/D {ldPct}%</span>
-                            <span>{fmt(ldAmount)}</span>
-                          </div>
-                          <div className={`settlement-calc__row settlement-calc__result ${dayAmount < 0 ? "is-negative" : "is-positive"}`}>
-                            <span>{dayLabel}</span>
-                            <span>{fmt(dayAmount)}</span>
-                          </div>
-                        </>
+                        <div className={`settlement-calc__row settlement-calc__result ${dayAmount < 0 ? "is-negative" : "is-positive"}`}>
+                          <span>{dayLabel}</span>
+                          <span>{fmt(dayAmount)}</span>
+                        </div>
                       )}
                       <div className="settlement-calc__row settlement-calc__adjust">
                         <div className="settlement-calc__old">

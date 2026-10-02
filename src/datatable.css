@@ -1163,14 +1163,12 @@ body.drag-selecting,
   background: var(--color-primary-10) !important;
 }
 
-/* Payment/Due row: the L/D % box sits beside the label */
+/* L/D % row: the box sits beside the label */
 .settlement-calc__ld {
   display: inline-flex;
   align-items: center;
   gap: 10px;
 }
 .settlement-calc__ld label {
-  font-weight: 400;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
+  color: var(--color-text);
 }
