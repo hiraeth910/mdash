@@ -123,7 +123,7 @@ const Dashboard: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   // Balance carried over from earlier: an old due is added to the remaining, an old payment is taken off it.
   const [oldType, setOldType] = useState<"due" | "payment">("due");
-  const [oldAmount, setOldAmount] = useState<number>(0);
+  const [oldAmount, setOldAmount] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>("settlement");
 
   useEffect(() => {
@@ -167,7 +167,7 @@ const Dashboard: React.FC = () => {
     if (selectedGroupId !== null) {
       fetchData();
     }
-    setOldAmount(0);
+    setOldAmount(null);
   }, [selectedDate, selectedGroupId]);
 
   const fetchGroups = async () => {
@@ -770,16 +770,13 @@ const Dashboard: React.FC = () => {
                               { value: "payment", label: "Old payment" },
                             ]}
                           />
-                          <small>
-                            {oldType === "due" ? "They owe us: added to the result." : "We owe them: subtracted from the result."} Not saved; goes into the downloads.
-                          </small>
                         </div>
                         <InputNumber
                           id="old-balance-amount"
                           aria-label="Old balance amount"
                           min={0}
                           value={oldAmount}
-                          onChange={(v) => setOldAmount(Math.max(Number(v) || 0, 0))}
+                          onChange={(v) => setOldAmount(v === null ? null : Math.max(Number(v) || 0, 0))}
                           style={{ width: 160 }}
                         />
                       </div>
