@@ -434,7 +434,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     }
   };
 
-  // Sends the images to the server, which reads them with an AI model.
+  // Sends the images to the server, which reads them with ChatGPT (handles handwriting too).
   const readWithAi = (endpoint: string) => async (files: File[]) => {
     const encoded = await Promise.all(files.map((f) => fileToBase64(f)));
     const response = await apiClient.post(endpoint, {
@@ -450,17 +450,21 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     return pairs.join("\n");
   };
 
-  // Pasting directly into the textarea uses the AI model, which also handles handwriting.
+  // Pasting an image straight into the box reads it with OCR in the browser (typed lists).
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
     if (imageItems.length === 0) return; // let normal text paste proceed
 
     e.preventDefault();
     const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
-    extractFromImages(files, readWithAi("/extract-bet-image"));
+    extractFromImages(
+      files,
+      readWithOcr,
+      "No entries found. For handwriting, use the Paste image (ChatGPT) button instead."
+    );
   };
 
-  // The Paste button reads typed screenshots with OCR and fills the box above.
+  // The Paste button sends the clipboard image to ChatGPT and fills the box above.
   const handlePasteButtonClick = async () => {
     try {
       const clipboardItems = await navigator.clipboard.read();
@@ -475,11 +479,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         message.warning("No image found on the clipboard.");
         return;
       }
-      extractFromImages(
-        files,
-        readWithOcr,
-        "No entries found. For handwriting, click in the box and paste the image there instead."
-      );
+      extractFromImages(files, readWithAi("/extract-bet-image"));
     } catch (err) {
       console.error("Clipboard read failed:", err);
       message.error("Couldn't read an image from the clipboard. Copy an image first, then click Paste.");
@@ -790,7 +790,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             onClick={handlePasteButtonClick}
             disabled={extractingImages}
           >
-            Paste image (OCR)
+            Paste image (ChatGPT)
           </Button>
 
           {(extractingImages || pastedImagePreviews.length > 0) && (
