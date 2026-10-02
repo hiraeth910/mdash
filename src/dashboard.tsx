@@ -49,7 +49,6 @@ type Settlement = {
 const normName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 const fmt = (v: number | null | undefined) =>
   v === null || v === undefined ? "—" : new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(v);
-const conclusionLabel = (v: number) => (v < 0 ? "Payment" : "Due");
 
 // Regroups the settlement rows the API already returns: per-game open/close summary rows, the winning
 // bets (typed open / close / jodi / open pana / close pana) and the four total rows.
@@ -288,7 +287,8 @@ const Dashboard: React.FC = () => {
   const oldBalance = oldAmount || 0;
   const oldDelta = oldType === "due" ? oldBalance : -oldBalance;
   const finalAmount = settlement ? settlement.conclusion + oldDelta : 0;
-  const finalLabel = `Final ${conclusionLabel(finalAmount).toLowerCase()}`;
+  // The bill is for the group, so the results are simply called payments; the sign says which way it goes.
+  const finalLabel = "Final payment";
 
   // The calculation as shown on screen, in the PDF and in the image.
   const calcLines = (): { label: string; value: number; strong?: boolean }[] => {
@@ -299,7 +299,7 @@ const Dashboard: React.FC = () => {
       { label: settlement.commissionLabel, value: settlement.commission },
       { label: "Remaining", value: settlement.remaining },
       { label: "Total winning", value: -settlement.totalWin },
-      { label: conclusionLabel(settlement.conclusion), value: settlement.conclusion },
+      { label: "Payment", value: settlement.conclusion },
     ];
     if (oldBalance > 0) {
       lines.push({ label: oldType === "due" ? "Old due" : "Old payment", value: oldDelta });
@@ -698,7 +698,7 @@ const Dashboard: React.FC = () => {
                         <span>{fmt(-settlement.totalWin)}</span>
                       </div>
                       <div className={`settlement-calc__row settlement-calc__result ${settlement.conclusion < 0 ? "is-negative" : "is-positive"}`}>
-                        <span>{conclusionLabel(settlement.conclusion)}</span>
+                        <span>Payment</span>
                         <span>{fmt(settlement.conclusion)}</span>
                       </div>
                       <div className="settlement-calc__row settlement-calc__adjust">
