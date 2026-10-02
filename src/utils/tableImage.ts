@@ -16,7 +16,7 @@ type Section = {
   rows: ImageRow[];
 };
 
-type TableImage = {
+export type TableImage = {
   title: string;
   subtitle?: string;
   // Sections are stacked top to bottom in one picture.
@@ -32,8 +32,8 @@ const MARGIN = 24;
 const HEADING_H = 34;
 const GAP = 14;
 
-// Draws plain white tables (so they read well when shared) and downloads them as one PNG.
-export const downloadTableImage = ({ title, subtitle, sections, fileName }: TableImage): Promise<void> => {
+// Draws plain white tables (so they read well when shared) as one PNG.
+export const renderTableImage = ({ title, subtitle, sections }: TableImage): Promise<Blob> => {
   const measure = document.createElement("canvas").getContext("2d");
   if (!measure) return Promise.reject(new Error("Canvas is not available"));
 
@@ -139,8 +139,11 @@ export const downloadTableImage = ({ title, subtitle, sections, fileName }: Tabl
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) return reject(new Error("Could not create the image"));
-      saveAs(blob, fileName);
-      resolve();
+      resolve(blob);
     }, "image/png");
   });
+};
+
+export const downloadTableImage = async (image: TableImage): Promise<void> => {
+  saveAs(await renderTableImage(image), image.fileName);
 };

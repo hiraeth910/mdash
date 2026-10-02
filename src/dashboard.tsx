@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Table, Button, DatePicker, Select, Spin, message, Modal, InputNumber, Tabs } from "antd";
+import { WhatsAppOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { saveAs } from "file-saver";
 import { apiClient } from "./utils/api";
 import { Link, useParams } from "react-router-dom";
 import { useUserStore } from "./store/store";
@@ -11,7 +13,7 @@ import pdfMake from "pdfmake/build/pdfmake";
 import { vfs } from "pdfmake/build/vfs_fonts";
 import { IUser } from "./users";
 import { checkAuthAndHandleLogout } from "./authcheck";
-import { downloadTableImage } from "./utils/tableImage";
+import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 
 pdfMake.vfs = vfs;
 export interface PaymentData {
@@ -48,6 +50,9 @@ type Settlement = {
 
 // Payment is what we owe them (negative), due is what they owe us.
 const conclusionLabel = (v: number) => (v < 0 ? "Payment" : "Due");
+// Bills are sent to this WhatsApp number (+91 94947 47594).
+const WHATSAPP_NUMBER = "919494747594";
+const WHATSAPP_DISPLAY = "+91 94947 47594";
 const normName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 const fmt = (v: number | null | undefined) =>
   v === null || v === undefined ? "—" : new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(v);
@@ -309,9 +314,9 @@ const Dashboard: React.FC = () => {
   };
 
   const billImageTitle = () => `Bill — ${grpname ?? "All Groups"} — ${dayjs(selectedDate).format("YYYY-MM-DD")}`;
-  const downloadBillImage = () => {
-    if (!settlement) return;
-    downloadTableImage({
+  const billImage = (): TableImage | null => {
+    if (!settlement) return null;
+    return {
       title: billImageTitle(),
       fileName: `Bill_${dayjs(selectedDate).format("YYYY-MM-DD")}(${grpname ?? "All Groups"}).png`,
       sections: [
@@ -342,7 +347,54 @@ const Dashboard: React.FC = () => {
           })),
         },
       ],
-    }).catch(() => message.error("Could not create the image"));
+    };
+  };
+
+  const downloadBillImage = () => {
+    const image = billImage();
+    if (image) downloadTableImage(image).catch(() => message.error("Could not create the image"));
+  };
+
+  // A wa.me link can only pre-fill text, never attach a picture. So the image goes along another way:
+  // phones get the share sheet (the picture is attached, WhatsApp and the chat are picked there);
+  // computers copy the picture to the clipboard and open the chat for the user to paste into.
+  const sendBillOnWhatsApp = async () => {
+    const image = billImage();
+    if (!image) return;
+    const text = [billImageTitle(), ...calcLines().map((l) => `${l.label}: ${fmt(l.value)}`)].join("\n");
+    const chatUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+    const blobPromise = renderTableImage(image);
+
+    const phone = window.matchMedia("(pointer: coarse)").matches && typeof navigator.canShare === "function";
+    if (phone) {
+      try {
+        const file = new File([await blobPromise], image.fileName, { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], text });
+          return;
+        }
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return; // the user closed the share sheet
+      }
+    }
+
+    // Opened right away (still inside the click) so the browser doesn't block it as a pop-up.
+    const chat = window.open("", "_blank");
+    let copied = false;
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+      copied = true;
+    } catch {
+      try {
+        saveAs(await blobPromise, image.fileName);
+      } catch {
+        message.error("Could not create the image");
+      }
+    }
+    if (chat) chat.location.href = chatUrl;
+    else window.open(chatUrl, "_blank");
+    if (copied) message.success("Image copied. In the WhatsApp chat, paste it (Ctrl+V, or ⌘V on a Mac) to attach it.");
+    else message.info("Couldn't copy the image, so it was downloaded. Attach it in the WhatsApp chat.");
   };
 
   const downloadBill = () => {
@@ -494,6 +546,15 @@ const Dashboard: React.FC = () => {
               <Button onClick={downloadBillImage} disabled={!settlement}>
                 Download image
               </Button>
+              <Button
+                icon={<WhatsAppOutlined />}
+                onClick={sendBillOnWhatsApp}
+                disabled={!settlement}
+                title={`Opens a WhatsApp chat with ${WHATSAPP_DISPLAY}`}
+              >
+                Send on WhatsApp
+              </Button>
+              <span className="whatsapp-number">{WHATSAPP_DISPLAY}</span>
             </>
           )}
         </div>
