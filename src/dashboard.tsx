@@ -351,7 +351,6 @@ const Dashboard: React.FC = () => {
                   { header: "Type" },
                   { header: "Number", align: "right" as const },
                   { header: "Bet", align: "right" as const },
-                  { header: "Times", align: "right" as const },
                   { header: "Winning", align: "right" as const },
                 ],
                 rows: settlement.winners.map((w) => ({
@@ -360,7 +359,6 @@ const Dashboard: React.FC = () => {
                     w.res_type,
                     String(w.res_bet_on),
                     fmt(w.res_bet_amt),
-                    String(w.res_payable_times),
                     fmt(w.res_win_amt),
                   ],
                 })),
@@ -461,7 +459,6 @@ const Dashboard: React.FC = () => {
     { title: "Type", dataIndex: "res_type", key: "t" },
     { title: "Number", dataIndex: "res_bet_on", key: "n", align: "right" as const },
     { title: "Bet", dataIndex: "res_bet_amt", key: "b", align: "right" as const, render: amountCell },
-    { title: "Times", dataIndex: "res_payable_times", key: "p", align: "right" as const },
     { title: "Winning", dataIndex: "res_win_amt", key: "w", align: "right" as const, render: amountCell },
   ];
 
