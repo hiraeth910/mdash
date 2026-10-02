@@ -10,6 +10,7 @@ import { isAdminRole } from "./utils/session";
 import "./datatable.css";
 import { IGame, IGameResult } from "./games";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import ResultModal from "./ResultModal";
 
 // Jodi type id — the two digit table that is bucketed by its first digit.
 const JODI_TYPE_ID = "2";
@@ -83,6 +84,8 @@ const DataTables: React.FC = () => {
   const [selectedGame, setSelectedGame] = useState<IGame | null>(null);
   const [pickedGroups, setPickedGroups] = useState<IGroup[]>([]);
   const [gameResult, setGameResult] = useState<IGameResult | null>(null);
+  const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [resultReload, setResultReload] = useState(0); // bumped after a save to fetch the result again
   const scrollRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   // Every filter change refetches; a slower earlier response must not overwrite a newer one.
   const latestFetchId = useRef(0);
@@ -236,7 +239,7 @@ const DataTables: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedGame, selectedDate]);
+  }, [selectedGame, selectedDate, resultReload]);
 
   // Bring the winning row into view inside each table's scroll box.
   useEffect(() => {
@@ -737,6 +740,16 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
                 ? "Winning numbers are highlighted in each table below"
                 : "Ank is the last digit of the pana's digit sum"}
             </p>
+            {userRole === "superadmin" && (
+              <Button
+                size="small"
+                className="btn-ghost"
+                disabled={!selectedGame}
+                onClick={() => setResultModalOpen(true)}
+              >
+                {gameResult ? "Edit result" : "Add result"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -920,6 +933,17 @@ const tableContent = (
             );
           })}
         </div>
+      )}
+      {selectedGame && (
+        <ResultModal
+          open={resultModalOpen}
+          gameId={selectedGame.gameid}
+          gameName={selectedGame.gamename}
+          date={selectedDate}
+          result={gameResult}
+          onClose={() => setResultModalOpen(false)}
+          onSaved={() => setResultReload((n) => n + 1)}
+        />
       )}
       {/* The rest of your JSX (tables, buttons, etc.) goes here */}
     </div>
