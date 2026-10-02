@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DatePicker, Spin, message, Button, Modal, Table } from "antd";
+import { DatePicker, Spin, message, Button, Table } from "antd";
 import { LoadingOutlined, HolderOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
@@ -165,39 +165,15 @@ const SummaryDashboard: React.FC = () => {
     saveOrder(ids);
   };
 
-  const recalcAll = async () => {
-    setLoading(true);
-    try {
-      const res = await apiClient.post("/recalculate", {
-        groupid: -1,
-        date: selectedDate,
-      });
-      if (res.status === 200) {
-        message.success("Recalculation complete");
-        await fetchDataForGroups(groups, selectedDate);
-      } else {
-        message.warning(`Unexpected response: ${res.status}`);
-      }
-    } catch {
-      message.error("Recalculation failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const showConfirm = () =>
-    Modal.confirm({
-      title: <span style={{ color: "var(--color-heading)" }}>Recalculate All Groups?</span>,
-      content: (
-        <span style={{ color: "var(--color-text)" }}>
-          This will recalculate profit and loss for every group. This operation cannot be undone.
-        </span>
-      ),
-      bodyStyle: { backgroundColor: "var(--color-background)", color: "var(--color-text)" },
-      onOk: recalcAll,
-      okText: "Yes, recalc",
-      cancelText: "Cancel",
-    });
+  // The Recalculate button now lives in the header; show the new figures when it finishes.
+  useEffect(() => {
+    const refresh = () => {
+      if (groups.length > 0) fetchDataForGroups(groups, selectedDate);
+    };
+    window.addEventListener("recalculated", refresh);
+    return () => window.removeEventListener("recalculated", refresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, selectedDate]);
 
   const exportToCSV = () => {
     const q = (s: string) => `"${s.replace(/"/g, '""')}"`;
@@ -239,9 +215,6 @@ const SummaryDashboard: React.FC = () => {
             value={dayjs(selectedDate)}
             onChange={(date) => setSelectedDate(date?.format("YYYY-MM-DD") || selectedDate)}
           />
-          <Button onClick={showConfirm} disabled={dayjs(selectedDate).isBefore(dayjs().subtract(15, "day"))}>
-            Recalculate
-          </Button>
           <Button type="primary" onClick={exportToCSV}>
             Download CSV
           </Button>

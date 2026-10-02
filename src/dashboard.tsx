@@ -86,6 +86,16 @@ const Dashboard: React.FC = () => {
     setLdPercent(null);
   }, [selectedDate, selectedGroupId]);
 
+  // A recalculation started from the header: show the new figures for the selected group.
+  useEffect(() => {
+    const refresh = () => {
+      if (selectedGroupId !== null) fetchData();
+    };
+    window.addEventListener("recalculated", refresh);
+    return () => window.removeEventListener("recalculated", refresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroupId, selectedDate]);
+
   const fetchGroups = async () => {
     setLoading(true);
     try {

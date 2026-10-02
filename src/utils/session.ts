@@ -2,7 +2,7 @@
 // must not silently carry the user forward — they have to enter credentials again.
 const SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
-const KEYS = ["role", "userId", "loginAt", "token"] as const;
+const KEYS = ["role", "userId", "loginAt", "token", "userName"] as const;
 
 // Each tab keeps its own login in sessionStorage, so a user login and an admin login can run side
 // by side in one browser without one tab sending the other's token. localStorage only remembers the
@@ -17,9 +17,12 @@ if (!sessionStorage.getItem("token") && localStorage.getItem("token")) {
 export const getTabToken = (): string | null => sessionStorage.getItem("token");
 export const getTabRole = (): string | null => sessionStorage.getItem("role");
 export const getTabUserId = (): string | null => sessionStorage.getItem("userId");
+export const getTabUserName = (): string | null => sessionStorage.getItem("userName");
+export const saveUserName = (name: string) => sessionStorage.setItem("userName", name);
 
-export const saveLogin = (role: string, id: number, token: string) => {
-  const values = { role, userId: String(id), loginAt: Date.now().toString(), token };
+export const saveLogin = (role: string, id: number, token: string, name?: string) => {
+  const values: Record<string, string> = { role, userId: String(id), loginAt: Date.now().toString(), token };
+  if (name) values.userName = name;
   Object.entries(values).forEach(([key, value]) => {
     sessionStorage.setItem(key, value);
     localStorage.setItem(key, value);

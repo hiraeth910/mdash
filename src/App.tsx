@@ -11,6 +11,7 @@ import { Modal } from "antd";
 import Login from "./login";
 import GamesPage from "./games";
 import Compare from "./compare";
+import AdminBar from "./AdminBar";
 import Users from "./users";
 import InsertHistory from "./InsertHistory";
 import HistoryTable from "./History";
@@ -95,6 +96,7 @@ const App: React.FC = () => {
         {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
       </div>
 
+      {(userRole === "admin" || userRole === "superadmin") && <AdminBar />}
       <Routes>
         <Route path="/" element={<Login />} />
         <Route

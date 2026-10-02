@@ -37,7 +37,7 @@ const Login: React.FC = () => {
     const response = await loginUser(trimmedUserId, password);
 
     if (response.role && response.token) {
-      saveLogin(response.role, response.id, response.token);
+      saveLogin(response.role, response.id, response.token, trimmedUserId);
       setUser(response.role, response.id);
       window.location.href = response.role === "user" ? "/userGames" : "/games";
     } else {
