@@ -13,6 +13,11 @@ import { checkAuthAndHandleLogout } from "./authcheck";
 
 // Jodi type id — the two digit table that is bucketed by its first digit.
 const JODI_TYPE_ID = "2";
+// The other types, each of which has one winning number once the result is declared.
+const OPEN_PANA_TYPE_ID = "3";
+const OPEN_TYPE_ID = "4";
+const CLOSE_TYPE_ID = "7";
+const CLOSE_PANA_TYPE_ID = "9";
 
 // A pana is three digits; its ank is the last digit of their sum.
 const panaToAnk = (pana?: string | null): number | null => {
@@ -84,6 +89,24 @@ const DataTables: React.FC = () => {
 
   const openAnk = panaToAnk(gameResult?.open_pana);
   const closeAnk = panaToAnk(gameResult?.close_pana);
+
+  // The number that won in a (non-jodi) table, or null while that part of the result is not declared.
+  // Jodi is highlighted by its open-ank row group instead.
+  const winningNumber = (typeid: string): number | null => {
+    const asNumber = (value?: string | null) => (value && /^\d+$/.test(value.trim()) ? Number(value) : null);
+    switch (typeid) {
+      case OPEN_TYPE_ID:
+        return openAnk;
+      case CLOSE_TYPE_ID:
+        return closeAnk;
+      case OPEN_PANA_TYPE_ID:
+        return asNumber(gameResult?.open_pana);
+      case CLOSE_PANA_TYPE_ID:
+        return asNumber(gameResult?.close_pana);
+      default:
+        return null;
+    }
+  };
 
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
@@ -215,18 +238,19 @@ const DataTables: React.FC = () => {
     };
   }, [selectedGame, selectedDate]);
 
-  // Bring the winning row group into view inside the jodi table's scroll box.
+  // Bring the winning row into view inside each table's scroll box.
   useEffect(() => {
-    if (openAnk === null || loading) return;
+    if (!gameResult || loading) return;
     const timer = setTimeout(() => {
-      const container = scrollRefs.current[JODI_TYPE_ID];
-      const row = container?.querySelector(".result-hit-row, .result-bucket-row") as HTMLElement | null;
-      if (!container || !row) return;
-      const offset = row.getBoundingClientRect().top - container.getBoundingClientRect().top;
-      container.scrollTop += offset - container.clientHeight / 3;
+      Object.values(scrollRefs.current).forEach((container) => {
+        const row = container?.querySelector(".result-hit-row, .result-bucket-row") as HTMLElement | null;
+        if (!container || !row) return;
+        const offset = row.getBoundingClientRect().top - container.getBoundingClientRect().top;
+        container.scrollTop += offset - container.clientHeight / 3;
+      });
     }, 0);
     return () => clearTimeout(timer);
-  }, [openAnk, groupedData, loading]);
+  }, [gameResult, groupedData, loading]);
 
     // helper: snap value to nearest/floor/ceil tens
 const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => {
@@ -709,8 +733,8 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
               <span className="control-empty-chip">No result declared for this date</span>
             )}
             <p className="control-card__subtext">
-              {openAnk !== null
-                ? `Jodi ${openAnk}0-${openAnk}9 highlighted below`
+              {openAnk !== null || closeAnk !== null
+                ? "Winning numbers are highlighted in each table below"
                 : "Ank is the last digit of the pana's digit sum"}
             </p>
           </div>
@@ -730,6 +754,7 @@ const percentageNum = Number(percentage) || 0;
 
 // original (possibly bucketed) table rows
 const isType2 = String(typeid) === JODI_TYPE_ID;
+const winNumber = winningNumber(String(typeid));
 const tableData = isType2 ? buildBucketedData(data) : data.slice();
 
 // build adjusted rows and recompute bucket totals (if any)
@@ -853,6 +878,8 @@ const tableContent = (
         if (isType2 && openAnk !== null) {
           const digit = record.__isBucket ? record.bucketDigit : jodiDigit(record.inumber);
           if (digit === openAnk) classes.push(record.__isBucket ? "result-bucket-row" : "result-hit-row");
+        } else if (!isType2 && winNumber !== null && Number(record.inumber) === winNumber) {
+          classes.push("result-hit-row");
         }
         return classes.join(" ");
       }}
