@@ -1172,3 +1172,14 @@ body.drag-selecting,
 .settlement-calc__ld label {
   color: var(--color-text);
 }
+
+/* Compare table: only as wide as its four columns need, instead of stretching across the card */
+.compare-table {
+  width: max-content;
+  max-width: 100%;
+}
+.compare-table .ant-table-thead > tr > th,
+.compare-table .ant-table-tbody > tr > td {
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
+}
