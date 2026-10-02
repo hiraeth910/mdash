@@ -543,14 +543,17 @@ const Dashboard: React.FC = () => {
               <Button type="primary" onClick={downloadBill} disabled={!settlement}>
                 Download bill
               </Button>
+              <Button onClick={() => downloadBillImage(false)} disabled={!settlement}>
+                Download image
+              </Button>
               <Button onClick={() => downloadBillImage(true)} disabled={!settlement}>
-                Detailed download
+                Download detailed image
               </Button>
               <Button onClick={() => copyBillImage(false)} disabled={!settlement}>
                 Copy image
               </Button>
               <Button onClick={() => copyBillImage(true)} disabled={!settlement}>
-                Detailed copy
+                Copy detailed image
               </Button>
             </>
           )}
