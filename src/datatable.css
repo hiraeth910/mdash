@@ -1129,3 +1129,36 @@ body.drag-selecting,
   font-size: 11px;
   opacity: 0.65;
 }
+
+/* Compare page */
+.compare-card h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.compare-admins {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.compare-summary,
+.compare-note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+.compare-ok {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.compare-diff {
+  color: #f5a524;
+  font-weight: 700;
+}
+.compare-missing {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ant-table .ant-table-tbody > tr.compare-band-odd > td {
+  background: var(--color-primary-10) !important;
+}

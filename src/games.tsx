@@ -248,6 +248,7 @@ if (name === "open_pana")  setOpenPana(value);
             <Link to="/groups">Groups</Link>
             <Link to="/result/:gameid/:gamename">Settlement</Link>
             <Link to="/summary">Day</Link>
+            {userRole === "superadmin" && <Link to="/compare">Compare</Link>}
           </div>
         )}
         <div className="games-layout">

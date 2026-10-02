@@ -230,6 +230,7 @@ const SummaryDashboard: React.FC = () => {
         <Link to="/groups">Groups</Link>
         <Link to="/result/:gameid/:gamename">Settlement</Link>
         <Link to="/summary" className="active">Day</Link>
+            {userRole === "superadmin" && <Link to="/compare">Compare</Link>}
       </div>
       <div className="new-header" style={{ maxHeight: "none" }}>
         <h2>Day Profit and Loss</h2>

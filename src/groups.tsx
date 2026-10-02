@@ -148,6 +148,7 @@ const Groups: React.FC = () => {
               Settlement
             </Link>
              <Link to="/summary">Day</Link>
+             {userRole === "superadmin" && <Link to="/compare">Compare</Link>}
           </div>
       <h2>Groups</h2>
       <Input.Search

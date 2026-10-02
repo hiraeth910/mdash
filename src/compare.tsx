@@ -1,0 +1,272 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Button, DatePicker, Spin, Table, message } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import { Link } from "react-router-dom";
+import { apiClient } from "./utils/api";
+import { checkAuthAndHandleLogout } from "./authcheck";
+import { buildSettlement, fmt, normName, type PaymentData } from "./utils/settlement";
+import { COMPARE_COLUMNS, compareGames, type CompareColumn, type CompareGroup, type GameMismatch } from "./utils/compare";
+import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
+import "./datatable.css";
+
+interface IGroupRow {
+  group_id: number;
+  group_name: string;
+  admin_id?: number | null;
+}
+interface IUserRow {
+  user_id: number;
+  user_name: string;
+  admin_id: number | null;
+}
+
+interface NameSection {
+  name: string;
+  admins: string[];
+  total: number;
+  mismatches: GameMismatch[];
+}
+
+type TableRow = {
+  key: string;
+  game: string;
+  admin: string;
+  band: number;
+  missing: boolean;
+  values: Record<CompareColumn, number | null>;
+  differs: Record<CompareColumn, boolean>;
+};
+
+const HEADINGS: Record<CompareColumn, string> = {
+  bet: "Total bet",
+  open: "Open win",
+  jodi: "Jodi win",
+  openPana: "Open pana win",
+  close: "Close win",
+  closePana: "Close pana win",
+  win: "Total winning",
+};
+
+const Compare: React.FC = () => {
+  const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
+  const [groups, setGroups] = useState<IGroupRow[]>([]);
+  const [adminNames, setAdminNames] = useState<Record<number, string>>({});
+  const [sections, setSections] = useState<NameSection[]>([]);
+  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const latestLoad = useRef(0);
+  const adminNamesRef = useRef(adminNames);
+  adminNamesRef.current = adminNames;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!(await checkAuthAndHandleLogout())) return;
+        const [groupsRes, usersRes] = await Promise.all([
+          apiClient.get<IGroupRow[]>("/groups"),
+          apiClient.get<{ users: IUserRow[] }>("/users"),
+        ]);
+        const names: Record<number, string> = {};
+        usersRes.data.users.forEach((u) => {
+          if (u.admin_id !== null && u.user_id === u.admin_id) names[u.user_id] = u.user_name;
+        });
+        setAdminNames(names);
+        setGroups(groupsRes.data);
+      } catch {
+        message.error("Failed to load groups");
+      } finally {
+        setReady(true);
+      }
+    })();
+  }, []);
+
+  // Group names that more than one group carries (each belongs to a different admin).
+  const repeated = useMemo(() => {
+    const byName = new Map<string, IGroupRow[]>();
+    groups.forEach((g) => byName.set(normName(g.group_name), [...(byName.get(normName(g.group_name)) || []), g]));
+    return [...byName.values()]
+      .filter((list) => list.length >= 2)
+      .sort((a, b) => a[0].group_name.localeCompare(b[0].group_name));
+  }, [groups]);
+
+  // Reload only when the set of groups or the date really changes, not when the same list is fetched again.
+  const repeatedKey = repeated.map((list) => list.map((g) => g.group_id).join(",")).join("|");
+
+  useEffect(() => {
+    if (!ready) return;
+    const loadId = ++latestLoad.current;
+    setLoading(true);
+    (async () => {
+      try {
+        const built = await Promise.all(
+          repeated.map(async (list): Promise<NameSection> => {
+            const compared: CompareGroup[] = await Promise.all(
+              list.map(async (g) => {
+                const res = await apiClient.post<PaymentData[]>("/group-payments-by-date", {
+                  gamedate: date,
+                  groupid: g.group_id,
+                  gameid: 0,
+                });
+                return {
+                  groupId: g.group_id,
+                  adminName: adminNamesRef.current[g.admin_id ?? -1] || `Admin #${g.admin_id}`,
+                  games: buildSettlement(res.data)?.games ?? [],
+                };
+              })
+            );
+            return { name: list[0].group_name, admins: compared.map((c) => c.adminName), ...compareGames(compared) };
+          })
+        );
+        if (loadId === latestLoad.current) setSections(built);
+      } catch {
+        if (loadId === latestLoad.current) message.error("Failed to load the groups' data");
+      } finally {
+        if (loadId === latestLoad.current) setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, repeatedKey, date]);
+
+  const columns = [
+    { title: "Game", dataIndex: "game", key: "game" },
+    { title: "Admin", dataIndex: "admin", key: "admin" },
+    ...COMPARE_COLUMNS.map((c) => ({
+      title: HEADINGS[c],
+      key: c,
+      align: "right" as const,
+      render: (_: unknown, r: TableRow) =>
+        r.missing ? (
+          <span className="compare-missing">{c === "bet" ? "No data" : ""}</span>
+        ) : (
+          <span className={r.differs[c] ? "compare-diff" : undefined}>{fmt(r.values[c])}</span>
+        ),
+    })),
+  ];
+
+  const tableRows = (mismatches: GameMismatch[]): TableRow[] =>
+    mismatches.flatMap((m, band) =>
+      m.rows.map((r) => ({
+        key: `${m.key}-${r.groupId}`,
+        game: m.game,
+        admin: r.adminName,
+        band,
+        missing: r.row === null,
+        values: Object.fromEntries(COMPARE_COLUMNS.map((c) => [c, r.row ? r.row[c] : null])) as Record<CompareColumn, number | null>,
+        differs: r.differs,
+      }))
+    );
+
+  const totalDiffs = sections.reduce((n, s) => n + s.mismatches.length, 0);
+
+  // One picture of every group name that has differing games; names that fully match are listed in the subtitle.
+  const compareImage = (): TableImage | null => {
+    const differing = sections.filter((s) => s.mismatches.length > 0);
+    if (differing.length === 0) return null;
+    const matching = sections.filter((s) => s.mismatches.length === 0 && s.total > 0).map((s) => s.name);
+    return {
+      title: `Compare groups — ${date}`,
+      subtitle: matching.length ? `All games match: ${matching.join(", ")}` : undefined,
+      fileName: `Compare_${date}.png`,
+      sections: differing.map((s) => ({
+        heading: `${s.name} — ${s.admins.join(" · ")}`,
+        columns: [
+          { header: "Game" },
+          { header: "Admin" },
+          ...COMPARE_COLUMNS.map((c) => ({ header: HEADINGS[c], align: "right" as const })),
+        ],
+        rows: tableRows(s.mismatches).map((r) => ({
+          cells: [
+            r.game,
+            r.admin,
+            ...COMPARE_COLUMNS.map((c, i) => (r.missing ? (i === 0 ? "No data" : "") : fmt(r.values[c]))),
+          ],
+          shaded: r.band % 2 === 1,
+          marked: r.missing ? [] : COMPARE_COLUMNS.flatMap((c, i) => (r.differs[c] ? [i + 2] : [])),
+        })),
+      })),
+    };
+  };
+
+  // Puts the picture on the clipboard; browsers that cannot copy images download it instead.
+  const copyImage = async () => {
+    const image = compareImage();
+    if (!image) return;
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": renderTableImage(image) })]);
+      message.success("Image copied. Paste it where you want to send it.");
+    } catch {
+      downloadTableImage(image).catch(() => message.error("Could not create the image"));
+      message.info("Couldn't copy the image here, so it was downloaded instead.");
+    }
+  };
+
+  return (
+    <div className="data-page">
+      <div className="header top-nav">
+        <Link to="/users">Users</Link>
+        <Link to="/games">Games</Link>
+        <Link to="/groups">Groups</Link>
+        <Link to="/result/:gameid/:gamename">Settlement</Link>
+        <Link to="/summary">Day</Link>
+        <Link to="/compare" className="active">Compare</Link>
+      </div>
+      <div className="new-header" style={{ maxHeight: "none" }}>
+        <h2>Compare groups</h2>
+        <div className="inputs-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <DatePicker value={dayjs(date)} onChange={(d) => setDate(d?.format("YYYY-MM-DD") || date)} />
+          <Button onClick={copyImage} disabled={loading || totalDiffs === 0}>
+            Copy image
+          </Button>
+          {!loading && ready && repeated.length > 0 && (
+            <span className="compare-summary">
+              {repeated.length} group name{repeated.length > 1 ? "s" : ""} used by more than one admin ·{" "}
+              {totalDiffs === 0 ? "everything tallies" : `${totalDiffs} game${totalDiffs > 1 ? "s" : ""} differ`}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {loading || !ready ? (
+        <div className="loading-container" style={{ textAlign: "center", padding: 50 }}>
+          <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+        </div>
+      ) : repeated.length === 0 ? (
+        <div style={{ textAlign: "center", marginTop: 20 }}>No group name is used by more than one admin.</div>
+      ) : (
+        <div className="payment-summary-container settlement">
+          {sections.map((s) => (
+            <div className="table-container compare-card" key={s.name} style={{ maxHeight: "none", height: "auto", overflow: "visible" }}>
+              <h3>
+                {s.name}
+                <span className="compare-admins">{s.admins.join(" · ")}</span>
+              </h3>
+              {s.mismatches.length === 0 ? (
+                <p className="compare-ok">
+                  {s.total === 0 ? "No bets in these groups on this date." : `All ${s.total} game${s.total > 1 ? "s" : ""} match.`}
+                </p>
+              ) : (
+                <>
+                  <p className="compare-note">
+                    {s.mismatches.length} of {s.total} game{s.total > 1 ? "s" : ""} differ. Differing figures are marked.
+                  </p>
+                  <Table
+                    className="settlement-table compare-table"
+                    dataSource={tableRows(s.mismatches)}
+                    columns={columns}
+                    pagination={false}
+                    size="middle"
+                    scroll={{ x: "max-content" }}
+                    rowClassName={(r) => (r.band % 2 ? "compare-band-odd" : "compare-band-even")}
+                  />
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Compare;

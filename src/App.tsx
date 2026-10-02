@@ -10,6 +10,7 @@ import { LogOut, Sun, Moon } from "lucide-react";
 import { Modal } from "antd";
 import Login from "./login";
 import GamesPage from "./games";
+import Compare from "./compare";
 import Users from "./users";
 import InsertHistory from "./InsertHistory";
 import HistoryTable from "./History";
@@ -151,6 +152,14 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
               <Groups />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/compare"
+          element={
+            <ProtectedRoute allowedRoles={["superadmin"]}>
+              <Compare />
             </ProtectedRoute>
           }
         />

@@ -8,6 +8,8 @@ export type ImageRow = {
   tone?: "negative" | "positive";
   // Light band behind the row, used for totals.
   shaded?: boolean;
+  // Indexes of cells to point out (drawn bold in amber), e.g. figures that differ between groups.
+  marked?: number[];
 };
 
 type Section = {
@@ -121,11 +123,12 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
       ctx.lineTo(MARGIN + tableW, y + ROW_H);
       ctx.stroke();
 
-      ctx.font = font(!!r.bold);
       let cx = MARGIN;
       columns.forEach((_, ci) => {
         const last = ci === columns.length - 1;
-        ctx.fillStyle = last && r.tone === "negative" ? "#c62828" : last && r.tone === "positive" ? "#1b7f4b" : "#1d2b27";
+        const marked = !!r.marked?.includes(ci);
+        ctx.font = font(!!r.bold || marked);
+        ctx.fillStyle = marked ? "#c2410c" : last && r.tone === "negative" ? "#c62828" : last && r.tone === "positive" ? "#1b7f4b" : "#1d2b27";
         cell(r.cells[ci] ?? "", ci, cx, y);
         cx += widths[ci];
       });

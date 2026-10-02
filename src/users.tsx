@@ -294,6 +294,7 @@ const Users: React.FC = () => {
                       <Link to="/groups">Groups</Link>
                       <Link to="/result/:gameid/:gamename">Settlement</Link>
                       <Link to="/summary">Day</Link>
+            {userRole === "superadmin" && <Link to="/compare">Compare</Link>}
         </div>
       )}
 
