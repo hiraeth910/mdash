@@ -1224,10 +1224,7 @@ body.drag-selecting,
 .day-picked__title {
   margin: 0;
 }
-.day-picked .ant-input-number-group-addon {
-  color: var(--color-text, inherit);
-  background: transparent;
-}
+
 
 /* Compare "View numbers" modal: the total row follows the theme like the rest of the table */
 .compare-numbers-table .ant-table-summary > tr > td,
@@ -1240,4 +1237,51 @@ body.drag-selecting,
 }
 .compare-numbers-table .ant-table-summary .compare-gap {
   color: var(--color-danger);
+}
+
+/* Number boxes and dropdowns follow the theme (dark and light) */
+.ant-input-number,
+.ant-input-number-group-wrapper .ant-input-number-wrapper,
+.ant-input-number-group .ant-input-number-group-addon {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+.ant-input-number .ant-input-number-input {
+  background: transparent !important;
+  color: var(--color-text) !important;
+}
+.ant-input-number .ant-input-number-input::placeholder {
+  color: var(--color-text-muted);
+}
+.ant-input-number .ant-input-number-handler-wrap {
+  background: var(--color-surface-muted);
+}
+.ant-input-number .ant-input-number-handler,
+.ant-input-number .ant-input-number-handler-up-inner,
+.ant-input-number .ant-input-number-handler-down-inner {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+.ant-input-number-focused,
+.ant-input-number:hover {
+  border-color: var(--color-primary) !important;
+}
+.ant-select .ant-select-selector {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+.ant-select .ant-select-arrow {
+  color: var(--color-text-muted);
+}
+.ant-select-dropdown {
+  background: var(--color-surface) !important;
+}
+.ant-select-dropdown .ant-select-item {
+  color: var(--color-text) !important;
+}
+.ant-select-dropdown .ant-select-item-option-active,
+.ant-select-dropdown .ant-select-item-option-selected {
+  background: var(--color-primary-10) !important;
 }
