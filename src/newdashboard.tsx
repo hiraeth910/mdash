@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DatePicker, Spin, message, Button, Table } from "antd";
+import { DatePicker, Spin, message, Button, Table, InputNumber } from "antd";
 import { LoadingOutlined, HolderOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
@@ -59,6 +59,18 @@ const columns = [
   { title: "Profit/Loss", dataIndex: "pnl", key: "pnl", render: pnlCell },
 ];
 
+const isTotalKey = (key: unknown) => String(key).startsWith("total");
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+// A row of the table of picked groups: a group, or one of the closing rows under it.
+type PickedRow = {
+  key: number | string;
+  kind: "group" | "total" | "ld" | "final";
+  group_name: string;
+  pnl: number;
+  admin?: string;
+};
+
 const SummaryDashboard: React.FC = () => {
   const { userRole } = useUserStore();
   const isSuper = userRole === "superadmin";
@@ -70,6 +82,11 @@ const SummaryDashboard: React.FC = () => {
   const [adminNames, setAdminNames] = useState<Record<number, string>>({});
   const [order, setOrder] = useState<number[]>(readOrder);
   const [dragging, setDragging] = useState<number | null>(null);
+
+  // Groups the viewer has ticked; they leave their own table and gather in the table on the right.
+  const [selectMode, setSelectMode] = useState(false);
+  const [picked, setPicked] = useState<(number | string)[]>([]);
+  const [ldPercent, setLdPercent] = useState<number | null>(null);
 
   const loaderIcon = <LoadingOutlined style={{ fontSize: 48 }} spin />;
 
@@ -141,7 +158,7 @@ const SummaryDashboard: React.FC = () => {
   const sections: AdminSection[] = useMemo(() => {
     if (!isSuper) return [];
     const byAdmin = new Map<number, RowData[]>();
-    tableRows.forEach((r) => {
+    tableRows.filter((r) => !picked.includes(r.key)).forEach((r) => {
       const id = r.admin_id ?? 0;
       byAdmin.set(id, [...(byAdmin.get(id) || []), r]);
     });
@@ -156,7 +173,110 @@ const SummaryDashboard: React.FC = () => {
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
     return list.sort((a, b) => rank(a.adminId) - rank(b.adminId) || a.adminName.localeCompare(b.adminName));
-  }, [isSuper, tableRows, adminNames, order]);
+  }, [isSuper, tableRows, adminNames, order, picked]);
+
+  const visibleRows = useMemo(() => tableRows.filter((r) => !picked.includes(r.key)), [tableRows, picked]);
+  const visibleSum = visibleRows.reduce((sum, r) => sum + r.pnl, 0);
+  const pickedGroups = useMemo(() => tableRows.filter((r) => picked.includes(r.key)), [tableRows, picked]);
+  const pickedTotal = pickedGroups.reduce((sum, r) => sum + r.pnl, 0);
+  // The percent is taken from the total with its sign and subtracted, so "minus a minus" adds back:
+  // a payment of -1000 with 10% gives L/D -100 and a final of -900.
+  const ldAmount = round2((pickedTotal * (ldPercent || 0)) / 100);
+  const finalAmount = round2(pickedTotal - ldAmount);
+
+  const pick = (keys: (number | string)[]) => setPicked((p) => [...p, ...keys.filter((k) => !p.includes(k))]);
+  const unpick = (keys: (number | string)[]) => setPicked((p) => p.filter((k) => !keys.includes(k)));
+
+  // Ticking boxes on the main tables moves the groups across; the box on the header ticks every group left in that table.
+  const selection = (rowsLeft: RowData[]) =>
+    selectMode
+      ? {
+          selectedRowKeys: [] as React.Key[],
+          onSelect: (record: RowData, selected: boolean) => selected && pick([record.key]),
+          onSelectAll: (selected: boolean) => selected && pick(rowsLeft.map((r) => r.key)),
+          getCheckboxProps: (record: RowData) => ({ disabled: isTotalKey(record.key) }),
+          renderCell: (_: unknown, record: RowData, __: number, node: React.ReactNode) => (isTotalKey(record.key) ? null : node),
+        }
+      : undefined;
+
+  const pickedRows: PickedRow[] = [
+    ...pickedGroups.map((r) => ({
+      key: r.key,
+      kind: "group" as const,
+      group_name: r.group_name,
+      pnl: r.pnl,
+      admin: isSuper ? adminNames[r.admin_id ?? 0] || `Admin #${r.admin_id}` : undefined,
+    })),
+    { key: "total-picked", kind: "total", group_name: "Total", pnl: pickedTotal },
+    { key: "total-ld", kind: "ld", group_name: "", pnl: ldAmount },
+    { key: "total-final", kind: "final", group_name: "", pnl: finalAmount },
+  ];
+
+  const pickedColumns = [
+    ...(isSuper ? [{ title: "Admin", dataIndex: "admin", key: "admin" }] : []),
+    {
+      title: "Group Name",
+      dataIndex: "group_name",
+      key: "group_name",
+      render: (_: unknown, r: PickedRow) =>
+        r.kind === "ld" ? (
+          <InputNumber
+            size="small"
+            min={0}
+            max={100}
+            value={ldPercent}
+            onChange={(v) => setLdPercent(v === null ? null : Number(v))}
+            addonAfter="%"
+            placeholder="L/D %"
+            aria-label="L/D percent"
+            style={{ width: 120 }}
+          />
+        ) : r.kind === "final" ? (
+          <strong>{finalAmount < 0 ? "Final payment" : "Final due"}</strong>
+        ) : (
+          r.group_name
+        ),
+    },
+    {
+      title: "Profit/Loss",
+      dataIndex: "pnl",
+      key: "pnl",
+      render: (_: unknown, r: PickedRow) =>
+        r.kind === "final" ? (
+          <strong style={{ color: r.pnl < 0 ? "red" : "#009416ff", textAlign: "right", display: "block" }}>{r.pnl}</strong>
+        ) : r.kind === "ld" ? (
+          <span style={{ textAlign: "right", display: "block" }}>{r.pnl}</span>
+        ) : (
+          pnlCell(r.pnl)
+        ),
+    },
+  ];
+
+  const pickedPanel =
+    selectMode || pickedGroups.length > 0 ? (
+      <div className="day-picked">
+        <h3 className="day-picked__title">Selected groups</h3>
+        {pickedGroups.length === 0 ? (
+          <p className="day-hint">Tick groups on the left; they move here.</p>
+        ) : (
+          <Table
+            columns={pickedColumns}
+            dataSource={pickedRows}
+            pagination={false}
+            bordered
+            size="small"
+            rowClassName={(r) => (r.kind === "group" ? "" : "total-row")}
+            rowSelection={{
+              selectedRowKeys: pickedGroups.map((g) => g.key),
+              onSelect: (record, selected) => !selected && unpick([record.key]),
+              onSelectAll: (selected) => !selected && setPicked([]),
+              getCheckboxProps: (record) => ({ disabled: record.kind !== "group" }),
+              renderCell: (_, record, __, node) => (record.kind === "group" ? node : null),
+            }}
+          />
+        )}
+      </div>
+    ) : null;
 
   const moveSection = (fromId: number, toIndex: number) => {
     const ids = sections.map((s) => s.adminId).filter((id) => id !== fromId);
@@ -218,6 +338,11 @@ const SummaryDashboard: React.FC = () => {
           <Button type="primary" onClick={exportToCSV}>
             Download CSV
           </Button>
+          {tableRows.length > 0 && (
+            <Button type={selectMode ? "primary" : "default"} ghost={selectMode} onClick={() => setSelectMode((m) => !m)}>
+              {selectMode ? "Done selecting" : "Select"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -234,6 +359,8 @@ const SummaryDashboard: React.FC = () => {
             <span style={{ color: aggregatedSum < 0 ? "red" : "#009416ff" }}>{aggregatedSum}</span>
           </div>
           <p className="day-hint">Drag a table by its header to reorder. The order is remembered on this browser.</p>
+          <div className="day-split">
+          <div className="day-main">
           <div className="day-admin-grid">
             {sections.map((s, index) => (
               <div
@@ -278,6 +405,7 @@ const SummaryDashboard: React.FC = () => {
                 <Table
                   columns={columns}
                   dataSource={[...s.rows, { key: `total-${s.adminId}`, group_name: "Total", pnl: s.total, admin_id: s.adminId }]}
+                  rowSelection={selection(s.rows)}
                   pagination={false}
                   bordered
                   size="small"
@@ -286,16 +414,23 @@ const SummaryDashboard: React.FC = () => {
               </div>
             ))}
           </div>
+          </div>
+          {pickedPanel}
+          </div>
         </>
       ) : (
-        <div className="table-container" style={{ marginTop: 20, maxWidth: "600px", marginLeft: "auto", marginRight: "auto" }}>
-          <Table
-            columns={columns}
-            dataSource={[...tableRows, { key: "total", group_name: "Total", pnl: aggregatedSum, admin_id: null }]}
-            pagination={false}
-            bordered
-            rowClassName={(record) => (record.key === "total" ? "total-row" : "")}
-          />
+        <div className="day-split" style={{ justifyContent: "center" }}>
+          <div className="table-container day-main" style={{ marginTop: 20, maxWidth: "600px" }}>
+            <Table
+              columns={columns}
+              dataSource={[...visibleRows, { key: "total", group_name: "Total", pnl: visibleSum, admin_id: null }]}
+              rowSelection={selection(visibleRows)}
+              pagination={false}
+              bordered
+              rowClassName={(record) => (record.key === "total" ? "total-row" : "")}
+            />
+          </div>
+          {pickedPanel}
         </div>
       )}
     </div>

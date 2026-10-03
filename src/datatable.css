@@ -1197,3 +1197,27 @@ body.drag-selecting,
   align-items: center;
   white-space: nowrap;
 }
+
+/* Day tab: ticked groups gather in a table beside the main one */
+.day-split {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.day-main {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+.day-picked {
+  flex: 0 1 380px;
+  min-width: 280px;
+  margin-top: 20px;
+}
+.day-picked__title {
+  margin: 0 0 8px;
+}
+.day-picked .ant-input-number-group-addon {
+  color: var(--color-text, inherit);
+  background: transparent;
+}
