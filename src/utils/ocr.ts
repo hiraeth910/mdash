@@ -49,7 +49,14 @@ const loadWorker = async (): Promise<Worker> => {
 };
 
 const createReader = async (): Promise<Worker> => {
-  const { createWorker, PSM } = await import("tesseract.js");
+  let tesseract: typeof import("tesseract.js");
+  try {
+    tesseract = await import("tesseract.js");
+  } catch {
+    // happens when the tab is older than the latest release; the page reloads itself, then paste again
+    throw new Error("The app was updated. Reload the page and paste the image again.");
+  }
+  const { createWorker, PSM } = tesseract;
   // The worker runs from a blob, so every path has to be absolute.
   const base = `${window.location.origin}/ocr`;
   const worker = await createWorker("eng", 1, {
