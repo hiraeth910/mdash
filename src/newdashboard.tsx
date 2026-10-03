@@ -225,7 +225,9 @@ const SummaryDashboard: React.FC = () => {
       key: "group_name",
       render: (_: unknown, r: PickedRow) =>
         r.kind === "ld" ? (
-          <InputNumber
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <strong>L/D</strong>
+            <InputNumber
             size="small"
             min={0}
             max={100}
@@ -235,7 +237,8 @@ const SummaryDashboard: React.FC = () => {
             placeholder="L/D %"
             aria-label="L/D percent"
             style={{ width: 120 }}
-          />
+            />
+          </span>
         ) : r.kind === "final" ? (
           <strong>{finalAmount < 0 ? "Final payment" : "Final due"}</strong>
         ) : (
