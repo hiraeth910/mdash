@@ -10,8 +10,8 @@ import { IGame } from "./games";
 import { IGroup } from "./userGames";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import {  fillWithNextValue } from "./utils/helpter";
-import { fileToBase64 } from "./utils/imageCompress";
-import { ocrBetPairs } from "./utils/ocr";
+import { compressForUpload } from "./utils/imageCompress";
+import { localReaderAdvisable, markLocalReaderFailed, markLocalReaderWorking, ocrBetPairs } from "./utils/ocr";
 
 interface NumberEntry {
   number: string;
@@ -426,7 +426,13 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       }
     } catch (err) {
       console.error("Image extraction failed:", err);
-      message.error("Failed to extract text from image(s).");
+      // an error without a response means the request never got through
+      const unreachable = typeof err === "object" && err !== null && "isAxiosError" in err && !(err as { response?: unknown }).response;
+      message.error(
+        unreachable
+          ? "Couldn't reach the server. Check your internet connection and try again."
+          : "Failed to extract text from image(s)."
+      );
     } finally {
       setExtractingImages(false);
       previews.forEach((url) => URL.revokeObjectURL(url));
@@ -436,10 +442,13 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   // Sends the images to the server, which reads them with ChatGPT (handles handwriting too).
   const readWithAi = (endpoint: string) => async (files: File[]) => {
-    const encoded = await Promise.all(files.map((f) => fileToBase64(f)));
-    const response = await apiClient.post(endpoint, {
-      images: encoded.map((c) => ({ data: c.base64, mediaType: c.mediaType })),
-    });
+    const encoded = await Promise.all(files.map((f) => compressForUpload(f)));
+    // a time limit, so a bad connection ends in an error instead of spinning for minutes
+    const response = await apiClient.post(
+      endpoint,
+      { images: encoded.map((c) => ({ data: c.base64, mediaType: c.mediaType })) },
+      { timeout: 60_000 }
+    );
     return (response.data?.text as string) || "";
   };
 
@@ -453,9 +462,14 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   // The in-browser reader depends on the browser (files, workers, memory). If it cannot run on this
   // device, the same image is read by ChatGPT instead, so a paste never just fails.
   const readWithOcrOrAi = async (files: File[]) => {
+    // Slow connection (or the reader already failed here): skip its big download, send one small photo.
+    if (!localReaderAdvisable()) return readWithAi("/extract-bet-image")(files);
     try {
-      return await readWithOcr(files);
+      const text = await readWithOcr(files);
+      markLocalReaderWorking();
+      return text;
     } catch (err) {
+      markLocalReaderFailed();
       console.error("In-browser reading failed, using ChatGPT instead:", err);
       message.info("This device couldn't read it locally, so ChatGPT is reading it instead.");
       return readWithAi("/extract-bet-image")(files);

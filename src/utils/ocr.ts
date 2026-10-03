@@ -111,10 +111,10 @@ export const parsePairs = (text: string): string[] => {
   return pairs;
 };
 
-type LoadedImage = { source: CanvasImageSource; width: number; height: number; release: () => void };
+export type LoadedImage = { source: CanvasImageSource; width: number; height: number; release: () => void };
 
 // createImageBitmap is missing in older iPhones and in-app browsers; an <img> works everywhere.
-const loadImage = async (file: File): Promise<LoadedImage> => {
+export const loadImage = async (file: File): Promise<LoadedImage> => {
   if (typeof createImageBitmap === "function") {
     try {
       const bitmap = await createImageBitmap(file);
@@ -156,6 +156,40 @@ const recognize = async (worker: Worker, image: HTMLCanvasElement): Promise<stri
   } catch (err) {
     await resetWorker();
     throw err;
+  }
+};
+
+// Reading in the browser means downloading the reader (about 4-5 MB, once). On a slow connection that
+// is worse than sending one small photo to the server, so it is skipped there, and for a while after
+// the reader has failed on this device.
+const FAILED_KEY = "ocrUnavailableUntil";
+const SLOW_TYPES = ["slow-2g", "2g", "3g"];
+
+export const localReaderAdvisable = (): boolean => {
+  const connection = (navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
+  if (connection?.saveData) return false;
+  if (connection?.effectiveType && SLOW_TYPES.includes(connection.effectiveType)) return false;
+  try {
+    if (Number(localStorage.getItem(FAILED_KEY)) > Date.now()) return false;
+  } catch {
+    // storage unavailable: carry on
+  }
+  return true;
+};
+
+export const markLocalReaderFailed = () => {
+  try {
+    localStorage.setItem(FAILED_KEY, String(Date.now() + 12 * 60 * 60 * 1000));
+  } catch {
+    // storage unavailable: nothing to remember
+  }
+};
+
+export const markLocalReaderWorking = () => {
+  try {
+    localStorage.removeItem(FAILED_KEY);
+  } catch {
+    // storage unavailable: nothing to clear
   }
 };
 
