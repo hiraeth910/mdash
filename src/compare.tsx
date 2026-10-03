@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { apiClient } from "./utils/api";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import { fmt, normName, sideRows, type PaymentData } from "./utils/settlement";
-import { COMPARE_COLUMNS, compareGames, type CompareColumn, type CompareGroup, type GameMismatch } from "./utils/compare";
+import { COMPARE_COLUMNS, SIDE_TYPES, compareGames, type CompareColumn, type CompareGroup, type GameMismatch, type NumberAmount, type NumberDiff } from "./utils/compare";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 import NumbersDiffModal, { type DiffMember } from "./NumbersDiffModal";
 import "./datatable.css";
@@ -39,9 +39,9 @@ type TableRow = {
   groupSize: number;
   diff: Record<CompareColumn, number>;
   game: string;
-  gameBase: string; // the game's name without "(open)" / "(close)"
-  side: "open" | "close";
   members: DiffMember[];
+  numbers: NumberDiff[]; // accumulated numbers whose bet differs
+  numbersTotal: number;
   user: string;
   band: number;
   missing: boolean;
@@ -110,6 +110,9 @@ const Compare: React.FC = () => {
     setLoading(true);
     (async () => {
       try {
+        const gameIds = new Map<string, number>(
+          (await apiClient.get<{ gameid: number; gamename: string }[]>("/games")).data.map((g) => [normName(g.gamename), g.gameid])
+        );
         const built = await Promise.all(
           repeated.map(async (list): Promise<NameSection> => {
             const compared: CompareGroup[] = await Promise.all(
@@ -125,11 +128,33 @@ const Compare: React.FC = () => {
                   .filter((u) => (u.group_ids || []).map(Number).includes(g.group_id))
                   .map((u) => u.user_name)
                   .sort((a, b) => a.localeCompare(b));
+                const games = sideRows(res.data);
+                // each game's accumulated numbers, so rows whose totals tally but whose numbers don't are caught
+                const numbers: Record<string, NumberAmount[]> = {};
+                const bases = [...new Set(games.map((r) => r.key.replace(/ \((open|close)\)$/, "")))];
+                await Promise.all(
+                  bases.map(async (base) => {
+                    const gameid = gameIds.get(base);
+                    if (gameid === undefined) throw new Error(`Game not found: ${base}`);
+                    const items = (
+                      await apiClient.post<{ itypeid: number; itypename: string; inumber: string | number; total_amount: number }[]>(
+                        "/summed-history-by-uid",
+                        { userid: 0, date, game: gameid, groupid: [g.group_id] }
+                      )
+                    ).data;
+                    (["open", "close"] as const).forEach((side) => {
+                      numbers[`${base} (${side})`] = items
+                        .filter((it) => SIDE_TYPES[side].includes(Number(it.itypeid)))
+                        .map((it) => ({ typeId: Number(it.itypeid), type: it.itypename, number: String(it.inumber), amount: Number(it.total_amount || 0) }));
+                    });
+                  })
+                );
                 return {
                   groupId: g.group_id,
                   adminName,
                   userName: assigned.join(", ") || `No user (${adminName})`,
-                  games: sideRows(res.data),
+                  games,
+                  numbers,
                 };
               })
             );
@@ -174,9 +199,16 @@ const Compare: React.FC = () => {
                 {c === "bet" ? "Bet" : "Win"} <strong className={r.diff[c] ? "compare-gap" : undefined}>{fmt(r.diff[c])}</strong>
               </span>
             ))}
-            <Button size="small" onClick={() => setNumbersFor(r)}>
-              View numbers
-            </Button>
+            {r.numbers.length > 0 && (
+              <>
+                <span className="compare-gap">
+                  {r.numbers.length} number{r.numbers.length > 1 ? "s" : ""} differ
+                </span>
+                <Button size="small" onClick={() => setNumbersFor(r)}>
+                  View numbers
+                </Button>
+              </>
+            )}
           </div>
         ) : null,
     },
@@ -194,9 +226,9 @@ const Compare: React.FC = () => {
         groupSize: m.rows.length,
         diff: m.diff,
         game: m.game,
-        gameBase: m.game.replace(/ \((open|close)\)$/, ""),
-        side: m.game.endsWith("(close)") ? "close" : "open",
         members: m.rows.map((x) => ({ groupId: x.groupId, userName: x.userName })),
+        numbers: m.numbers,
+        numbersTotal: m.numbersTotal,
         user: r.userName,
         band,
         missing: r.row === null,
@@ -230,7 +262,7 @@ const Compare: React.FC = () => {
             r.user,
             ...COMPARE_COLUMNS.map((c, i) => (r.missing ? (i === 0 ? "No data" : "") : fmt(r.values[c]))),
             // the picture cannot merge cells, so the difference sits on the middle row of its group
-            r.middle ? `Bet ${fmt(r.diff.bet)} · Win ${fmt(r.diff.win)}` : "",
+            r.middle ? `Bet ${fmt(r.diff.bet)} · Win ${fmt(r.diff.win)}${r.numbers.length ? ` · ${r.numbers.length} number${r.numbers.length > 1 ? "s" : ""} differ (total ${fmt(r.numbersTotal)})` : ""}` : "",
           ],
           shaded: r.band % 2 === 1,
           marked: [...(r.missing ? [] : COMPARE_COLUMNS.flatMap((c, i) => (r.differs[c] ? [i + 2] : []))), ...(r.middle ? [COMPARE_COLUMNS.length + 2] : [])],
@@ -318,12 +350,11 @@ const Compare: React.FC = () => {
       )}
       {numbersFor && (
         <NumbersDiffModal
-          open
           onClose={() => setNumbersFor(null)}
-          game={numbersFor.gameBase}
-          side={numbersFor.side}
-          date={date}
+          title={`${numbersFor.game} — numbers that differ · ${date}`}
           members={numbersFor.members}
+          numbers={numbersFor.numbers}
+          total={numbersFor.numbersTotal}
         />
       )}
     </div>
