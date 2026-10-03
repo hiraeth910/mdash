@@ -157,7 +157,7 @@ const SummaryDashboard: React.FC = () => {
   const sections: AdminSection[] = useMemo(() => {
     if (!isSuper) return [];
     const byAdmin = new Map<number, RowData[]>();
-    tableRows.filter((r) => !picked.includes(r.key)).forEach((r) => {
+    tableRows.forEach((r) => {
       const id = r.admin_id ?? 0;
       byAdmin.set(id, [...(byAdmin.get(id) || []), r]);
     });
@@ -172,10 +172,8 @@ const SummaryDashboard: React.FC = () => {
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
     return list.sort((a, b) => rank(a.adminId) - rank(b.adminId) || a.adminName.localeCompare(b.adminName));
-  }, [isSuper, tableRows, adminNames, order, picked]);
+  }, [isSuper, tableRows, adminNames, order]);
 
-  const visibleRows = useMemo(() => tableRows.filter((r) => !picked.includes(r.key)), [tableRows, picked]);
-  const visibleSum = visibleRows.reduce((sum, r) => sum + r.pnl, 0);
   const pickedGroups = useMemo(() => tableRows.filter((r) => picked.includes(r.key)), [tableRows, picked]);
   const pickedTotal = pickedGroups.reduce((sum, r) => sum + r.pnl, 0);
   // The percent is taken from the total with its sign and subtracted, so "minus a minus" adds back:
@@ -183,24 +181,17 @@ const SummaryDashboard: React.FC = () => {
   const ldAmount = round2((pickedTotal * (ldPercent || 0)) / 100);
   const finalAmount = round2(pickedTotal - ldAmount);
 
-  // A ticked box shows its tick for a moment before the group moves across.
-  const [ticking, setTicking] = useState<(number | string)[]>([]);
-  const pick = (keys: (number | string)[]) => {
-    setTicking((t) => [...t, ...keys.filter((k) => !t.includes(k))]);
-    setTimeout(() => {
-      setPicked((p) => [...p, ...keys.filter((k) => !p.includes(k))]);
-      setTicking((t) => t.filter((k) => !keys.includes(k)));
-    }, 350);
-  };
+  // Ticked groups stay in their own table and are copied into the table on the right.
+  const pick = (keys: (number | string)[]) => setPicked((p) => [...p, ...keys.filter((k) => !p.includes(k))]);
   const unpick = (keys: (number | string)[]) => setPicked((p) => p.filter((k) => !keys.includes(k)));
 
-  // Ticking boxes on the main tables moves the groups across; the box on the header ticks every group left in that table.
-  const selection = (rowsLeft: RowData[]) =>
+  // The box on a table's header ticks (or clears) every group in that table.
+  const selection = (rows: RowData[]) =>
     selectMode
       ? {
-          selectedRowKeys: ticking as React.Key[],
-          onSelect: (record: RowData, selected: boolean) => selected && pick([record.key]),
-          onSelectAll: (selected: boolean) => selected && pick(rowsLeft.map((r) => r.key)),
+          selectedRowKeys: picked as React.Key[],
+          onSelect: (record: RowData, selected: boolean) => (selected ? pick([record.key]) : unpick([record.key])),
+          onSelectAll: (selected: boolean) => (selected ? pick(rows.map((r) => r.key)) : unpick(rows.map((r) => r.key))),
           getCheckboxProps: (record: RowData) => ({ disabled: isTotalKey(record.key) }),
           renderCell: (_: unknown, record: RowData, __: number, node: React.ReactNode) => (isTotalKey(record.key) ? null : node),
         }
@@ -265,7 +256,7 @@ const SummaryDashboard: React.FC = () => {
       <div className="day-picked">
         <h3 className="day-picked__title">Selected groups</h3>
         {pickedGroups.length === 0 ? (
-          <p className="day-hint">Tick groups on the left; they move here.</p>
+          <p className="day-hint">Tick groups in the tables; they are listed here too.</p>
         ) : (
           <Table
             columns={pickedColumns}
@@ -431,8 +422,8 @@ const SummaryDashboard: React.FC = () => {
           <div className="table-container day-main" style={{ marginTop: 20, maxWidth: "600px" }}>
             <Table
               columns={columns}
-              dataSource={[...visibleRows, { key: "total", group_name: "Total", pnl: visibleSum, admin_id: null }]}
-              rowSelection={selection(visibleRows)}
+              dataSource={[...tableRows, { key: "total", group_name: "Total", pnl: aggregatedSum, admin_id: null }]}
+              rowSelection={selection(tableRows)}
               pagination={false}
               bordered
               rowClassName={(record) => (record.key === "total" ? "total-row" : "")}
