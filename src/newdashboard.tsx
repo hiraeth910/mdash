@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DatePicker, Spin, message, Button, Table, InputNumber, Select } from "antd";
+import { DatePicker, Spin, message, Button, Table, InputNumber, Select, Tabs } from "antd";
+import WeekTab from "./WeekTab";
 import { LoadingOutlined, HolderOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
@@ -84,6 +85,7 @@ const SummaryDashboard: React.FC = () => {
   const [dragging, setDragging] = useState<number | null>(null);
 
   // Groups the viewer has ticked; they leave their own table and gather in the table on the right.
+  const [view, setView] = useState<"day" | "week">("day");
   const [selectMode, setSelectMode] = useState(false);
   const [picked, setPicked] = useState<(number | string)[]>([]);
   const [ldPercent, setLdPercent] = useState<number | null>(null);
@@ -101,7 +103,7 @@ const SummaryDashboard: React.FC = () => {
         const res = await apiClient.get<IGroup[]>("/groups");
         const groupData = res.data;
         setGroups(groupData);
-        if (isSuper) {
+        {
           const usersRes = await apiClient.get<{ users: IUserRow[] }>("/users");
           const names: Record<number, string> = {};
           usersRes.data.users.forEach((u) => {
@@ -231,8 +233,9 @@ const SummaryDashboard: React.FC = () => {
           rows: [
             ...pickedGroups.map((g) => ({ cells: [g.group_name, String(g.pnl)], tone: tone(g.pnl) })),
             { cells: ["Total", String(pickedTotal)], bold: true, shaded: true, tone: tone(pickedTotal) },
-            { cells: [`L/D ${ldPercent || 0}%`, String(ldAmount)] },
-            { cells: [dayLabel, String(dayAmount)], bold: true, tone: tone(dayAmount) },
+            ...((ldPercent || 0) > 0
+              ? [{ cells: [`L/D ${ldPercent}%`, String(ldAmount)] }, { cells: [dayLabel, String(dayAmount)], bold: true, tone: tone(dayAmount) }]
+              : []),
             ...((oldAmount || 0) > 0 ? [{ cells: [oldType === "due" ? "Old due" : "Old payment", String(oldDelta)], tone: tone(oldDelta) }] : []),
             { cells: [finalLabel, String(finalAmount)], bold: true, shaded: true, tone: tone(finalAmount) },
           ],
@@ -401,7 +404,15 @@ const SummaryDashboard: React.FC = () => {
       </div>
       <div className="new-header" style={{ maxHeight: "none" }}>
         <h2>Day Profit and Loss</h2>
-        <div className="inputs-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <Tabs
+          activeKey={view}
+          onChange={(k) => setView(k as "day" | "week")}
+          items={[
+            { key: "day", label: "Day" },
+            { key: "week", label: "Week" },
+          ]}
+        />
+        {view === "day" && <div className="inputs-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <DatePicker
             value={dayjs(selectedDate)}
             onChange={(date) => setSelectedDate(date?.format("YYYY-MM-DD") || selectedDate)}
@@ -414,10 +425,12 @@ const SummaryDashboard: React.FC = () => {
               {selectMode ? "Done selecting" : "Select"}
             </Button>
           )}
-        </div>
+        </div>}
       </div>
 
-      {loading ? (
+      {view === "week" ? (
+        <WeekTab groups={groups} adminNames={adminNames} />
+      ) : loading ? (
         <div className="loading-container" style={{ textAlign: "center", padding: 50 }}>
           <Spin indicator={loaderIcon} />
         </div>

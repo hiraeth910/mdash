@@ -1227,6 +1227,8 @@ body.drag-selecting,
 
 
 /* Compare "View numbers" modal: the total row follows the theme like the rest of the table */
+.compare-numbers-table .ant-table-summary,
+.compare-numbers-table .ant-table-summary > tr,
 .compare-numbers-table .ant-table-summary > tr > td,
 .compare-numbers-table .ant-table-summary > tr > th,
 .compare-numbers-table .ant-table-summary .ant-table-cell {
@@ -1284,4 +1286,20 @@ body.drag-selecting,
 .ant-select-dropdown .ant-select-item-option-active,
 .ant-select-dropdown .ant-select-item-option-selected {
   background: var(--color-primary-10) !important;
+}
+
+/* Tabs follow the theme (Day / Week) */
+.ant-tabs .ant-tabs-tab,
+.ant-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+  color: var(--color-text-muted);
+}
+.ant-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn,
+.ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--color-primary) !important;
+}
+.ant-tabs .ant-tabs-ink-bar {
+  background: var(--color-primary);
+}
+.ant-tabs .ant-tabs-nav::before {
+  border-color: var(--color-border);
 }
