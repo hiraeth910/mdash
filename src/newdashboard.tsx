@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DatePicker, Spin, message, Button, Table, InputNumber } from "antd";
+import { DatePicker, Spin, message, Button, Table, InputNumber, Select } from "antd";
 import { LoadingOutlined, HolderOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
@@ -66,7 +66,7 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
 // A row of the table of picked groups: a group, or one of the closing rows under it.
 type PickedRow = {
   key: number | string;
-  kind: "group" | "total" | "ld" | "final";
+  kind: "group" | "total" | "ld" | "day" | "old" | "final";
   group_name: string;
   pnl: number;
 };
@@ -87,6 +87,8 @@ const SummaryDashboard: React.FC = () => {
   const [selectMode, setSelectMode] = useState(false);
   const [picked, setPicked] = useState<(number | string)[]>([]);
   const [ldPercent, setLdPercent] = useState<number | null>(null);
+  const [oldType, setOldType] = useState<"due" | "payment">("due");
+  const [oldAmount, setOldAmount] = useState<number | null>(null);
 
   const loaderIcon = <LoadingOutlined style={{ fontSize: 48 }} spin />;
 
@@ -180,7 +182,12 @@ const SummaryDashboard: React.FC = () => {
   // The percent is taken from the total with its sign and subtracted, so "minus a minus" adds back:
   // a payment of -1000 with 10% gives L/D -100 and a final of -900.
   const ldAmount = round2((pickedTotal * (ldPercent || 0)) / 100);
-  const finalAmount = round2(pickedTotal - ldAmount);
+  const dayAmount = round2(pickedTotal - ldAmount);
+  const dayLabel = dayAmount < 0 ? "Day payment" : "Day due";
+  // What was carried over from before: a due adds to the day, a payment takes away from it.
+  const oldDelta = oldType === "due" ? oldAmount || 0 : -(oldAmount || 0);
+  const finalAmount = round2(dayAmount + oldDelta);
+  const finalLabel = finalAmount < 0 ? "Final payment" : "Final due";
 
   // Ticked groups stay in their own table and are copied into the table on the right.
   const pick = (keys: (number | string)[]) => setPicked((p) => [...p, ...keys.filter((k) => !p.includes(k))]);
@@ -207,6 +214,8 @@ const SummaryDashboard: React.FC = () => {
     })),
     { key: "total-picked", kind: "total", group_name: "Total", pnl: pickedTotal },
     { key: "total-ld", kind: "ld", group_name: "", pnl: ldAmount },
+    { key: "total-day", kind: "day", group_name: "", pnl: dayAmount },
+    { key: "total-old", kind: "old", group_name: "", pnl: oldDelta },
     { key: "total-final", kind: "final", group_name: "", pnl: finalAmount },
   ];
 
@@ -223,7 +232,9 @@ const SummaryDashboard: React.FC = () => {
             ...pickedGroups.map((g) => ({ cells: [g.group_name, String(g.pnl)], tone: tone(g.pnl) })),
             { cells: ["Total", String(pickedTotal)], bold: true, shaded: true, tone: tone(pickedTotal) },
             { cells: [`L/D ${ldPercent || 0}%`, String(ldAmount)] },
-            { cells: [finalAmount < 0 ? "Final payment" : "Final due", String(finalAmount)], bold: true, shaded: true, tone: tone(finalAmount) },
+            { cells: [dayLabel, String(dayAmount)], bold: true, tone: tone(dayAmount) },
+            ...((oldAmount || 0) > 0 ? [{ cells: [oldType === "due" ? "Old due" : "Old payment", String(oldDelta)], tone: tone(oldDelta) }] : []),
+            { cells: [finalLabel, String(finalAmount)], bold: true, shaded: true, tone: tone(finalAmount) },
           ],
         },
       ],
@@ -263,8 +274,22 @@ const SummaryDashboard: React.FC = () => {
             style={{ width: 120 }}
             />
           </span>
+        ) : r.kind === "day" ? (
+          <strong>{dayLabel}</strong>
+        ) : r.kind === "old" ? (
+          <Select
+            size="small"
+            value={oldType}
+            onChange={setOldType}
+            getPopupContainer={() => document.body}
+            style={{ width: 130 }}
+            options={[
+              { value: "due", label: "Old due" },
+              { value: "payment", label: "Old payment" },
+            ]}
+          />
         ) : r.kind === "final" ? (
-          <strong>{finalAmount < 0 ? "Final payment" : "Final due"}</strong>
+          <strong>{finalLabel}</strong>
         ) : (
           r.group_name
         ),
@@ -274,7 +299,16 @@ const SummaryDashboard: React.FC = () => {
       dataIndex: "pnl",
       key: "pnl",
       render: (_: unknown, r: PickedRow) =>
-        r.kind === "final" ? (
+        r.kind === "old" ? (
+          <InputNumber
+            size="small"
+            min={0}
+            value={oldAmount}
+            onChange={(v) => setOldAmount(v === null ? null : Math.max(Number(v) || 0, 0))}
+            aria-label="Old balance amount"
+            style={{ width: 120 }}
+          />
+        ) : r.kind === "day" || r.kind === "final" ? (
           <strong style={{ color: r.pnl < 0 ? "red" : "#009416ff", textAlign: "right", display: "block" }}>{r.pnl}</strong>
         ) : r.kind === "ld" ? (
           <span style={{ textAlign: "right", display: "block" }}>{r.pnl}</span>
