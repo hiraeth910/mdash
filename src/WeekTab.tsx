@@ -3,7 +3,6 @@ import { Button, DatePicker, InputNumber, Select, Spin, Table, message } from "a
 import { LoadingOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { apiClient } from "./utils/api";
-import { fmt } from "./utils/settlement";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 
 interface IGroup {
