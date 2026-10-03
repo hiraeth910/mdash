@@ -8,6 +8,7 @@ import { apiClient } from "./utils/api";
 import "./datatable.css";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import { useUserStore } from "./store/store";
+import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 
 type IGroup = {
   group_id: number;
@@ -209,6 +210,38 @@ const SummaryDashboard: React.FC = () => {
     { key: "total-final", kind: "final", group_name: "", pnl: finalAmount },
   ];
 
+  const pickedImage = (): TableImage => {
+    const date = selectedDate;
+    const tone = (v: number) => (v < 0 ? ("negative" as const) : ("positive" as const));
+    return {
+      title: `Selected groups — ${date}`,
+      fileName: `Selected_groups_${date}.png`,
+      sections: [
+        {
+          columns: [{ header: "Group Name" }, { header: "Profit/Loss", align: "right" }],
+          rows: [
+            ...pickedGroups.map((g) => ({ cells: [g.group_name, String(g.pnl)], tone: tone(g.pnl) })),
+            { cells: ["Total", String(pickedTotal)], bold: true, shaded: true, tone: tone(pickedTotal) },
+            { cells: [`L/D ${ldPercent || 0}%`, String(ldAmount)] },
+            { cells: [finalAmount < 0 ? "Final payment" : "Final due", String(finalAmount)], bold: true, shaded: true, tone: tone(finalAmount) },
+          ],
+        },
+      ],
+    };
+  };
+
+  // Puts the picture on the clipboard; browsers that cannot copy images download it instead.
+  const copyPickedImage = async () => {
+    const image = pickedImage();
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": renderTableImage(image) })]);
+      message.success("Image copied. Paste it where you want to send it.");
+    } catch {
+      downloadTableImage(image).catch(() => message.error("Could not create the image"));
+      message.info("Couldn't copy the image here, so it was downloaded instead.");
+    }
+  };
+
   const pickedColumns = [
     {
       title: "Group Name",
@@ -254,7 +287,12 @@ const SummaryDashboard: React.FC = () => {
   const pickedPanel =
     selectMode || pickedGroups.length > 0 ? (
       <div className="day-picked">
-        <h3 className="day-picked__title">Selected groups</h3>
+        <div className="day-picked__head">
+          <h3 className="day-picked__title">Selected groups</h3>
+          <Button size="small" onClick={copyPickedImage} disabled={pickedGroups.length === 0}>
+            Copy image
+          </Button>
+        </div>
         {pickedGroups.length === 0 ? (
           <p className="day-hint">Tick groups in the tables; they are listed here too.</p>
         ) : (

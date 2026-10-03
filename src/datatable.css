@@ -1214,8 +1214,15 @@ body.drag-selecting,
   min-width: 280px;
   margin-top: 20px;
 }
+.day-picked__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
 .day-picked__title {
-  margin: 0 0 8px;
+  margin: 0;
 }
 .day-picked .ant-input-number-group-addon {
   color: var(--color-text, inherit);
