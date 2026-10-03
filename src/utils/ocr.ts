@@ -4,9 +4,30 @@ import type { Worker } from "tesseract.js";
 // with Tesseract. Nothing is uploaded; the engine and English data are served from /ocr.
 let workerPromise: Promise<Worker> | null = null;
 
+// A reader that cannot load its files can hang without an error, so every step has a time limit.
+const LOAD_TIMEOUT_MS = 25_000;
+const READ_TIMEOUT_MS = 60_000;
+// Phone photos can be 12+ megapixels; typed lists read just as well at this size and it spares memory.
+const MAX_SIDE = 2400;
+
+const withTimeout = <T,>(promise: Promise<T>, ms: number, what: string): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${what} timed out`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+
 const getWorker = (): Promise<Worker> => {
   if (!workerPromise) {
-    workerPromise = (async () => {
+    workerPromise = withTimeout((async () => {
       const { createWorker, PSM } = await import("tesseract.js");
       // The worker runs from a blob, so every path has to be absolute.
       const base = `${window.location.origin}/ocr`;
@@ -23,7 +44,7 @@ const getWorker = (): Promise<Worker> => {
         preserve_interword_spaces: "1",
       });
       return worker;
-    })().catch((err) => {
+    })(), LOAD_TIMEOUT_MS, "Loading the reader").catch((err) => {
       workerPromise = null;
       throw err;
     });
@@ -90,33 +111,83 @@ export const parsePairs = (text: string): string[] => {
   return pairs;
 };
 
-const loadImage = async (file: File): Promise<ImageBitmap> => createImageBitmap(file);
+type LoadedImage = { source: CanvasImageSource; width: number; height: number; release: () => void };
+
+// createImageBitmap is missing in older iPhones and in-app browsers; an <img> works everywhere.
+const loadImage = async (file: File): Promise<LoadedImage> => {
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      return { source: bitmap, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() };
+    } catch {
+      // fall through to the <img> route
+    }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("The image could not be opened"));
+      img.src = url;
+    });
+    return { source: img, width: img.naturalWidth, height: img.naturalHeight, release: () => URL.revokeObjectURL(url) };
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
+  }
+};
+
+// Stops a stuck reader so the next attempt starts a fresh one.
+const resetWorker = async () => {
+  const pending = workerPromise;
+  workerPromise = null;
+  try {
+    (await pending)?.terminate();
+  } catch {
+    // nothing to stop
+  }
+};
+
+const recognize = async (worker: Worker, image: HTMLCanvasElement): Promise<string> => {
+  try {
+    const { data } = await withTimeout(worker.recognize(image), READ_TIMEOUT_MS, "Reading the image");
+    return data.text;
+  } catch (err) {
+    await resetWorker();
+    throw err;
+  }
+};
 
 export async function ocrBetPairs(file: File): Promise<string[]> {
-  const [worker, bitmap] = await Promise.all([getWorker(), loadImage(file)]);
-  const { canvas, ctx } = makeCanvas(bitmap.width, bitmap.height);
+  if (typeof Worker === "undefined" || typeof WebAssembly === "undefined") {
+    throw new Error("This browser cannot run the reader");
+  }
+  const [worker, loaded] = await Promise.all([getWorker(), loadImage(file)]);
+  const scale = Math.min(1, MAX_SIDE / Math.max(loaded.width, loaded.height));
+  const width = Math.max(1, Math.round(loaded.width * scale));
+  const height = Math.max(1, Math.round(loaded.height * scale));
+  const { canvas, ctx } = makeCanvas(width, height);
   ctx.fillStyle = "#ffffff"; // flatten transparency so it doesn't read as black
-  ctx.fillRect(0, 0, bitmap.width, bitmap.height);
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(loaded.source, 0, 0, width, height);
+  loaded.release();
 
   const columns = findColumns(ctx, canvas.width, canvas.height);
-  const pairs: string[] = [];
 
   if (columns.length < 2) {
     // No dividers: read the page in one go. Rows may hold several entries side by side.
-    const { data } = await worker.recognize(canvas);
-    return parsePairs(data.text);
+    return parsePairs(await recognize(worker, canvas));
   }
 
+  const pairs: string[] = [];
   const pad = 20;
   for (const [a, b] of columns) {
     const { canvas: crop, ctx: cropCtx } = makeCanvas(b - a + pad * 2, canvas.height + pad * 2);
     cropCtx.fillStyle = "#ffffff";
     cropCtx.fillRect(0, 0, crop.width, crop.height);
     cropCtx.drawImage(canvas, a, 0, b - a, canvas.height, pad, pad, b - a, canvas.height);
-    const { data } = await worker.recognize(crop);
-    pairs.push(...parsePairs(data.text));
+    pairs.push(...parsePairs(await recognize(worker, crop)));
   }
   return pairs;
 }

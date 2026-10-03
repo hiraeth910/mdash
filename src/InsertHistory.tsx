@@ -450,6 +450,18 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     return pairs.join("\n");
   };
 
+  // The in-browser reader depends on the browser (files, workers, memory). If it cannot run on this
+  // device, the same image is read by ChatGPT instead, so a paste never just fails.
+  const readWithOcrOrAi = async (files: File[]) => {
+    try {
+      return await readWithOcr(files);
+    } catch (err) {
+      console.error("In-browser reading failed, using ChatGPT instead:", err);
+      message.info("This device couldn't read it locally, so ChatGPT is reading it instead.");
+      return readWithAi("/extract-bet-image")(files);
+    }
+  };
+
   // Pasting an image straight into the box reads it with OCR in the browser (typed lists).
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
@@ -459,7 +471,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
     extractFromImages(
       files,
-      readWithOcr,
+      readWithOcrOrAi,
       "No entries found. For handwriting, use the Paste image (ChatGPT) button instead."
     );
   };
