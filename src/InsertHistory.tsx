@@ -11,7 +11,7 @@ import { IGroup } from "./userGames";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import {  fillWithNextValue } from "./utils/helpter";
 import { compressForUpload } from "./utils/imageCompress";
-import { localReaderAdvisable, markLocalReaderFailed, markLocalReaderWorking, ocrBetPairs } from "./utils/ocr";
+import { ocrBetPairs } from "./utils/ocr";
 
 interface NumberEntry {
   number: string;
@@ -56,6 +56,8 @@ const InsertHistory: React.FC = () => {
   const [ambiguousLines, setAmbiguousLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
   const [pastedImagePreviews, setPastedImagePreviews] = useState<string[]>([]);
   const [extractingImages, setExtractingImages] = useState(false);
+  const [readingLocally, setReadingLocally] = useState(false); // the first local read downloads the reader
+  const [dropActive, setDropActive] = useState(false); // an image file is being dragged over the box
   const prevInputRef = useRef<string>("");
 
   // Text set from code (an image paste, or clearing after Update) must count as the previous value,
@@ -405,7 +407,9 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   const extractFromImages = async (
     files: File[],
     extract: (files: File[]) => Promise<string>,
-    emptyMessage = "No text could be extracted from the image(s)."
+    emptyMessage = "No text could be extracted from the image(s).",
+    failMessage = "Failed to extract text from image(s).",
+    local = false
   ) => {
     if (files.length === 0) return;
     if (files.length > 2) {
@@ -416,6 +420,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     const previews = files.map((f) => URL.createObjectURL(f));
     setPastedImagePreviews(previews);
     setExtractingImages(true);
+    setReadingLocally(local);
 
     try {
       const extractedText = await extract(files);
@@ -431,7 +436,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       message.error(
         unreachable
           ? "Couldn't reach the server. Check your internet connection and try again."
-          : "Failed to extract text from image(s)."
+          : failMessage
       );
     } finally {
       setExtractingImages(false);
@@ -459,23 +464,6 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     return pairs.join("\n");
   };
 
-  // The in-browser reader depends on the browser (files, workers, memory). If it cannot run on this
-  // device, the same image is read by ChatGPT instead, so a paste never just fails.
-  const readWithOcrOrAi = async (files: File[]) => {
-    // Slow connection (or the reader already failed here): skip its big download, send one small photo.
-    if (!localReaderAdvisable()) return readWithAi("/extract-bet-image")(files);
-    try {
-      const text = await readWithOcr(files);
-      markLocalReaderWorking();
-      return text;
-    } catch (err) {
-      markLocalReaderFailed();
-      console.error("In-browser reading failed, using ChatGPT instead:", err);
-      message.info("This device couldn't read it locally, so ChatGPT is reading it instead.");
-      return readWithAi("/extract-bet-image")(files);
-    }
-  };
-
   // Pasting an image straight into the box reads it with OCR in the browser (typed lists).
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
@@ -483,11 +471,42 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
     e.preventDefault();
     const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
+    readInBox(files);
+  };
+
+  // Pasting or dropping into the box only ever reads on this device. If it cannot, the person is
+  // pointed to the ChatGPT button.
+  const readInBox = (files: File[]) =>
     extractFromImages(
       files,
-      readWithOcrOrAi,
-      "No entries found. For handwriting, use the Paste image (ChatGPT) button instead."
+      readWithOcr,
+      "No entries found. For handwriting, use the Paste image (ChatGPT) button instead.",
+      "Couldn't read the image on this device. Use the Paste image (ChatGPT) button instead.",
+      true
     );
+
+  // Drag a downloaded image onto the box. Dragged text is left to the browser as usual.
+  const draggedFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types || []).includes("Files");
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!draggedFiles(e)) return;
+    e.preventDefault(); // without this the browser would open the dropped file instead
+    e.dataTransfer.dropEffect = "copy";
+    setDropActive(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setDropActive(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    if (!draggedFiles(e)) return;
+    e.preventDefault();
+    setDropActive(false);
+    const images = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) {
+      message.warning("Only images can be dropped here.");
+      return;
+    }
+    readInBox(images);
   };
 
   // The Paste button sends the clipboard image to ChatGPT and fills the box above.
@@ -709,7 +728,12 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       <div className="containerx">
         {/* Left Input Section with overlay highlighter */}
         <div className="input-section">
-          <div className={`input-shell ${invalidLines.length > 0 ? "input-shell--error" : ""}`}>
+          <div
+            className={`input-shell ${invalidLines.length > 0 ? "input-shell--error" : ""} ${dropActive ? "input-shell--drop" : ""}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
             <div
               ref={highlighterRef}
               className="input-highlighter"
@@ -807,7 +831,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               onKeyUp={syncScroll}
               onClick={syncScroll}
               onPaste={handlePaste}
-              placeholder="Enter numbers separated by comma, space, or dash — or paste an image (up to 2)"
+              placeholder="Enter numbers separated by comma, space, or dash — or paste / drop an image (up to 2)"
             />
           </div>
 
@@ -827,6 +851,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               {extractingImages && (
                 <span className="pasted-images-status">
                   <Spin size="small" /> Extracting text from image{pastedImagePreviews.length > 1 ? "s" : ""}…
+                  {readingLocally && " (the first time can take a while on a slow connection)"}
                 </span>
               )}
             </div>

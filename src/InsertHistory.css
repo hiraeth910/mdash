@@ -209,6 +209,26 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.16);
 }
 
+/* An image file is being dragged over the box */
+.input-shell--drop {
+  border-color: var(--color-primary);
+  border-style: dashed;
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.24);
+}
+.input-shell--drop::after {
+  content: "Drop the image to read it";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: rgba(62, 207, 142, 0.14);
+  color: var(--color-primary);
+  font-weight: 600;
+  pointer-events: none;
+}
+
 .input-shell:has(textarea:focus) {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.24);

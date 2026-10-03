@@ -5,7 +5,9 @@ import type { Worker } from "tesseract.js";
 let workerPromise: Promise<Worker> | null = null;
 
 // A reader that cannot load its files can hang without an error, so every step has a time limit.
-const LOAD_TIMEOUT_MS = 25_000;
+// The reader (about 4-5 MB) is downloaded once and then kept by the browser, so a slow first download
+// is given plenty of time.
+const LOAD_TIMEOUT_MS = 180_000;
 const READ_TIMEOUT_MS = 60_000;
 // Phone photos can be 12+ megapixels; typed lists read just as well at this size and it spares memory.
 const MAX_SIDE = 2400;
@@ -27,29 +29,42 @@ const withTimeout = <T,>(promise: Promise<T>, ms: number, what: string): Promise
 
 const getWorker = (): Promise<Worker> => {
   if (!workerPromise) {
-    workerPromise = withTimeout((async () => {
-      const { createWorker, PSM } = await import("tesseract.js");
-      // The worker runs from a blob, so every path has to be absolute.
-      const base = `${window.location.origin}/ocr`;
-      const worker = await createWorker("eng", 1, {
-        workerPath: `${base}/worker.min.js`,
-        corePath: base,
-        langPath: base,
-        gzip: true,
-        logger: () => {},
-      });
-      await worker.setParameters({
-        tessedit_char_whitelist: "0123456789-xX ",
-        tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-        preserve_interword_spaces: "1",
-      });
-      return worker;
-    })(), LOAD_TIMEOUT_MS, "Loading the reader").catch((err) => {
+    workerPromise = withTimeout(loadWorker(), LOAD_TIMEOUT_MS, "Loading the reader").catch((err) => {
       workerPromise = null;
       throw err;
     });
   }
   return workerPromise;
+};
+
+const loadWorker = async (): Promise<Worker> => {
+  // one retry: a dropped connection part-way through the download is common on a poor network
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await createReader();
+    } catch (err) {
+      if (attempt >= 2) throw err;
+    }
+  }
+};
+
+const createReader = async (): Promise<Worker> => {
+  const { createWorker, PSM } = await import("tesseract.js");
+  // The worker runs from a blob, so every path has to be absolute.
+  const base = `${window.location.origin}/ocr`;
+  const worker = await createWorker("eng", 1, {
+    workerPath: `${base}/worker.min.js`,
+    corePath: base,
+    langPath: base,
+    gzip: true,
+    logger: () => {},
+  });
+  await worker.setParameters({
+    tessedit_char_whitelist: "0123456789-xX ",
+    tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+    preserve_interword_spaces: "1",
+  });
+  return worker;
 };
 
 const makeCanvas = (width: number, height: number) => {
@@ -156,40 +171,6 @@ const recognize = async (worker: Worker, image: HTMLCanvasElement): Promise<stri
   } catch (err) {
     await resetWorker();
     throw err;
-  }
-};
-
-// Reading in the browser means downloading the reader (about 4-5 MB, once). On a slow connection that
-// is worse than sending one small photo to the server, so it is skipped there, and for a while after
-// the reader has failed on this device.
-const FAILED_KEY = "ocrUnavailableUntil";
-const SLOW_TYPES = ["slow-2g", "2g", "3g"];
-
-export const localReaderAdvisable = (): boolean => {
-  const connection = (navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
-  if (connection?.saveData) return false;
-  if (connection?.effectiveType && SLOW_TYPES.includes(connection.effectiveType)) return false;
-  try {
-    if (Number(localStorage.getItem(FAILED_KEY)) > Date.now()) return false;
-  } catch {
-    // storage unavailable: carry on
-  }
-  return true;
-};
-
-export const markLocalReaderFailed = () => {
-  try {
-    localStorage.setItem(FAILED_KEY, String(Date.now() + 12 * 60 * 60 * 1000));
-  } catch {
-    // storage unavailable: nothing to remember
-  }
-};
-
-export const markLocalReaderWorking = () => {
-  try {
-    localStorage.removeItem(FAILED_KEY);
-  } catch {
-    // storage unavailable: nothing to clear
   }
 };
 
