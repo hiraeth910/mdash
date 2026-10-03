@@ -8,6 +8,7 @@ import { checkAuthAndHandleLogout } from "./authcheck";
 import { fmt, normName, sideRows, type PaymentData } from "./utils/settlement";
 import { COMPARE_COLUMNS, compareGames, type CompareColumn, type CompareGroup, type GameMismatch } from "./utils/compare";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
+import NumbersDiffModal, { type DiffMember } from "./NumbersDiffModal";
 import "./datatable.css";
 
 interface IGroupRow {
@@ -38,6 +39,9 @@ type TableRow = {
   groupSize: number;
   diff: Record<CompareColumn, number>;
   game: string;
+  gameBase: string; // the game's name without "(open)" / "(close)"
+  side: "open" | "close";
+  members: DiffMember[];
   user: string;
   band: number;
   missing: boolean;
@@ -60,6 +64,7 @@ const Compare: React.FC = () => {
   const latestLoad = useRef(0);
   const adminNamesRef = useRef(adminNames);
   adminNamesRef.current = adminNames;
+  const [numbersFor, setNumbersFor] = useState<TableRow | null>(null);
   const [plainUsers, setPlainUsers] = useState<IUserRow[]>([]);
   const plainUsersRef = useRef(plainUsers);
   plainUsersRef.current = plainUsers;
@@ -169,6 +174,9 @@ const Compare: React.FC = () => {
                 {c === "bet" ? "Bet" : "Win"} <strong className={r.diff[c] ? "compare-gap" : undefined}>{fmt(r.diff[c])}</strong>
               </span>
             ))}
+            <Button size="small" onClick={() => setNumbersFor(r)}>
+              View numbers
+            </Button>
           </div>
         ) : null,
     },
@@ -186,6 +194,9 @@ const Compare: React.FC = () => {
         groupSize: m.rows.length,
         diff: m.diff,
         game: m.game,
+        gameBase: m.game.replace(/ \((open|close)\)$/, ""),
+        side: m.game.endsWith("(close)") ? "close" : "open",
+        members: m.rows.map((x) => ({ groupId: x.groupId, userName: x.userName })),
         user: r.userName,
         band,
         missing: r.row === null,
@@ -304,6 +315,16 @@ const Compare: React.FC = () => {
             </div>
           ))}
         </div>
+      )}
+      {numbersFor && (
+        <NumbersDiffModal
+          open
+          onClose={() => setNumbersFor(null)}
+          game={numbersFor.gameBase}
+          side={numbersFor.side}
+          date={date}
+          members={numbersFor.members}
+        />
       )}
     </div>
   );
