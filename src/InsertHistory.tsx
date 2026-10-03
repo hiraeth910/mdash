@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import { Link, useParams } from "react-router-dom";
 import "./InsertHistory.css";
 import { useUserStore } from "./store/store";
+import CalculatorButton from "./Calculator";
 import moment from "moment";
 import { IGame } from "./games";
 import { IGroup } from "./userGames";
@@ -29,7 +30,17 @@ interface GameMessage {
   gamedate: string;
 }
 
-const InsertHistory: React.FC = () => {
+// Practice data for the admin test page, which never calls the server.
+const PRACTICE_GAMES = [
+  { gameid: 1, gamename: "Practice Day", gamedescription: "1" },
+  { gameid: 2, gamename: "Practice Night", gamedescription: "2" },
+];
+const PRACTICE_GROUPS = [
+  { id: 1, groupname: "Practice A" },
+  { id: 2, groupname: "Practice B" },
+];
+
+const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const { gameid, gamename, groupid, typ } = useParams<{
     gameid: string;
     gamename: string;
@@ -59,6 +70,7 @@ const InsertHistory: React.FC = () => {
   const [readingLocally, setReadingLocally] = useState(false); // the first local read downloads the reader
   const [dropActive, setDropActive] = useState(false); // an image file is being dragged over the box
   const prevInputRef = useRef<string>("");
+  const [practiceMessages, setPracticeMessages] = useState<GameMessage[]>([]);
 
   // Text set from code (an image paste, or clearing after Update) must count as the previous value,
   // otherwise deleting it by hand looks like "no change" and the box refuses to clear.
@@ -71,6 +83,11 @@ const InsertHistory: React.FC = () => {
 
   useEffect(() => {
     const fetchGamesAndGroups = async () => {
+      if (dummy) {
+        setGames(PRACTICE_GAMES as unknown as IGame[]);
+        setUserGroups(PRACTICE_GROUPS as unknown as IGroup[]);
+        return;
+      }
       try {
         const stillLoggedIn = await checkAuthAndHandleLogout();
         if (!stillLoggedIn) return;
@@ -131,6 +148,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   }, [inputValue, selectedTyp]);
 
   const fetchTypes = async () => {
+    if (dummy) return; // the default type names are used
     setLoading(true);
     try {
       const stillLoggedIn = await checkAuthAndHandleLogout();
@@ -150,6 +168,11 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   };
 
   const getHistory = async () => {
+    if (dummy) {
+      setMessages(practiceMessages);
+      setIsOpen(true);
+      return;
+    }
     try {
       const payload = {
         gameid: selectedGame?.gameid,
@@ -599,6 +622,20 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       },
     };
 
+    if (dummy) {
+      // practice mode: keep the entry on this page only
+      setPracticeMessages((prev) => [
+        ...prev,
+        { id: Date.now(), created_at: new Date().toISOString(), message: inputValue, gameid: selectedGame.gameid, groupid: selectedGroup.id, userid: 0, gamedate: selectedDate },
+      ]);
+      message.success(`Practice only: ${payload.data.length} entries checked, nothing was saved.`);
+      setGroupedData({ 1: [], 2: [], 3: [] });
+      setInputValue("");
+      setInvalidLines([]);
+      setAmbiguousLines([]);
+      return;
+    }
+
     setLoading(true);
     try {
       await apiClient.post("/createorupdatedata", payload);
@@ -622,18 +659,35 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     return current.isAfter(todayEnd, "day") || current.isBefore(earliest, "day");
   };
 
+  const entries = Object.values(groupedData).flat();
+  const entryTotal = entries.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
   const isBlocked = invalidLines.length > 0 || Object.values(groupedData).flat().length === 0;
 
   return (
     <div className="insert-history-page card-container">
-      <div className="header">
-        <Link to={`/userGames`}>Games</Link>
-        <Link to={`/insert/${gameid}/${gamename}`} className="active">
-          INSERT
-        </Link>
-        <Link to={`/history/${gameid}/${gamename}`}>HISTORY</Link>
-        <Link to={`/data/${gameid}/${gamename}`}>TOTAL</Link>
-      </div>
+      {dummy ? (
+        <div className="header">
+          <Link to="/games">Games</Link>
+          <Link to="/insert-test" className="active">
+            PRACTICE INSERT
+          </Link>
+        </div>
+      ) : (
+        <div className="header">
+          <Link to={`/userGames`}>Games</Link>
+          <Link to={`/insert/${gameid}/${gamename}`} className="active">
+            INSERT
+          </Link>
+          <Link to={`/history/${gameid}/${gamename}`}>HISTORY</Link>
+          <Link to={`/data/${gameid}/${gamename}`}>TOTAL</Link>
+        </div>
+      )}
+      {dummy && (
+        <div className="practice-banner" role="note">
+          Practice mode: nothing is sent to the server. Entries are checked and totalled here, then discarded.
+        </div>
+      )}
 
       <Modal title={<span className="modal-title">Insert History</span>} open={isOpen} onCancel={() => setIsOpen(false)} footer={null} centered width={600}>
         <div className="modal-body-content h-96 overflow-y-auto flex flex-col gap-2 p-2">
@@ -720,8 +774,9 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             onClick={getHistory}
             disabled={!selectedGroup || !selectedGame}
           >
-            Fetch History
+            {dummy ? "Entries so far" : "Fetch History"}
           </Button>
+          <CalculatorButton className="btn-ghost btn-responsive" />
         </div>
       </div>
 
@@ -838,7 +893,8 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           <Button
             className="btn-ghost btn-responsive"
             onClick={handlePasteButtonClick}
-            disabled={extractingImages}
+            disabled={extractingImages || dummy}
+            title={dummy ? "Not available in practice mode (it uses the server)" : undefined}
           >
             Paste image (ChatGPT)
           </Button>
@@ -857,8 +913,16 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             </div>
           )}
 
+          <div className="entry-total" data-testid="entry-total">
+            <span>Total</span>
+            <strong>{new Intl.NumberFormat("en-IN").format(entryTotal)}</strong>
+            <small>
+              {entries.length} entr{entries.length === 1 ? "y" : "ies"}
+            </small>
+          </div>
+
           <Button type="primary" className="btn-responsive" onClick={handleSubmit} disabled={isBlocked}>
-            Update
+            {dummy ? "Check (practice)" : "Update"}
           </Button>
 
           {/* Compact banner message only — no line numbers */}
@@ -893,7 +957,10 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             Object.entries(groupedData).map(([length, numbers], idx) =>
               numbers.length > 0 ? (
                 <div className="group" key={length}>
-                  <h3>{getMapping(Number(length))?.typename.toUpperCase()}</h3>
+                  <h3>
+                    {getMapping(Number(length))?.typename.toUpperCase()}
+                    <span className="group-total">{new Intl.NumberFormat("en-IN").format(numbers.reduce((sum, item) => sum + (Number(item.amount) || 0), 0))}</span>
+                  </h3>
                   <div className="scroll-container" ref={(el) => (groupRefs.current[idx] = el)}>
                     {numbers.map((item, index) => (
                       <div key={index} className="row">

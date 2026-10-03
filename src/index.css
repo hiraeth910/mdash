@@ -492,3 +492,19 @@ button:focus-visible {
     margin-left: 48px; /* lines up with the menu bar below it */
   }
 }
+
+.admin-bar__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.admin-bar__link {
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+  padding: 0 6px;
+}
+.admin-bar__link:hover {
+  color: var(--color-primary);
+}

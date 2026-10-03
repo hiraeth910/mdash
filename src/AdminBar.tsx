@@ -4,6 +4,8 @@ import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
 import { useUserStore } from "./store/store";
 import { getTabUserName, saveUserName } from "./utils/session";
+import { Link } from "react-router-dom";
+import CalculatorButton from "./Calculator";
 
 // Shown at the top of every admin page: who is logged in, and a Recalculate button for all of
 // that admin's groups (the platform admin's covers every admin's groups).
@@ -56,6 +58,11 @@ const AdminBar: React.FC = () => {
           Logged in as <strong>{name ?? "…"}</strong>{" "}
           <span className="admin-bar__role">{isSuper ? "Platform admin" : "Admin"}</span>
         </span>
+        <span className="admin-bar__tools">
+          <Link to="/insert-test" className="admin-bar__link">
+            Practice insert
+          </Link>
+          <CalculatorButton className="admin-bar__recalc" />
         <Button
           className="admin-bar__recalc"
           onClick={() => {
@@ -65,6 +72,7 @@ const AdminBar: React.FC = () => {
         >
           Recalculate
         </Button>
+        </span>
       </div>
       <Modal
         title={<span style={{ color: "var(--color-heading)" }}>Recalculate all groups</span>}

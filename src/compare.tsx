@@ -42,6 +42,9 @@ type TableRow = {
   members: DiffMember[];
   numbers: NumberDiff[]; // accumulated numbers whose bet differs
   numbersTotal: number;
+  section: string; // the group name this row belongs to
+  mismatchKey: string;
+  gameBase: string; // the game's name without "(open)" / "(close)"
   user: string;
   band: number;
   missing: boolean;
@@ -65,7 +68,9 @@ const Compare: React.FC = () => {
   const adminNamesRef = useRef(adminNames);
   adminNamesRef.current = adminNames;
   const [refreshTick, setRefreshTick] = useState(0);
-  const [numbersFor, setNumbersFor] = useState<TableRow | null>(null);
+  const [numbersKey, setNumbersKey] = useState<{ section: string; key: string } | null>(null);
+  // game name (normalised) -> id and name as stored, for the settle button
+  const gamesRef = useRef<Map<string, { gameid: number; gamename: string }>>(new Map());
   const [plainUsers, setPlainUsers] = useState<IUserRow[]>([]);
   const plainUsersRef = useRef(plainUsers);
   plainUsersRef.current = plainUsers;
@@ -111,9 +116,9 @@ const Compare: React.FC = () => {
     setLoading(true);
     (async () => {
       try {
-        const gameIds = new Map<string, number>(
-          (await apiClient.get<{ gameid: number; gamename: string }[]>("/games")).data.map((g) => [normName(g.gamename), g.gameid])
-        );
+        const gameList = (await apiClient.get<{ gameid: number; gamename: string }[]>("/games")).data;
+        gamesRef.current = new Map(gameList.map((g) => [normName(g.gamename), { gameid: g.gameid, gamename: g.gamename }]));
+        const gameIds = new Map<string, number>(gameList.map((g) => [normName(g.gamename), g.gameid]));
         const built = await Promise.all(
           repeated.map(async (list): Promise<NameSection> => {
             const compared: CompareGroup[] = await Promise.all(
@@ -125,10 +130,10 @@ const Compare: React.FC = () => {
                 });
                 const adminName = adminNamesRef.current[g.admin_id ?? -1] || `Admin #${g.admin_id}`;
                 // the users this group is assigned to, found the way the Users screen links them (group ids)
-                const assigned = plainUsersRef.current
+                const assignedUsers = plainUsersRef.current
                   .filter((u) => (u.group_ids || []).map(Number).includes(g.group_id))
-                  .map((u) => u.user_name)
-                  .sort((a, b) => a.localeCompare(b));
+                  .sort((a, b) => a.user_name.localeCompare(b.user_name));
+                const assigned = assignedUsers.map((u) => u.user_name);
                 const games = sideRows(res.data);
                 // each game's accumulated numbers, so rows whose totals tally but whose numbers don't are caught
                 const numbers: Record<string, NumberAmount[]> = {};
@@ -154,6 +159,8 @@ const Compare: React.FC = () => {
                   groupId: g.group_id,
                   adminName,
                   userName: assigned.join(", ") || `No user (${adminName})`,
+                  groupName: g.group_name,
+                  userId: assignedUsers[0]?.user_id ?? null,
                   games,
                   numbers,
                 };
@@ -212,7 +219,7 @@ const Compare: React.FC = () => {
                 <span className="compare-gap">
                   {r.numbers.length} number{r.numbers.length > 1 ? "s" : ""} differ
                 </span>
-                <Button size="small" onClick={() => setNumbersFor(r)}>
+                <Button size="small" onClick={() => setNumbersKey({ section: r.section, key: r.mismatchKey })}>
                   View numbers
                 </Button>
               </>
@@ -222,7 +229,7 @@ const Compare: React.FC = () => {
     },
   ];
 
-  const tableRows = (mismatches: GameMismatch[]): TableRow[] =>
+  const tableRows = (mismatches: GameMismatch[], section = ""): TableRow[] =>
     mismatches.flatMap((m, index) => {
       // an open and a close row of the same game share a band
       const base = (x: GameMismatch) => x.key.replace(/ \((open|close)\)$/, "");
@@ -234,9 +241,12 @@ const Compare: React.FC = () => {
         groupSize: m.rows.length,
         diff: m.diff,
         game: m.game,
-        members: m.rows.map((x) => ({ groupId: x.groupId, userName: x.userName })),
+        members: m.rows.map((x) => ({ groupId: x.groupId, userName: x.userName, userId: x.userId, groupName: x.groupName })),
         numbers: m.numbers,
         numbersTotal: m.numbersTotal,
+        section,
+        mismatchKey: m.key,
+        gameBase: m.game.replace(/ \((open|close)\)$/, ""),
         user: r.userName,
         band,
         missing: r.row === null,
@@ -244,6 +254,34 @@ const Compare: React.FC = () => {
         differs: r.differs,
       }));
     });
+
+  // The row whose numbers are open, found again after every reload so a settle shows its effect.
+  const numbersFor = numbersKey
+    ? tableRows(sections.find((x) => x.name === numbersKey.section)?.mismatches ?? [], numbersKey.section).find(
+        (r) => r.mismatchKey === numbersKey.key
+      ) ?? null
+    : null;
+
+  // Everything on this row got settled: close the window once the reload shows it.
+  useEffect(() => {
+    if (numbersKey && !loading && ready && !numbersFor) setNumbersKey(null);
+  }, [numbersKey, loading, ready, numbersFor]);
+
+  // Adds a bet for each group below the highest on this number, bringing it up to that amount.
+  const settleNumber = async (row: TableRow, n: NumberDiff) => {
+    const game = gamesRef.current.get(normName(row.gameBase));
+    if (!game) throw new Error("Game not found");
+    const top = Math.max(...n.amounts);
+    const items = row.members.flatMap((m, i) => {
+      const missing = Math.round((top - n.amounts[i]) * 100) / 100;
+      if (missing <= 0) return [];
+      if (m.userId === null) throw new Error(`No user is assigned to ${m.groupName} (${m.userName})`);
+      return [{ group: m.groupId, grpname: m.groupName, uid: m.userId, typeid: n.typeId, type: n.type, number: n.number, amount: missing }];
+    });
+    await apiClient.post("/settle-numbers", { gameid: game.gameid, game: game.gamename, date, items });
+    message.success(`Settled ${n.number}: ${items.length} bet${items.length > 1 ? "s" : ""} added`);
+    setRefreshTick((t) => t + 1);
+  };
 
   const totalDiffs = sections.reduce((n, s) => n + s.mismatches.length, 0);
 
@@ -343,7 +381,7 @@ const Compare: React.FC = () => {
                   </p>
                   <Table
                     className="settlement-table compare-table"
-                    dataSource={tableRows(s.mismatches)}
+                    dataSource={tableRows(s.mismatches, s.name)}
                     columns={columns}
                     pagination={false}
                     size="middle"
@@ -356,13 +394,14 @@ const Compare: React.FC = () => {
           ))}
         </div>
       )}
-      {numbersFor && (
+      {numbersKey && (
         <NumbersDiffModal
-          onClose={() => setNumbersFor(null)}
-          title={`${numbersFor.game} — numbers that differ · ${date}`}
-          members={numbersFor.members}
-          numbers={numbersFor.numbers}
-          total={numbersFor.numbersTotal}
+          onClose={() => setNumbersKey(null)}
+          onSettle={numbersFor ? (n) => settleNumber(numbersFor, n) : undefined}
+          title={`${numbersFor?.game ?? ""} — numbers that differ · ${date}`}
+          members={numbersFor?.members ?? []}
+          numbers={numbersFor?.numbers ?? []}
+          total={numbersFor?.numbersTotal ?? 0}
         />
       )}
     </div>

@@ -18,6 +18,7 @@ export interface NumberAmount {
 // A number whose accumulated bet is not the same in every group.
 export interface NumberDiff {
   key: string;
+  typeId: number;
   type: string;
   number: string;
   amounts: number[]; // one per group, in group order (0 when the group has no bet on it)
@@ -30,6 +31,8 @@ export interface CompareGroup {
   groupId: number;
   adminName: string; // the admin account the group belongs to
   userName: string; // the user(s) the group is assigned to
+  groupName: string;
+  userId: number | null; // the user bets are entered for in this group (the first one assigned), if any
   games: SideRow[]; // the open and close rows of every game
   numbers: Record<string, NumberAmount[]>; // accumulated numbers of each open/close row, by row key
 }
@@ -38,6 +41,8 @@ export interface CompareRow {
   groupId: number;
   adminName: string;
   userName: string;
+  groupName: string;
+  userId: number | null;
   row: SideRow | null; // null: this group has no such row
   differs: Record<CompareColumn, boolean>; // columns whose value is not the same in every group
 }
@@ -59,7 +64,7 @@ const numberDiffs = (groups: CompareGroup[], key: string): NumberDiff[] => {
   groups.forEach((g, gi) =>
     (g.numbers[key] ?? []).forEach((n) => {
       const id = `${n.typeId}|${n.number}`;
-      const row = byKey.get(id) ?? { key: id, type: n.type, number: n.number, amounts: groups.map(() => 0), gap: 0 };
+      const row = byKey.get(id) ?? { key: id, typeId: n.typeId, type: n.type, number: n.number, amounts: groups.map(() => 0), gap: 0 };
       row.amounts[gi] = round2(row.amounts[gi] + n.amount);
       byKey.set(id, row);
     })
@@ -104,7 +109,7 @@ export const compareGames = (groups: CompareGroup[]): { total: number; gameCount
       diff: Object.fromEntries(COMPARE_COLUMNS.map((c) => [c, gap(c)])) as Record<CompareColumn, number>,
       numbers,
       numbersTotal: round2(numbers.reduce((t, n) => t + n.gap, 0)),
-      rows: groups.map((g, i) => ({ groupId: g.groupId, adminName: g.adminName, userName: g.userName, row: rows[i], differs })),
+      rows: groups.map((g, i) => ({ groupId: g.groupId, adminName: g.adminName, userName: g.userName, groupName: g.groupName, userId: g.userId, row: rows[i], differs })),
     });
   });
   const gameCount = new Set(order.map((o) => o.key.replace(/ \((open|close)\)$/, ""))).size;

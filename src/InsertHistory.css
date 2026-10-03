@@ -607,3 +607,37 @@
     font-size: 0.875rem;
   }
 }
+
+.practice-banner {
+  margin: 0 0 12px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px dashed var(--color-secondary);
+  background: var(--color-secondary-10);
+  color: var(--color-text);
+  font-weight: 600;
+}
+.entry-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+.entry-total strong {
+  font-size: 1.3rem;
+  color: var(--color-heading);
+}
+.entry-total small {
+  margin-left: auto;
+  color: var(--color-text-muted);
+}
+.group-total {
+  float: right;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}

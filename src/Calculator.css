@@ -1,0 +1,117 @@
+.calc {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.calc__main {
+  flex: 1 1 240px;
+  min-width: 240px;
+}
+.calc__screen {
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  text-align: right;
+  min-height: 74px;
+  overflow: hidden;
+}
+.calc__expr {
+  min-height: 20px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  word-break: break-all;
+}
+.calc__value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  word-break: break-all;
+}
+.calc__keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.calc__key {
+  padding: 12px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.calc__key:hover {
+  border-color: var(--color-primary);
+}
+.calc__key--op {
+  color: var(--color-primary);
+}
+.calc__key--action {
+  color: var(--color-danger);
+}
+.calc__key--equals {
+  grid-row: span 2;
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.calc__key--zero {
+  grid-column: span 2;
+}
+.calc__history {
+  flex: 1 1 200px;
+  min-width: 200px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.calc__history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: var(--color-heading);
+}
+.calc__empty {
+  color: var(--color-text-muted);
+}
+.calc__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.calc__entry {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  text-align: right;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.calc__entry:hover {
+  border-color: var(--color-primary);
+}
+.calc__entry-expr {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+.calc__entry-result {
+  font-weight: 700;
+  color: var(--color-heading);
+}
+.calc__entry-at {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}

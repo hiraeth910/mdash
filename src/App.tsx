@@ -124,6 +124,14 @@ const App: React.FC = () => {
           }
         />
         <Route
+          path="/insert-test"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
+              <InsertHistory dummy />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/insert"
           element={
             <ProtectedRoute allowedRoles={["user"]}>

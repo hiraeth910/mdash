@@ -1,11 +1,14 @@
 import React from "react";
-import { Modal, Table } from "antd";
+import { useState } from "react";
+import { Button, Modal, Popconfirm, Table, message } from "antd";
 import { fmt } from "./utils/settlement";
 import type { NumberDiff } from "./utils/compare";
 
 export interface DiffMember {
   groupId: number;
   userName: string;
+  userId: number | null;
+  groupName: string;
 }
 
 interface Props {
@@ -14,10 +17,25 @@ interface Props {
   members: DiffMember[];
   numbers: NumberDiff[];
   total: number;
+  // Adds the bets that bring the lower groups up to the highest on a number; omitted when unavailable.
+  onSettle?: (n: NumberDiff) => Promise<void>;
 }
 
 // The numbers whose accumulated bet amount is not the same in every group (bet amounts only).
-const NumbersDiffModal: React.FC<Props> = ({ onClose, title, members, numbers, total }) => (
+const NumbersDiffModal: React.FC<Props> = ({ onClose, title, members, numbers, total, onSettle }) => {
+  const [busy, setBusy] = useState<string | null>(null);
+  const settle = async (n: NumberDiff) => {
+    if (!onSettle) return;
+    setBusy(n.key);
+    try {
+      await onSettle(n);
+    } catch (err) {
+      message.error(err instanceof Error && err.message ? err.message : "Could not settle this number");
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
   <Modal open onCancel={onClose} footer={null} width={720} title={title} destroyOnClose>
     {numbers.length === 0 ? (
       <p>No number has a different bet amount between these groups.</p>
@@ -48,6 +66,27 @@ const NumbersDiffModal: React.FC<Props> = ({ onClose, title, members, numbers, t
               align: "right" as const,
               render: (_: unknown, r: NumberDiff) => <strong className="compare-gap">{fmt(r.gap)}</strong>,
             },
+            {
+              title: "",
+              key: "settle",
+              render: (_: unknown, r: NumberDiff) => {
+                const lower = members.filter((_m, i) => r.amounts[i] < Math.max(...r.amounts)).map((m) => m.userName);
+                return (
+                  <Popconfirm
+                    title={`Settle ${r.number}?`}
+                    description={`Adds a bet of the missing amount for ${lower.join(", ")}. It cannot be undone here.`}
+                    okText="Settle"
+                    onConfirm={() => settle(r)}
+                    disabled={!onSettle}
+                    getPopupContainer={() => document.body}
+                  >
+                    <Button size="small" loading={busy === r.key} disabled={!onSettle || busy !== null}>
+                      Settle
+                    </Button>
+                  </Popconfirm>
+                );
+              },
+            },
           ]}
           summary={() => (
             <Table.Summary fixed>
@@ -58,6 +97,7 @@ const NumbersDiffModal: React.FC<Props> = ({ onClose, title, members, numbers, t
                 <Table.Summary.Cell index={1} align="right">
                   <strong className="compare-gap">{fmt(total)}</strong>
                 </Table.Summary.Cell>
+                <Table.Summary.Cell index={2} />
               </Table.Summary.Row>
             </Table.Summary>
           )}
@@ -65,6 +105,7 @@ const NumbersDiffModal: React.FC<Props> = ({ onClose, title, members, numbers, t
       </>
     )}
   </Modal>
-);
+  );
+};
 
 export default NumbersDiffModal;
