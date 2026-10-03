@@ -1228,3 +1228,16 @@ body.drag-selecting,
   color: var(--color-text, inherit);
   background: transparent;
 }
+
+/* Compare "View numbers" modal: the total row follows the theme like the rest of the table */
+.compare-numbers-table .ant-table-summary > tr > td,
+.compare-numbers-table .ant-table-summary > tr > th,
+.compare-numbers-table .ant-table-summary .ant-table-cell {
+  background: var(--color-bg-soft) !important;
+  color: var(--color-heading) !important;
+  border-color: var(--color-border) !important;
+  font-weight: 700;
+}
+.compare-numbers-table .ant-table-summary .compare-gap {
+  color: var(--color-danger);
+}
