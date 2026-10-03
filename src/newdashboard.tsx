@@ -68,7 +68,6 @@ type PickedRow = {
   kind: "group" | "total" | "ld" | "final";
   group_name: string;
   pnl: number;
-  admin?: string;
 };
 
 const SummaryDashboard: React.FC = () => {
@@ -184,14 +183,22 @@ const SummaryDashboard: React.FC = () => {
   const ldAmount = round2((pickedTotal * (ldPercent || 0)) / 100);
   const finalAmount = round2(pickedTotal - ldAmount);
 
-  const pick = (keys: (number | string)[]) => setPicked((p) => [...p, ...keys.filter((k) => !p.includes(k))]);
+  // A ticked box shows its tick for a moment before the group moves across.
+  const [ticking, setTicking] = useState<(number | string)[]>([]);
+  const pick = (keys: (number | string)[]) => {
+    setTicking((t) => [...t, ...keys.filter((k) => !t.includes(k))]);
+    setTimeout(() => {
+      setPicked((p) => [...p, ...keys.filter((k) => !p.includes(k))]);
+      setTicking((t) => t.filter((k) => !keys.includes(k)));
+    }, 350);
+  };
   const unpick = (keys: (number | string)[]) => setPicked((p) => p.filter((k) => !keys.includes(k)));
 
   // Ticking boxes on the main tables moves the groups across; the box on the header ticks every group left in that table.
   const selection = (rowsLeft: RowData[]) =>
     selectMode
       ? {
-          selectedRowKeys: [] as React.Key[],
+          selectedRowKeys: ticking as React.Key[],
           onSelect: (record: RowData, selected: boolean) => selected && pick([record.key]),
           onSelectAll: (selected: boolean) => selected && pick(rowsLeft.map((r) => r.key)),
           getCheckboxProps: (record: RowData) => ({ disabled: isTotalKey(record.key) }),
@@ -205,7 +212,6 @@ const SummaryDashboard: React.FC = () => {
       kind: "group" as const,
       group_name: r.group_name,
       pnl: r.pnl,
-      admin: isSuper ? adminNames[r.admin_id ?? 0] || `Admin #${r.admin_id}` : undefined,
     })),
     { key: "total-picked", kind: "total", group_name: "Total", pnl: pickedTotal },
     { key: "total-ld", kind: "ld", group_name: "", pnl: ldAmount },
@@ -213,7 +219,6 @@ const SummaryDashboard: React.FC = () => {
   ];
 
   const pickedColumns = [
-    ...(isSuper ? [{ title: "Admin", dataIndex: "admin", key: "admin" }] : []),
     {
       title: "Group Name",
       dataIndex: "group_name",
