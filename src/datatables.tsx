@@ -115,7 +115,7 @@ const DataTables: React.FC = () => {
   const isMobile = !screens.md;
   const adjustedTotal = total - (total * (percentage || 0)) / 100;
   const formatNumber = (value: number | string) =>
-    new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(Number(value) || 0);
+    new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, useGrouping: false }).format(Number(value) || 0);
 
 
 
