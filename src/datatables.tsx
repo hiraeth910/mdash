@@ -216,6 +216,17 @@ const DataTables: React.FC = () => {
     }
   }, [selectedDate, selectedUser, selectedGroup, selectedUserId, selectedGame, pickedGroups]);
 
+  // A recalculation started from the header: reload whatever is selected right now.
+  const refreshRef = useRef<() => void>(() => undefined);
+  refreshRef.current = () => {
+    if (selectedUser !== null && selectedGame) fetchData();
+  };
+  useEffect(() => {
+    const refresh = () => refreshRef.current();
+    window.addEventListener("recalculated", refresh);
+    return () => window.removeEventListener("recalculated", refresh);
+  }, []);
+
   // Declared result for the game/date being viewed, so the jodi table can point
   // at the row group the open ank landed on.
   useEffect(() => {

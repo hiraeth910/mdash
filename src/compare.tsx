@@ -64,6 +64,7 @@ const Compare: React.FC = () => {
   const latestLoad = useRef(0);
   const adminNamesRef = useRef(adminNames);
   adminNamesRef.current = adminNames;
+  const [refreshTick, setRefreshTick] = useState(0);
   const [numbersFor, setNumbersFor] = useState<TableRow | null>(null);
   const [plainUsers, setPlainUsers] = useState<IUserRow[]>([]);
   const plainUsersRef = useRef(plainUsers);
@@ -169,7 +170,14 @@ const Compare: React.FC = () => {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, repeatedKey, date]);
+  }, [ready, repeatedKey, date, refreshTick]);
+
+  // A recalculation started from the header: load the figures again.
+  useEffect(() => {
+    const refresh = () => setRefreshTick((n) => n + 1);
+    window.addEventListener("recalculated", refresh);
+    return () => window.removeEventListener("recalculated", refresh);
+  }, []);
 
   const columns = [
     { title: "Game", dataIndex: "game", key: "game" },
