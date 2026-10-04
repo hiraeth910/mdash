@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button, Input, InputNumber, Select, Table, message } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
-import { PaymentDetailsForm, paymentImageSection, usePaymentDetails } from "./PaymentDetails";
+import { PaymentDetailsForm, paymentImageSections, usePaymentDetails } from "./PaymentDetails";
 import { searchProps } from "./utils/selectSearch";
 
 export type BillRow = {
@@ -224,7 +224,7 @@ const BillTable: React.FC<Props> = ({
             { cells: cells(finalLabel, undefined, "", finalAmount), bold: true, shaded: true, tone: tone(finalAmount) },
           ],
         },
-        ...(finalAmount > 0 && paymentImageSection(payInfo) ? [paymentImageSection(payInfo)!] : []),
+        ...(finalAmount > 0 ? paymentImageSections(payInfo) : []),
       ],
     };
   };

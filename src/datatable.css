@@ -1395,3 +1395,32 @@ body.drag-selecting,
 .payment-logo {
   flex: none;
 }
+
+.payment-details__add {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+}
+.payment-details__bank {
+  grid-template-columns: 1fr 1fr;
+}
+.payment-details__bank .ant-btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.payment-details__option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.payment-details__delete {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.payment-details__delete:hover {
+  color: var(--color-danger);
+}

@@ -14,7 +14,7 @@ import { checkAuthAndHandleLogout } from "./authcheck";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 import { buildSettlement, fmt, type PaymentData } from "./utils/settlement";
 import { searchProps } from "./utils/selectSearch";
-import { PaymentDetailsForm, paymentImageSection, usePaymentDetails } from "./PaymentDetails";
+import { PaymentDetailsForm, paymentImageSections, usePaymentDetails } from "./PaymentDetails";
 
 pdfMake.vfs = vfs;
 // Payment is what we owe them (negative), due is what they owe us.
@@ -284,7 +284,7 @@ const Dashboard: React.FC = () => {
             tone: l.strong ? (l.value < 0 ? ("negative" as const) : ("positive" as const)) : undefined,
           })),
         },
-        ...(finalAmount > 0 && paymentImageSection(payInfo) ? [paymentImageSection(payInfo)!] : []),
+        ...(finalAmount > 0 ? paymentImageSections(payInfo) : []),
         ...(detailed && settlement.winners.length
           ? [
               {
