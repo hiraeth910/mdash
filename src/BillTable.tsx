@@ -25,6 +25,7 @@ interface Props {
   imageSubtitle?: string;
   fileName: string;
   emptyText?: string;
+  imageGroupColumn?: boolean; // false leaves the group (admin) column out of the picture
 }
 
 type Line = {
@@ -55,6 +56,7 @@ const BillTable: React.FC<Props> = ({
   imageSubtitle,
   fileName,
   emptyText,
+  imageGroupColumn = true,
 }) => {
   const [ldPercent, setLdPercent] = useState<number | null>(null);
   const [cdPercent, setCdPercent] = useState<number | null>(null);
@@ -195,9 +197,10 @@ const BillTable: React.FC<Props> = ({
 
   // Rows whose percent is zero (L/D, CD) or amount is zero (old) are left out of the picture.
   const image = (): TableImage => {
+    const imageGroup = hasGroup && imageGroupColumn;
     const tone = (v: number) => (v < 0 ? ("negative" as const) : ("positive" as const));
     const cells = (label: string, group: string | undefined, type: string, amount: number) =>
-      hasGroup ? [label, group ?? "", type, String(amount)] : [label, type, String(amount)];
+      imageGroup ? [label, group ?? "", type, String(amount)] : [label, type, String(amount)];
     return {
       title: imageTitle,
       subtitle: imageSubtitle,
@@ -206,7 +209,7 @@ const BillTable: React.FC<Props> = ({
         {
           columns: [
             { header: labelHeader },
-            ...(hasGroup ? [{ header: groupHeader }] : []),
+            ...(imageGroup ? [{ header: groupHeader }] : []),
             { header: "Due/Payment" },
             { header: "Amount", align: "right" as const },
           ],

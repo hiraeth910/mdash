@@ -125,11 +125,16 @@ const IncludeButton: React.FC<{ on: boolean; onToggle: () => void; label: string
 // Four PhonePe numbers and two bank accounts, each with a name. They stay saved and can be edited
 // or cleared; the Include button decides whether one is on the bill picture.
 export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: PaymentInfo) => void }> = ({ info, onChange }) => {
-  // A picture of just the included PhonePe numbers, to send on their own.
-  const phoneSection = paymentImageSections(info).find((sec) => sec.badge === "phonepe");
+  // A picture of just the included PhonePe numbers and bank accounts, to send on their own.
+  const paySections = paymentImageSections(info);
   const copyPhones = async () => {
-    if (!phoneSection) return;
-    const image: TableImage = { title: "Pay to", fileName: "PhonePe.png", sections: [{ ...phoneSection, beside: false }] };
+    if (paySections.length === 0) return;
+    const image: TableImage = {
+      title: "Pay to",
+      fileName: "Pay_to.png",
+      // the tables sit side by side, the first one starting the row
+      sections: paySections.map((sec, i) => ({ ...sec, beside: i > 0 })),
+    };
     try {
       await navigator.clipboard.write([new ClipboardItem({ "image/png": renderTableImage(image) })]);
       message.success("PhonePe image copied.");
@@ -150,7 +155,7 @@ export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: 
         <PhonePeLogo />
         <strong>PhonePe</strong>
         <span className="payment-details__hint">Include puts it on the picture</span>
-        <Button size="small" onClick={copyPhones} disabled={!phoneSection} aria-label="Copy PhonePe image">
+        <Button size="small" onClick={copyPhones} disabled={paySections.length === 0} aria-label="Copy PhonePe image">
           Copy image
         </Button>
       </div>

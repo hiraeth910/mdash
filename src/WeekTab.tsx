@@ -202,10 +202,11 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
               labelHeader="Date"
               groupHeader="Admin"
               periodLabel="Week"
+              imageGroupColumn={false}
               onAmount={(key, v) => setOverrides((o) => ({ ...o, [key]: v }))}
-              imageTitle={`${chosen[0]?.group_name ?? ""} — week`}
+              imageTitle={`${(chosen[0]?.group_name ?? "").trim()} — week`}
               imageSubtitle={range}
-              fileName={`Week_${days[0].format("DD-MM-YYYY")}_${chosen[0]?.group_name ?? "group"}.png`}
+              fileName={`Week_${days[0].format("DD-MM-YYYY")}_${(chosen[0]?.group_name ?? "group").trim()}.png`}
               emptyText="Tick days in the tables; they are listed here and their amounts can be edited."
             />
           </div>
