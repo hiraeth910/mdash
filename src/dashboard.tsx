@@ -14,6 +14,7 @@ import { checkAuthAndHandleLogout } from "./authcheck";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 import { buildSettlement, fmt, type PaymentData } from "./utils/settlement";
 import { searchProps } from "./utils/selectSearch";
+import { PaymentDetailsForm, paymentImageSection, usePaymentDetails } from "./PaymentDetails";
 
 pdfMake.vfs = vfs;
 // Payment is what we owe them (negative), due is what they owe us.
@@ -213,6 +214,7 @@ const Dashboard: React.FC = () => {
   };
 
   const settlement = useMemo(() => buildSettlement(paymentData), [paymentData]);
+  const [payInfo, setPayInfo] = usePaymentDetails();
   const oldBalance = oldAmount || 0;
   const oldDelta = oldType === "due" ? oldBalance : -oldBalance;
 
@@ -282,6 +284,7 @@ const Dashboard: React.FC = () => {
             tone: l.strong ? (l.value < 0 ? ("negative" as const) : ("positive" as const)) : undefined,
           })),
         },
+        ...(finalAmount > 0 && paymentImageSection(payInfo) ? [paymentImageSection(payInfo)!] : []),
         ...(detailed && settlement.winners.length
           ? [
               {
@@ -678,6 +681,7 @@ const Dashboard: React.FC = () => {
                     />
 
                     <h3 style={{ marginTop: 24 }}>Calculation</h3>
+                    <div className="settlement-calc-wrap">
                     <div className="settlement-calc">
                       <div className="settlement-calc__row">
                         <span>Total bet amount</span>
@@ -750,6 +754,8 @@ const Dashboard: React.FC = () => {
                         <span>{finalLabel}</span>
                         <span>{fmt(finalAmount)}</span>
                       </div>
+                    </div>
+                    {finalAmount > 0 && <PaymentDetailsForm info={payInfo} onChange={setPayInfo} />}
                     </div>
 
                     {settlement.winners.length > 0 && (

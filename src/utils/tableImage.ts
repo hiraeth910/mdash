@@ -14,6 +14,8 @@ export type ImageRow = {
 
 type Section = {
   heading?: string;
+  // A small logo drawn before the heading.
+  badge?: "phonepe";
   columns: ImageColumn[];
   rows: ImageRow[];
 };
@@ -94,7 +96,23 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
       ctx.fillStyle = "#12302a";
       ctx.font = font(true, 15);
       ctx.textAlign = "left";
-      ctx.fillText(sec.heading, MARGIN, y0 + HEADING_H / 2 - 2);
+      let hx = MARGIN;
+      if (sec.badge === "phonepe") {
+        const bx = MARGIN, by = y0 + HEADING_H / 2 - 14, bs = 24;
+        ctx.fillStyle = "#5f259f";
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bs, bs, 6);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = font(true, 15);
+        ctx.textAlign = "center";
+        ctx.fillText("Pe", bx + bs / 2, by + bs / 2 + 1);
+        hx = MARGIN + bs + 8;
+        ctx.fillStyle = "#12302a";
+        ctx.font = font(true, 15);
+        ctx.textAlign = "left";
+      }
+      ctx.fillText(sec.heading, hx, y0 + HEADING_H / 2 - 2);
     }
     const headY = y0 + (sec.heading ? HEADING_H : 0);
 

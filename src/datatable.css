@@ -1345,3 +1345,53 @@ body.drag-selecting,
   justify-content: flex-end;
   margin-bottom: 8px;
 }
+
+/* Bills: "pay to" details beside the calculation, only when the bill is a due */
+.settlement-calc-wrap {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.settlement-calc-wrap .settlement-calc {
+  flex: 1 1 360px;
+}
+.payment-details {
+  flex: 1 1 280px;
+  max-width: 440px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bill-table .payment-details {
+  margin-top: 12px;
+  max-width: none;
+}
+.payment-details__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-heading);
+}
+.payment-details__head--bank {
+  margin-top: 4px;
+}
+.payment-details__hint {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+.payment-details__phones,
+.payment-details__bank {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.payment-logo {
+  flex: none;
+}
