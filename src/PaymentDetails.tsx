@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Button, Input } from "antd";
+import { Button, Input, message } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import type { TableImage } from "./utils/tableImage";
+import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 
 const STORAGE_KEY = "payment-details-v3";
 const PHONE_SLOTS = 4;
@@ -125,6 +125,20 @@ const IncludeButton: React.FC<{ on: boolean; onToggle: () => void; label: string
 // Four PhonePe numbers and two bank accounts, each with a name. They stay saved and can be edited
 // or cleared; the Include button decides whether one is on the bill picture.
 export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: PaymentInfo) => void }> = ({ info, onChange }) => {
+  // A picture of just the included PhonePe numbers, to send on their own.
+  const phoneSection = paymentImageSections(info).find((sec) => sec.badge === "phonepe");
+  const copyPhones = async () => {
+    if (!phoneSection) return;
+    const image: TableImage = { title: "Pay to", fileName: "PhonePe.png", sections: [{ ...phoneSection, beside: false }] };
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": renderTableImage(image) })]);
+      message.success("PhonePe image copied.");
+    } catch {
+      downloadTableImage(image).catch(() => message.error("Could not create the image"));
+      message.info("Couldn't copy the image here, so it was downloaded instead.");
+    }
+  };
+
   const setPhone = (i: number, patch: Partial<PhoneSlot>) =>
     onChange({ ...info, phones: info.phones.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
   const setBank = (i: number, patch: Partial<BankSlot>) =>
@@ -136,6 +150,9 @@ export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: 
         <PhonePeLogo />
         <strong>PhonePe</strong>
         <span className="payment-details__hint">Include puts it on the picture</span>
+        <Button size="small" onClick={copyPhones} disabled={!phoneSection} aria-label="Copy PhonePe image">
+          Copy image
+        </Button>
       </div>
       {info.phones.map((p, i) => (
         <div className="payment-details__phone" key={i}>
