@@ -99,8 +99,8 @@ const KEYS: { label: string; key: string; kind?: "op" | "action" | "equals" }[] 
   { label: "2", key: "2" },
   { label: "3", key: "3" },
   { label: "+", key: "+", kind: "op" },
-  { label: "00", key: "00" },
   { label: "0", key: "0" },
+  { label: "00", key: "00" },
   { label: ".", key: "." },
   { label: "=", key: "=", kind: "equals" },
 ];
