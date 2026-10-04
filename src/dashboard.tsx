@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Table, Button, DatePicker, Select, Spin, message, Modal, InputNumber, Tabs } from "antd";
 import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useUserStore } from "./store/store";
 import { isAdminRole } from "./utils/session";
 import "./datatable.css";
@@ -31,17 +31,29 @@ const Dashboard: React.FC = () => {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [paymentData, setPaymentData] = useState<PaymentData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
+  // Everything picked here lives in the address (?date=&group=&tab=&ld=&old=&oldAmt=), so a reload or a
+  // shared link comes back the same.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromUrl = useRef(searchParams);
+  const urlDate = fromUrl.current.get("date");
+  const [selectedDate, setSelectedDate] = useState(urlDate && dayjs(urlDate, "YYYY-MM-DD", true).isValid() ? urlDate : dayjs().format("YYYY-MM-DD"));
   const [groups, setGroups] = useState([]);
   const [selectedUser, setSelectedUser] = useState<IUser | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [modalVisible, setModalVisible] = useState(false);
   // Balance carried over from earlier: an old due is added to the remaining, an old payment is taken off it.
-  const [oldType, setOldType] = useState<"due" | "payment">("due");
-  const [oldAmount, setOldAmount] = useState<number | null>(null);
+  const [oldType, setOldType] = useState<"due" | "payment">(fromUrl.current.get("old") === "payment" ? "payment" : "due");
+  const [oldAmount, setOldAmount] = useState<number | null>(() => {
+    const v = Number(fromUrl.current.get("oldAmt"));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  });
   // L/D %: the share (1-100) taken off the day's due or payment. Platform admin only.
-  const [ldPercent, setLdPercent] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("settlement");
+  const [ldPercent, setLdPercent] = useState<number | null>(() => {
+    const v = Number(fromUrl.current.get("ld"));
+    return Number.isFinite(v) && v >= 1 && v <= 100 ? Math.round(v) : null;
+  });
+  const [activeTab, setActiveTab] = useState<string>(fromUrl.current.get("tab") === "bills" ? "bills" : "settlement");
+  const [urlReady, setUrlReady] = useState(false); // the group in the address has been looked up
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -50,7 +62,11 @@ const Dashboard: React.FC = () => {
   }, []);
 
   // Group names are only unique within an account, so the pickers select by id.
-  const handleGroupChange = (groupId: number | string) => {
+  const handleGroupChange = (groupId: number | string, restoring = false) => {
+    if (!restoring) {
+      setOldAmount(null);
+      setLdPercent(null);
+    }
     const group = groups.find((group) => group["group_id"] === groupId);
     setGrpname(group ? group["group_name"] : undefined);
     setSelectedGroupId(group ? group["group_id"] : null);
@@ -84,9 +100,31 @@ const Dashboard: React.FC = () => {
     if (selectedGroupId !== null) {
       fetchData();
     }
-    setOldAmount(null);
-    setLdPercent(null);
   }, [selectedDate, selectedGroupId]);
+
+  // Put the group from the address back once the groups are known, then start writing to the address.
+  useEffect(() => {
+    if (urlReady || groups.length === 0) return;
+    const id = Number(fromUrl.current.get("group"));
+    if (Number.isInteger(id) && groups.some((g) => g["group_id"] === id)) handleGroupChange(id, true);
+    setUrlReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, urlReady]);
+
+  useEffect(() => {
+    if (!urlReady) return;
+    const next = new URLSearchParams();
+    next.set("date", selectedDate);
+    if (selectedGroupId !== null) next.set("group", String(selectedGroupId));
+    if (activeTab !== "settlement") next.set("tab", activeTab);
+    if (ldPercent) next.set("ld", String(ldPercent));
+    if (oldAmount) {
+      next.set("old", oldType);
+      next.set("oldAmt", String(oldAmount));
+    }
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlReady, selectedDate, selectedGroupId, activeTab, ldPercent, oldType, oldAmount]);
 
   // A recalculation started from the header: show the new figures for the selected group.
   useEffect(() => {
@@ -448,16 +486,20 @@ const Dashboard: React.FC = () => {
           <DatePicker
             value={dayjs(selectedDate)}
             format="DD-MM-YYYY"
-            onChange={(date) => setSelectedDate(date?.format("YYYY-MM-DD") || selectedDate)}
+            onChange={(date) => {
+              setSelectedDate(date?.format("YYYY-MM-DD") || selectedDate);
+              setOldAmount(null);
+              setLdPercent(null);
+            }}
           />
           {isMobile ? (
             <Button onClick={() => setModalVisible(true)}>{grpname || "Select Group"}</Button>
           ) : (
             <Select {...searchProps}
               className="group-select"
-              onChange={handleGroupChange}
+              onChange={(v: number | string) => handleGroupChange(v)}
               getPopupContainer={() => document.body}
-              defaultValue="Select Group"
+              value={selectedGroupId ?? "Select Group"}
               optionLabelProp="label"
               popupMatchSelectWidth={false}
             >
