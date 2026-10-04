@@ -1424,3 +1424,26 @@ body.drag-selecting,
 .payment-details__delete:hover {
   color: var(--color-danger);
 }
+
+.payment-details__phone {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr auto auto;
+  gap: 6px;
+  align-items: center;
+}
+.payment-details__account {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--color-border);
+}
+.payment-details__actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.payment-details__account .payment-details__bank {
+  grid-template-columns: 1fr 1fr;
+}
