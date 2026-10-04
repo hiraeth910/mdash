@@ -101,7 +101,6 @@ export const paymentImageSections = (info: PaymentInfo): Section[] => {
       heading: `Bank ${slot + 1}`,
       columns: [{ header: "Detail" }, { header: "Value" }],
       rows: [
-        ...(b.name.trim() ? [{ cells: [b.name.trim(), ""], bold: true, shaded: true }] : []),
         ...filled.map(([label, v]) => ({ cells: [label, v.trim()] })),
       ],
     });
@@ -196,13 +195,12 @@ export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: 
                 danger
                 icon={<DeleteOutlined />}
                 aria-label={`Delete account ${i + 1}`}
-                disabled={!b.name && !b.holder && !b.account && !b.ifsc && !b.bank}
+                disabled={!b.holder && !b.account && !b.ifsc && !b.bank}
                 onClick={() => setBank(i, emptyBank())}
               />
             </span>
           </div>
           <div className="payment-details__bank">
-            <Input size="small" placeholder="Name for this account" aria-label={`Account label ${i + 1}`} value={b.name} onChange={(e) => setBank(i, { name: e.target.value })} />
             <Input size="small" placeholder="Account holder name" aria-label={`Account holder name ${i + 1}`} value={b.holder} onChange={(e) => setBank(i, { holder: e.target.value })} />
             <Input
               size="small"
