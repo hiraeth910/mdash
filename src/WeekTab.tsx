@@ -17,6 +17,8 @@ interface Props {
   adminNames: Record<number, string>;
 }
 
+type WeekRow = { key: string; date: string; amount: number };
+
 const color = (v: number) => (v < 0 ? "red" : "#009416ff");
 const typeOf = (v: number) => (v < 0 ? "Payment" : v > 0 ? "Due" : "");
 
@@ -153,7 +155,7 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
         <div className="week-split">
           <div className="week-groups">
             {chosen.map((g) => {
-              const rows = days.map((d, i) => ({ key: keyOf(g, i), date: d.format("ddd, DD-MM-YYYY"), amount: amountOf(g, i) }));
+              const rows: WeekRow[] = days.map((d, i) => ({ key: keyOf(g, i), date: d.format("ddd, DD-MM-YYYY"), amount: amountOf(g, i) }));
               const mine = rows.filter((r) => picked.includes(r.key)).map((r) => r.key);
               return (
                 <div className="table-container week-group" key={g.group_id}>
@@ -169,18 +171,18 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
                     dataSource={rows}
                     columns={[
                       { title: "Date", dataIndex: "date", key: "date" },
-                      { title: "Due/Payment", key: "type", render: (_: unknown, r: { amount: number }) => typeOf(r.amount) },
+                      { title: "Due/Payment", key: "type", render: (_: unknown, r: WeekRow) => typeOf(r.amount) },
                       {
                         title: "Amount",
                         key: "amount",
                         align: "right" as const,
-                        render: (_: unknown, r: { amount: number }) => <span style={{ color: color(r.amount) }}>{r.amount}</span>,
+                        render: (_: unknown, r: WeekRow) => <span style={{ color: color(r.amount) }}>{r.amount}</span>,
                       },
                     ]}
                     rowSelection={{
                       selectedRowKeys: mine,
                       onSelect: (record, selected) =>
-                        setPicked((p) => (selected ? [...p, record.key] : p.filter((k) => k !== record.key))),
+                        setPicked((p) => (selected ? [...p, String(record.key)] : p.filter((k) => k !== String(record.key)))),
                       onSelectAll: (selected) =>
                         setPicked((p) => {
                           const others = p.filter((k) => !rows.some((r) => r.key === k));
