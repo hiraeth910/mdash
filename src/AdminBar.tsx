@@ -6,6 +6,7 @@ import { useUserStore } from "./store/store";
 import { getTabUserName, saveUserName } from "./utils/session";
 import { Link } from "react-router-dom";
 import CalculatorButton from "./Calculator";
+import LiveClock from "./LiveClock";
 
 // Shown at the top of every page: who is logged in, and a Recalculate button for all of that
 // account's groups (the platform admin's covers every admin's groups, a user's only their own).
@@ -59,15 +60,16 @@ const AdminBar: React.FC = () => {
           Logged in as <strong>{name ?? "…"}</strong>{" "}
           <span className="admin-bar__role">{isSuper ? "Platform admin" : isUser ? "User" : "Admin"}</span>
         </span>
+        <LiveClock />
         <span className="admin-bar__tools">
           {!isUser && (
             <Link to="/insert-test" className="admin-bar__link">
               Practice insert
             </Link>
           )}
-          <CalculatorButton className="admin-bar__recalc" />
+          <CalculatorButton className="admin-bar__btn admin-bar__btn--calc" />
         <Button
-          className="admin-bar__recalc"
+          className="admin-bar__btn admin-bar__btn--recalc"
           onClick={() => {
             setDate(dayjs());
             setOpen(true);
