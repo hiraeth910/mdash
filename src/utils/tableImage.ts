@@ -14,6 +14,8 @@ export type ImageRow = {
 
 type Section = {
   heading?: string;
+  // Placed to the right of the section before it instead of below it.
+  beside?: boolean;
   // A small logo drawn before the heading.
   badge?: "phonepe";
   columns: ImageColumn[];
@@ -55,12 +57,21 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
     return { sec, widths, tableW: widths.reduce((a, b) => a + b, 0) };
   });
 
+  // Sections that sit beside each other form one band; bands stack top to bottom.
+  const sectionH = (l: (typeof layouts)[number]) => (l.sec.heading ? HEADING_H : 0) + ROW_H * (l.sec.rows.length + 1);
+  const bands: (typeof layouts[number])[][] = [];
+  layouts.forEach((l, i) => {
+    if (l.sec.beside && i > 0) bands[bands.length - 1].push(l);
+    else bands.push([l]);
+  });
+  const bandW = (band: (typeof layouts[number])[]) => band.reduce((w, l) => w + l.tableW, 0) + GAP * (band.length - 1);
+  const bandH = (band: (typeof layouts[number])[]) => Math.max(...band.map(sectionH));
+
   measure.font = font(true, 18);
   const titleW = measure.measureText(title).width;
-  const width = Math.ceil(Math.max(titleW, ...layouts.map((l) => l.tableW))) + MARGIN * 2;
+  const width = Math.ceil(Math.max(titleW, ...bands.map(bandW))) + MARGIN * 2;
   const top = MARGIN + 30 + (subtitle ? 20 : 0);
-  const sectionH = (l: (typeof layouts)[number]) => (l.sec.heading ? HEADING_H : 0) + ROW_H * (l.sec.rows.length + 1);
-  const height = top + layouts.reduce((h, l) => h + sectionH(l) + GAP, 0) - GAP + MARGIN;
+  const height = top + bands.reduce((h, band) => h + bandH(band) + GAP, 0) - GAP + MARGIN;
 
   const canvas = document.createElement("canvas");
   canvas.width = width * SCALE;
@@ -84,7 +95,9 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
   }
 
   let y0 = top;
-  layouts.forEach(({ sec, widths, tableW }) => {
+  bands.forEach((band) => {
+  let x0 = MARGIN;
+  band.forEach(({ sec, widths, tableW }) => {
     const { columns, rows } = sec;
     const cell = (text: string, col: number, x: number, y: number) => {
       const align = columns[col].align ?? "left";
@@ -96,9 +109,9 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
       ctx.fillStyle = "#12302a";
       ctx.font = font(true, 15);
       ctx.textAlign = "left";
-      let hx = MARGIN;
+      let hx = x0;
       if (sec.badge === "phonepe") {
-        const bx = MARGIN, by = y0 + HEADING_H / 2 - 14, bs = 24;
+        const bx = x0, by = y0 + HEADING_H / 2 - 14, bs = 24;
         ctx.fillStyle = "#5f259f";
         ctx.beginPath();
         ctx.roundRect(bx, by, bs, bs, 6);
@@ -107,7 +120,7 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
         ctx.font = font(true, 15);
         ctx.textAlign = "center";
         ctx.fillText("Pe", bx + bs / 2, by + bs / 2 + 1);
-        hx = MARGIN + bs + 8;
+        hx = x0 + bs + 8;
         ctx.fillStyle = "#12302a";
         ctx.font = font(true, 15);
         ctx.textAlign = "left";
@@ -117,10 +130,10 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
     const headY = y0 + (sec.heading ? HEADING_H : 0);
 
     ctx.fillStyle = "#1f8f68";
-    ctx.fillRect(MARGIN, headY, tableW, ROW_H);
+    ctx.fillRect(x0, headY, tableW, ROW_H);
     ctx.fillStyle = "#ffffff";
     ctx.font = font(true);
-    let x = MARGIN;
+    let x = x0;
     columns.forEach((c, i) => {
       cell(c.header, i, x, headY);
       x += widths[i];
@@ -130,18 +143,18 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
       const y = headY + ROW_H * (ri + 1);
       if (r.shaded) {
         ctx.fillStyle = "#e7f5ef";
-        ctx.fillRect(MARGIN, y, tableW, ROW_H);
+        ctx.fillRect(x0, y, tableW, ROW_H);
       } else if (ri % 2 === 1) {
         ctx.fillStyle = "#f6f9f8";
-        ctx.fillRect(MARGIN, y, tableW, ROW_H);
+        ctx.fillRect(x0, y, tableW, ROW_H);
       }
       ctx.strokeStyle = "#dbe4e0";
       ctx.beginPath();
-      ctx.moveTo(MARGIN, y + ROW_H);
-      ctx.lineTo(MARGIN + tableW, y + ROW_H);
+      ctx.moveTo(x0, y + ROW_H);
+      ctx.lineTo(x0 + tableW, y + ROW_H);
       ctx.stroke();
 
-      let cx = MARGIN;
+      let cx = x0;
       columns.forEach((_, ci) => {
         const last = ci === columns.length - 1;
         const marked = !!r.marked?.includes(ci);
@@ -153,8 +166,10 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
     });
 
     ctx.strokeStyle = "#b9c8c2";
-    ctx.strokeRect(MARGIN, headY, tableW, ROW_H * (rows.length + 1));
-    y0 += sectionH({ sec, widths, tableW }) + GAP;
+    ctx.strokeRect(x0, headY, tableW, ROW_H * (rows.length + 1));
+    x0 += tableW + GAP;
+  });
+  y0 += bandH(band) + GAP;
   });
 
   return new Promise((resolve, reject) => {

@@ -80,6 +80,7 @@ export const paymentImageSections = (info: PaymentInfo): Section[] => {
   if (phones.length) {
     sections.push({
       heading: "Pay to",
+      beside: true,
       badge: "phonepe",
       columns: [{ header: "Name" }, { header: "PhonePe number" }],
       rows: phones.map((p) => ({ cells: [p.name.trim() || "PhonePe", p.number.trim()] })),
@@ -100,7 +101,7 @@ export const paymentImageSections = (info: PaymentInfo): Section[] => {
     ];
   });
   if (bankRows.length) {
-    sections.push({ heading: phones.length ? "Bank account" : "Pay to — bank account", columns: [{ header: "Detail" }, { header: "Value" }], rows: bankRows });
+    sections.push({ beside: true, heading: phones.length ? "Bank account" : "Pay to — bank account", columns: [{ header: "Detail" }, { header: "Value" }], rows: bankRows });
   }
   return sections;
 };
