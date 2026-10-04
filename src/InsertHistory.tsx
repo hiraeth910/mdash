@@ -936,7 +936,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
                   Possible errors detected — fix the underlined parts in the input.
                 </div>
               </div>
-            ) : (
+            ) : dummy ? null : (
               <div className="validation-banner__card validation-banner__card--success">
                 <div className="validation-banner__text validation-banner__text--success">No parse issues detected.</div>
               </div>
