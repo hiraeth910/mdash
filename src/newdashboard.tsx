@@ -225,8 +225,8 @@ const SummaryDashboard: React.FC = () => {
     const date = selectedDate;
     const tone = (v: number) => (v < 0 ? ("negative" as const) : ("positive" as const));
     return {
-      title: `Selected groups — ${date}`,
-      fileName: `Selected_groups_${date}.png`,
+      title: `Selected groups — ${dayjs(date).format("DD-MM-YYYY")}`,
+      fileName: `Selected_groups_${dayjs(date).format("DD-MM-YYYY")}.png`,
       sections: [
         {
           columns: [{ header: "Group Name" }, { header: "Profit/Loss", align: "right" }],
@@ -415,6 +415,7 @@ const SummaryDashboard: React.FC = () => {
         {view === "day" && <div className="inputs-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <DatePicker
             value={dayjs(selectedDate)}
+            format="DD-MM-YYYY"
             onChange={(date) => setSelectedDate(date?.format("YYYY-MM-DD") || selectedDate)}
           />
           <Button type="primary" onClick={exportToCSV}>

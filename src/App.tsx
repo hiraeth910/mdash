@@ -96,7 +96,7 @@ const App: React.FC = () => {
         {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
       </div>
 
-      {(userRole === "admin" || userRole === "superadmin") && <AdminBar />}
+      {userRole && <AdminBar />}
       <Routes>
         <Route path="/" element={<Login />} />
         <Route

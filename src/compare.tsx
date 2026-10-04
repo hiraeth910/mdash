@@ -291,9 +291,9 @@ const Compare: React.FC = () => {
     if (differing.length === 0) return null;
     const matching = sections.filter((s) => s.mismatches.length === 0 && s.total > 0).map((s) => s.name);
     return {
-      title: `Compare groups — ${date}`,
+      title: `Compare groups — ${dayjs(date).format("DD-MM-YYYY")}`,
       subtitle: matching.length ? `All games match: ${matching.join(", ")}` : undefined,
-      fileName: `Compare_${date}.png`,
+      fileName: `Compare_${dayjs(date).format("DD-MM-YYYY")}.png`,
       sections: differing.map((s) => ({
         heading: `${s.name} — ${s.admins.join(" · ")}`,
         columns: [
@@ -343,7 +343,7 @@ const Compare: React.FC = () => {
       <div className="new-header" style={{ maxHeight: "none" }}>
         <h2>Compare groups</h2>
         <div className="inputs-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <DatePicker value={dayjs(date)} onChange={(d) => setDate(d?.format("YYYY-MM-DD") || date)} />
+          <DatePicker value={dayjs(date)} format="DD-MM-YYYY" onChange={(d) => setDate(d?.format("YYYY-MM-DD") || date)} />
           <Button onClick={copyImage} disabled={loading || totalDiffs === 0}>
             Copy image
           </Button>
@@ -398,7 +398,7 @@ const Compare: React.FC = () => {
         <NumbersDiffModal
           onClose={() => setNumbersKey(null)}
           onSettle={numbersFor ? (n) => settleNumber(numbersFor, n) : undefined}
-          title={`${numbersFor?.game ?? ""} — numbers that differ · ${date}`}
+          title={`${numbersFor?.game ?? ""} — numbers that differ · ${dayjs(date).format("DD-MM-YYYY")}`}
           members={numbersFor?.members ?? []}
           numbers={numbersFor?.numbers ?? []}
           total={numbersFor?.numbersTotal ?? 0}

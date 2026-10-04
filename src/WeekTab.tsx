@@ -104,7 +104,7 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
   const finalLabel = finalAmount < 0 ? "Final payment" : "Final due";
 
   const rows: Row[] = [
-    ...days.map((d, i) => ({ key: d.format("YYYY-MM-DD"), kind: "day" as const, label: d.format("ddd, DD MMM YYYY"), type: typeOf(amounts[i] ?? 0), amount: amounts[i] ?? 0 })),
+    ...days.map((d, i) => ({ key: d.format("YYYY-MM-DD"), kind: "day" as const, label: d.format("ddd, DD-MM-YYYY"), type: typeOf(amounts[i] ?? 0), amount: amounts[i] ?? 0 })),
     { key: "total", kind: "total", label: "Total", type: "", amount: total },
     { key: "ld", kind: "ld", label: "L/D", type: "", amount: ldAmount },
     { key: "calc", kind: "calc", label: "After L/D", type: "", amount: afterLd },
@@ -161,13 +161,13 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
   const image = (): TableImage => {
     const tone = (v: number) => (v < 0 ? ("negative" as const) : ("positive" as const));
     const dayRows = days.map((d, i) => ({
-      cells: [d.format("ddd, DD MMM YYYY"), typeOf(amounts[i] ?? 0), String(amounts[i] ?? 0)],
+      cells: [d.format("ddd, DD-MM-YYYY"), typeOf(amounts[i] ?? 0), String(amounts[i] ?? 0)],
       tone: tone(amounts[i] ?? 0),
     }));
     return {
       title: `${group?.group_name ?? ""} — ${adminNames[group?.admin_id ?? -1] || ""}`.replace(/ — $/, ""),
-      subtitle: `${days[0].format("DD MMM YYYY")} to ${days[6].format("DD MMM YYYY")}`,
-      fileName: `Week_${days[0].format("YYYY-MM-DD")}_${group?.group_name ?? "group"}.png`,
+      subtitle: `${days[0].format("DD-MM-YYYY")} to ${days[6].format("DD-MM-YYYY")}`,
+      fileName: `Week_${days[0].format("DD-MM-YYYY")}_${group?.group_name ?? "group"}.png`,
       sections: [
         {
           columns: [{ header: "Date" }, { header: "Due/Payment" }, { header: "Amount", align: "right" }],
@@ -217,7 +217,7 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
           allowClear={false}
           value={monday}
           onChange={(d) => d && setMonday(mondayOf(d))}
-          format={() => `${monday.format("DD MMM")} – ${monday.add(6, "day").format("DD MMM YYYY")}`}
+          format={() => `${monday.format("DD-MM-YYYY")} – ${monday.add(6, "day").format("DD-MM-YYYY")}`}
           disabledDate={(d) => d.isAfter(dayjs(), "day")}
         />
         <Button onClick={copyImage} disabled={groupId === null || loading}>

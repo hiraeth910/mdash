@@ -247,13 +247,13 @@ const Dashboard: React.FC = () => {
     return [...lines, { label: finalLabel, value: finalAmount, strong: true }];
   };
 
-  const billImageTitle = () => `Bill — ${grpname ?? "All Groups"} — ${dayjs(selectedDate).format("YYYY-MM-DD")}`;
+  const billImageTitle = () => `Bill — ${grpname ?? "All Groups"} — ${dayjs(selectedDate).format("DD-MM-YYYY")}`;
   // The detailed picture adds the per-type winning numbers under the calculation.
   const billImage = (detailed = false): TableImage | null => {
     if (!settlement) return null;
     return {
       title: billImageTitle(),
-      fileName: `Bill_${dayjs(selectedDate).format("YYYY-MM-DD")}(${grpname ?? "All Groups"})${detailed ? "_detailed" : ""}.png`,
+      fileName: `Bill_${dayjs(selectedDate).format("DD-MM-YYYY")}(${grpname ?? "All Groups"})${detailed ? "_detailed" : ""}.png`,
       sections: [
         {
           heading: "Bill by game",
@@ -443,6 +443,7 @@ const Dashboard: React.FC = () => {
         <div className="controls">
           <DatePicker
             value={dayjs(selectedDate)}
+            format="DD-MM-YYYY"
             onChange={(date) => setSelectedDate(date?.format("YYYY-MM-DD") || selectedDate)}
           />
           {isMobile ? (

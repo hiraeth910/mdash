@@ -7,8 +7,8 @@ import { getTabUserName, saveUserName } from "./utils/session";
 import { Link } from "react-router-dom";
 import CalculatorButton from "./Calculator";
 
-// Shown at the top of every admin page: who is logged in, and a Recalculate button for all of
-// that admin's groups (the platform admin's covers every admin's groups).
+// Shown at the top of every page: who is logged in, and a Recalculate button for all of that
+// account's groups (the platform admin's covers every admin's groups, a user's only their own).
 const AdminBar: React.FC = () => {
   const { userRole, userId } = useUserStore();
   const [name, setName] = useState<string | null>(getTabUserName());
@@ -16,10 +16,11 @@ const AdminBar: React.FC = () => {
   const [date, setDate] = useState(dayjs());
   const [busy, setBusy] = useState(false);
   const isSuper = userRole === "superadmin";
+  const isUser = userRole === "user";
 
   // A login from before the name was remembered: look it up once.
   useEffect(() => {
-    if (name || userId === null) return;
+    if (name || userId === null || isUser) return; // users cannot read the users list
     apiClient
       .get<{ users: { user_id: number; user_name: string }[] }>("/users")
       .then((res) => {
@@ -30,7 +31,7 @@ const AdminBar: React.FC = () => {
         }
       })
       .catch(() => undefined);
-  }, [name, userId]);
+  }, [name, userId, isUser]);
 
   const recalculate = async () => {
     setBusy(true);
@@ -56,12 +57,14 @@ const AdminBar: React.FC = () => {
       <div className="admin-bar">
         <span className="admin-bar__who">
           Logged in as <strong>{name ?? "…"}</strong>{" "}
-          <span className="admin-bar__role">{isSuper ? "Platform admin" : "Admin"}</span>
+          <span className="admin-bar__role">{isSuper ? "Platform admin" : isUser ? "User" : "Admin"}</span>
         </span>
         <span className="admin-bar__tools">
-          <Link to="/insert-test" className="admin-bar__link">
-            Practice insert
-          </Link>
+          {!isUser && (
+            <Link to="/insert-test" className="admin-bar__link">
+              Practice insert
+            </Link>
+          )}
           <CalculatorButton className="admin-bar__recalc" />
         <Button
           className="admin-bar__recalc"
@@ -75,7 +78,7 @@ const AdminBar: React.FC = () => {
         </span>
       </div>
       <Modal
-        title={<span style={{ color: "var(--color-heading)" }}>Recalculate all groups</span>}
+        title={<span style={{ color: "var(--color-heading)" }}>{isUser ? "Recalculate your groups" : "Recalculate all groups"}</span>}
         open={open}
         onCancel={() => setOpen(false)}
         onOk={recalculate}
@@ -84,11 +87,12 @@ const AdminBar: React.FC = () => {
       >
         <div style={{ color: "var(--color-text)", display: "flex", flexDirection: "column", gap: 12 }}>
           <span>
-            This recalculates profit and loss for every group {isSuper ? "of every admin" : "in your account"} on the date
-            below. It cannot be undone.
+            This recalculates profit and loss for {isUser ? "the groups assigned to you" : `every group ${isSuper ? "of every admin" : "in your account"}`} on the
+            date below. It cannot be undone.
           </span>
           <DatePicker
             value={date}
+            format="DD-MM-YYYY"
             allowClear={false}
             onChange={(d) => d && setDate(d)}
             disabledDate={(d) => d.isBefore(dayjs().subtract(15, "day"), "day") || d.isAfter(dayjs(), "day")}
