@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input, message } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
+import { apiClient } from "./utils/api";
 
-const STORAGE_KEY = "payment-details-v3";
 const PHONE_SLOTS = 4;
 const BANK_SLOTS = 2;
 
@@ -22,24 +22,13 @@ const fresh = (): PaymentInfo => ({
 
 const str = (v: unknown) => String(v ?? "");
 
-const load = (): PaymentInfo => {
+// Details saved in this browser by earlier versions; they are moved to the account once and removed.
+const LEGACY_KEYS = ["payment-details-v3", "payment-details-v2", "payment-details"];
+
+const readLegacy = (): PaymentInfo | null => {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (parsed && Array.isArray(parsed.phones) && Array.isArray(parsed.banks)) {
-      return {
-        phones: Array.from({ length: PHONE_SLOTS }, (_, i) => {
-          const p = parsed.phones[i];
-          return p ? { name: str(p.name), number: str(p.number), include: !!p.include } : emptyPhone();
-        }),
-        banks: Array.from({ length: BANK_SLOTS }, (_, i) => {
-          const b = parsed.banks[i];
-          return b
-            ? { name: str(b.name), holder: str(b.holder), account: str(b.account), ifsc: str(b.ifsc), bank: str(b.bank), include: !!b.include }
-            : emptyBank();
-        }),
-      };
-    }
-    // the previous version kept a saved list with a separate pick; take the first few over
+    const parsed = JSON.parse(localStorage.getItem("payment-details-v3") || "null");
+    if (parsed && Array.isArray(parsed.phones) && Array.isArray(parsed.banks)) return normalize(parsed);
     const v2 = JSON.parse(localStorage.getItem("payment-details-v2") || "null");
     if (v2 && Array.isArray(v2.phones) && Array.isArray(v2.banks)) {
       const base = fresh();
@@ -47,27 +36,99 @@ const load = (): PaymentInfo => {
         base.phones[i] = { name: str(p.name), number: str(p.number), include: (v2.pickedPhones || []).includes(p.id) };
       });
       v2.banks.slice(0, BANK_SLOTS).forEach((b: BankSlot & { id: string }, i: number) => {
-        base.banks[i] = { name: str(b.name), holder: str(b.holder), account: str(b.account), ifsc: str(b.ifsc), bank: str(b.bank), include: (v2.pickedBanks || []).includes(b.id) };
+        base.banks[i] = { name: "", holder: str(b.holder), account: str(b.account), ifsc: str(b.ifsc), bank: str(b.bank), include: (v2.pickedBanks || []).includes(b.id) };
       });
       return base;
     }
   } catch {
-    // start empty
+    // nothing usable
   }
-  return fresh();
+  return null;
 };
 
-// The details are the admin's own, so they are kept in this browser.
+const clearLegacy = () => {
+  try {
+    LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // nothing to clear
+  }
+};
+
+// Always four PhonePe slots and two account slots, whatever was stored.
+const normalize = (raw: { phones?: unknown[]; banks?: unknown[] }): PaymentInfo => ({
+  phones: Array.from({ length: PHONE_SLOTS }, (_, i) => {
+    const p = (raw.phones?.[i] ?? null) as PhoneSlot | null;
+    return p ? { name: str(p.name), number: str(p.number), include: !!p.include } : emptyPhone();
+  }),
+  banks: Array.from({ length: BANK_SLOTS }, (_, i) => {
+    const b = (raw.banks?.[i] ?? null) as BankSlot | null;
+    return b ? { name: "", holder: str(b.holder), account: str(b.account), ifsc: str(b.ifsc), bank: str(b.bank), include: !!b.include } : emptyBank();
+  }),
+});
+
+export type SaveStatus = "loading" | "saving" | "saved" | "error";
+
+// The details belong to the login and live in the database, so they follow it to any browser.
 export const usePaymentDetails = () => {
-  const [info, setInfo] = useState<PaymentInfo>(load);
-  useEffect(() => {
+  const [info, setInfoState] = useState<PaymentInfo>(fresh);
+  const [status, setStatus] = useState<SaveStatus>("loading");
+  const dirty = useRef(false); // the user has changed something since the page opened
+  const loaded = useRef(false);
+
+  const save = useCallback(async (details: PaymentInfo) => {
+    setStatus("saving");
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(info));
+      await apiClient.put("/payment-details", { details });
+      setStatus("saved");
+      return true;
     } catch {
-      // keeping them is a convenience
+      setStatus("error");
+      return false;
     }
-  }, [info]);
-  return [info, setInfo] as const;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiClient.get<{ details: PaymentInfo | null }>("/payment-details");
+        if (cancelled) return;
+        if (res.data.details) {
+          if (!dirty.current) setInfoState(normalize(res.data.details));
+          clearLegacy();
+          setStatus("saved");
+        } else {
+          // first time on this account: carry over what an earlier version kept in the browser
+          const legacy = readLegacy();
+          if (legacy && !dirty.current) {
+            setInfoState(legacy);
+            if (await save(legacy)) clearLegacy();
+          } else setStatus("saved");
+        }
+      } catch {
+        if (!cancelled) setStatus("error");
+      } finally {
+        loaded.current = true;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [save]);
+
+  const setInfo = useCallback((next: PaymentInfo) => {
+    dirty.current = true;
+    setInfoState(next);
+  }, []);
+
+  // saved a moment after the last edit
+  useEffect(() => {
+    if (!dirty.current || !loaded.current) return;
+    const id = window.setTimeout(() => void save(info), 700);
+    return () => window.clearTimeout(id);
+  }, [info, save]);
+
+  return [info, setInfo, status] as const;
 };
 
 type Section = TableImage["sections"][number];
@@ -123,7 +184,7 @@ const IncludeButton: React.FC<{ on: boolean; onToggle: () => void; label: string
 
 // Four PhonePe numbers and two bank accounts, each with a name. They stay saved and can be edited
 // or cleared; the Include button decides whether one is on the bill picture.
-export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: PaymentInfo) => void }> = ({ info, onChange }) => {
+export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: PaymentInfo) => void; status?: SaveStatus }> = ({ info, onChange, status }) => {
   // A picture of just the included PhonePe numbers and bank accounts, to send on their own.
   const paySections = paymentImageSections(info);
   const copyPhones = async () => {
@@ -153,7 +214,9 @@ export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: 
       <div className="payment-details__head">
         <PhonePeLogo />
         <strong>PhonePe</strong>
-        <span className="payment-details__hint">Include puts it on the picture</span>
+        <span className="payment-details__hint">
+          {status === "saving" ? "Saving…" : status === "error" ? "Not saved — check connection" : "Include puts it on the picture"}
+        </span>
         <Button size="small" onClick={copyPhones} disabled={paySections.length === 0} aria-label="Copy PhonePe image">
           Copy image
         </Button>

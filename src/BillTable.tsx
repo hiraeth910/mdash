@@ -62,7 +62,7 @@ const BillTable: React.FC<Props> = ({
   const [cdPercent, setCdPercent] = useState<number | null>(null);
   const [oldType, setOldType] = useState<"due" | "payment">("due");
   const [oldAmount, setOldAmount] = useState<number | null>(null);
-  const [payInfo, setPayInfo] = usePaymentDetails();
+  const [payInfo, setPayInfo, payStatus] = usePaymentDetails();
 
   const hasGroup = rows.some((r) => r.group);
   const total = round2(rows.reduce((s, r) => s + (Number(r.amount) || 0), 0));
@@ -265,7 +265,7 @@ const BillTable: React.FC<Props> = ({
         rowClassName={(r) => (rowKinds.includes(r.kind) ? "" : "total-row")}
       />
       {!cdAvailable && <p className="day-hint">CD is available when the total is a due (positive).</p>}
-      {finalAmount > 0 && <PaymentDetailsForm info={payInfo} onChange={setPayInfo} />}
+      {finalAmount > 0 && <PaymentDetailsForm info={payInfo} onChange={setPayInfo} status={payStatus} />}
     </div>
   );
 };

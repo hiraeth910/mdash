@@ -252,7 +252,7 @@ const Dashboard: React.FC = () => {
   };
 
   const settlement = useMemo(() => buildSettlement(paymentData), [paymentData]);
-  const [payInfo, setPayInfo] = usePaymentDetails();
+  const [payInfo, setPayInfo, payStatus] = usePaymentDetails();
   const oldBalance = oldAmount || 0;
   const oldDelta = oldType === "due" ? oldBalance : -oldBalance;
 
@@ -797,7 +797,7 @@ const Dashboard: React.FC = () => {
                         <span>{fmt(finalAmount)}</span>
                       </div>
                     </div>
-                    {finalAmount > 0 && <PaymentDetailsForm info={payInfo} onChange={setPayInfo} />}
+                    {finalAmount > 0 && <PaymentDetailsForm info={payInfo} onChange={setPayInfo} status={payStatus} />}
                     </div>
 
                     {settlement.winners.length > 0 && (
