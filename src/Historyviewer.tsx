@@ -4,6 +4,7 @@ import type { ColumnsType } from "antd/es/table";
 import dayjs, { Dayjs } from "dayjs";
 import { useUserStore } from "./store/store";
 import { apiClient } from "./utils/api";
+import { searchProps } from "./utils/selectSearch";
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -169,7 +170,7 @@ export default function HistoryViewer(): JSX.Element {
       </Button>
       <Space className="history-filters" direction="horizontal" size="middle">
         <DatePicker value={date} onChange={onDateChange} allowClear={false} />
-        <Select
+        <Select {...searchProps}
           placeholder="All Games"
           value={gameFilter}
           onChange={(v) => setGameFilter(v)}
@@ -183,7 +184,7 @@ export default function HistoryViewer(): JSX.Element {
           ))}
         </Select>
 
-        <Select
+        <Select {...searchProps}
           placeholder="All Users"
           value={userFilter}
           onChange={(v) => setUserFilter(v)}

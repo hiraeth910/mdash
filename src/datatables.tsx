@@ -11,6 +11,7 @@ import "./datatable.css";
 import { IGame, IGameResult } from "./games";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import ResultModal from "./ResultModal";
+import { searchProps } from "./utils/selectSearch";
 
 // Jodi type id — the two digit table that is bucketed by its first digit.
 const JODI_TYPE_ID = "2";
@@ -581,7 +582,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
               <span className="control-card__hint">%</span>
             </div>
             <div ></div>
-        <Select
+        <Select {...searchProps}
           style={{ width: 180 }}
           placeholder="Select Game"
           value={selectedGame ? selectedGame.gameid : undefined}
@@ -615,7 +616,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
             <div className="controls-select-grid">
               <div>
                 <label>User</label>
-                <Select
+                <Select {...searchProps}
                   value={selectedUser || undefined}
                   onChange={handleUserChange}
                   disabled={!isAdminRole(userRole)}
@@ -632,7 +633,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
 
               <div>
                 <label>Game</label>
-                <Select
+                <Select {...searchProps}
                   placeholder="Select Game"
                   value={selectedGame ? selectedGame.gameid : undefined}
                   onChange={(value: number) => {
@@ -654,7 +655,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
                   <label>Group</label>
                   <Button onClick={() => fetchData()} type="primary" size="small">Refresh</Button>
                 </div>
-                <Select
+                <Select {...searchProps}
                   placeholder="Select Group"
                   value={selectedGroup ? selectedGroup.id : undefined}
                   onChange={(value) => {

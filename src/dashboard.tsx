@@ -13,6 +13,7 @@ import { IUser } from "./users";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 import { buildSettlement, fmt, type PaymentData } from "./utils/settlement";
+import { searchProps } from "./utils/selectSearch";
 
 pdfMake.vfs = vfs;
 // Payment is what we owe them (negative), due is what they owe us.
@@ -449,7 +450,7 @@ const Dashboard: React.FC = () => {
           {isMobile ? (
             <Button onClick={() => setModalVisible(true)}>{grpname || "Select Group"}</Button>
           ) : (
-            <Select
+            <Select {...searchProps}
               className="group-select"
               onChange={handleGroupChange}
               getPopupContainer={() => document.body}
@@ -470,7 +471,7 @@ const Dashboard: React.FC = () => {
           )}
           <Button
             style={{ backgroundColor: "black", color: "red" }}
-            disabled={!selectedGroupId || dayjs(selectedDate).isBefore(dayjs().subtract(15, "day"))}
+            disabled={!selectedGroupId || dayjs(selectedDate).isBefore(dayjs().subtract(30, "day"))}
             onClick={showConfirm}
           >
             Recalculate
@@ -724,7 +725,7 @@ const Dashboard: React.FC = () => {
                       )}
                       <div className="settlement-calc__row settlement-calc__adjust">
                         <div className="settlement-calc__old">
-                          <Select
+                          <Select {...searchProps}
                             className="old-balance-type"
                             value={oldType}
                             onChange={setOldType}

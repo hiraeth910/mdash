@@ -5,6 +5,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import { apiClient } from "./utils/api";
 import { normName } from "./utils/settlement";
 import BillTable, { type BillRow } from "./BillTable";
+import { searchProps } from "./utils/selectSearch";
 
 interface IGroup {
   group_id: number;
@@ -126,7 +127,7 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
   return (
     <div className="week-tab">
       <div className="inputs-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <Select
+        <Select {...searchProps}
           showSearch
           placeholder="Select group name"
           style={{ minWidth: 260 }}

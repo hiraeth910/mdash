@@ -13,6 +13,7 @@ import { checkAuthAndHandleLogout } from "./authcheck";
 import {  fillWithNextValue } from "./utils/helpter";
 import { compressForUpload } from "./utils/imageCompress";
 import { ocrBetPairs } from "./utils/ocr";
+import { searchProps } from "./utils/selectSearch";
 
 interface NumberEntry {
   number: string;
@@ -730,7 +731,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         <div className="history-toolbar__filters">
           <div className="history-toolbar__field">
             <label>Game</label>
-            <Select
+            <Select {...searchProps}
               placeholder="Select Game"
               value={selectedGame ? selectedGame.gameid : undefined}
               onChange={(value: number) => setSelectedGame(games.find((g) => g.gameid === value) || null)}
@@ -746,7 +747,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
           <div className="history-toolbar__field">
             <label>Group</label>
-            <Select
+            <Select {...searchProps}
               placeholder="Select Group"
               value={selectedGroup ? selectedGroup.id : undefined}
               onChange={(value: number) => setSelectedGroup(userGroups.find((g) => g.id === value) || null)}
@@ -762,7 +763,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
           <div className="history-toolbar__field history-toolbar__field--compact">
             <label>Type</label>
-            <Select value={selectedTyp} onChange={(value) => setSelectedTyp(value)} className="history-toolbar__select">
+            <Select {...searchProps} value={selectedTyp} onChange={(value) => setSelectedTyp(value)} className="history-toolbar__select">
               <Select.Option value="Open">Open</Select.Option>
               <Select.Option value="Close">Close</Select.Option>
             </Select>

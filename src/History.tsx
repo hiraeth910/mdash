@@ -10,6 +10,7 @@ import { IGame } from "./games";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import { useDragSelect } from "./utils/useDragSelect";
 import "./datatable.css";
+import { searchProps } from "./utils/selectSearch";
 
 interface HistoryRecord {
   history_id: number;
@@ -599,7 +600,7 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
             onChange={(date) =>
               setSelectedDate(date?.format("YYYY-MM-DD") || selectedDate)
             }
-            />  <Select
+            />  <Select {...searchProps}
                   style={{ width: 180 }}
                   placeholder="Select Game"
                   value={selectedGame ? selectedGame.gameid : undefined}
@@ -619,7 +620,7 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
               <label style={{ marginRight: "10px" }}>Group:</label>
 
 
-  <Select
+  <Select {...searchProps}
     value={selectedGroup?.id} // sets the current value based on the selected group's id
     style={{ width: isMobile ? "100%" : "25%", marginBottom: "10px" }}
     onChange={(value) => {
@@ -718,7 +719,7 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
         </div>
         <div style={{ marginBottom: 10 }}>
           <label>Game:</label>
-        <Select
+        <Select {...searchProps}
   value={editingRecord?.history_game_id}
   options={games.map(game => ({
     value: game.gameid,
@@ -743,7 +744,7 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
         </div>
         <div style={{ marginBottom: 10 }}>
           <label>Type:</label>
-          <Select
+          <Select {...searchProps}
             value={editingRecord?.history_type_id}
             options={getFilteredTypeOptions()}
             onChange={(value: number, option?: { value: number; label: string; } | { value: number; label: string; }[] | undefined) => {

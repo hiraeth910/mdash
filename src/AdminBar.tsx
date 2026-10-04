@@ -95,7 +95,7 @@ const AdminBar: React.FC = () => {
             format="DD-MM-YYYY"
             allowClear={false}
             onChange={(d) => d && setDate(d)}
-            disabledDate={(d) => d.isBefore(dayjs().subtract(15, "day"), "day") || d.isAfter(dayjs(), "day")}
+            disabledDate={(d) => d.isBefore(dayjs().subtract(30, "day"), "day") || d.isAfter(dayjs(), "day")}
           />
         </div>
       </Modal>

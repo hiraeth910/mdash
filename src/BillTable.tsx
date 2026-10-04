@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button, Input, InputNumber, Select, Table, message } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
+import { searchProps } from "./utils/selectSearch";
 
 export type BillRow = {
   key: string;
@@ -117,7 +118,7 @@ const BillTable: React.FC<Props> = ({
         if (r.kind === "cd") return percentInput(cdPercent, setCdPercent, "CD");
         if (r.kind === "old") {
           return (
-            <Select
+            <Select {...searchProps}
               size="small"
               value={oldType}
               onChange={setOldType}

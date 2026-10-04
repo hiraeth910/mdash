@@ -11,6 +11,7 @@ import "./datatable.css";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import { useUserStore } from "./store/store";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
+import { searchProps } from "./utils/selectSearch";
 
 type IGroup = {
   group_id: number;
@@ -281,7 +282,7 @@ const SummaryDashboard: React.FC = () => {
         ) : r.kind === "day" ? (
           <strong>{dayLabel}</strong>
         ) : r.kind === "old" ? (
-          <Select
+          <Select {...searchProps}
             size="small"
             value={oldType}
             onChange={setOldType}

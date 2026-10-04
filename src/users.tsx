@@ -15,6 +15,7 @@ import { useUserStore } from "./store/store";
 import { isAdminRole } from "./utils/session";
 import "./game.css";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import { searchProps } from "./utils/selectSearch";
 
 const { Option } = Select;
 
@@ -389,7 +390,7 @@ const Users: React.FC = () => {
             onChange={handleInputChange}
           />
           <label>Role</label>
-          <Select
+          <Select {...searchProps}
             placeholder="Select role"
             value={newUser.role}
             onChange={handleRoleChange}
@@ -415,7 +416,7 @@ const Users: React.FC = () => {
           {!isSuperAdmin && (
           <>
           <label>Groups</label>
-         <Select
+         <Select {...searchProps}
     mode="multiple"
     placeholder="Select groups"
     value={newUser.group_ids}

@@ -6,6 +6,7 @@ import { isAdminRole } from "./utils/session";
 import { apiClient } from "./utils/api";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import "./usergames.css";
+import { searchProps } from "./utils/selectSearch";
 
 // Type Definitions
 interface IGame {
@@ -192,7 +193,7 @@ const Games: React.FC = () => {
       <Modal title={<span style={{ color: 'var(--color-heading)' }}>Select Group and Time</span>} open={groupSelectionModal} onCancel={() => setGroupSelectionModal(false)} onOk={handleGroupSelection}>
         <div style={{ color: 'var(--color-text)' }}>
           <label>Select Group:</label>
-          <Select
+          <Select {...searchProps}
             style={{ width: "100%", marginBottom: "10px" }}
             onChange={(value) => {
               const group = userGroups.find((g) => g.id === value) || null;
@@ -207,7 +208,7 @@ const Games: React.FC = () => {
           </Select>
 
           <label>Select Time:</label>
-          <Select style={{ width: "100%" }} onChange={(value) => setSelectedTime(value)}>
+          <Select {...searchProps} style={{ width: "100%" }} onChange={(value) => setSelectedTime(value)}>
             <Select.Option value="Open">Open</Select.Option>
             <Select.Option value="Close">Close</Select.Option>
           </Select>
