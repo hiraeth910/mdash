@@ -667,14 +667,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   return (
     <div className="insert-history-page card-container">
-      {dummy ? (
-        <div className="header">
-          <Link to="/games">Games</Link>
-          <Link to="/insert-test" className="active">
-            PRACTICE INSERT
-          </Link>
-        </div>
-      ) : (
+      {!dummy && (
         <div className="header">
           <Link to={`/userGames`}>Games</Link>
           <Link to={`/insert/${gameid}/${gamename}`} className="active">
@@ -682,11 +675,6 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           </Link>
           <Link to={`/history/${gameid}/${gamename}`}>HISTORY</Link>
           <Link to={`/data/${gameid}/${gamename}`}>TOTAL</Link>
-        </div>
-      )}
-      {dummy && (
-        <div className="practice-banner" role="note">
-          Practice mode: nothing is sent to the server. Entries are checked and totalled here, then discarded.
         </div>
       )}
 
@@ -709,6 +697,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         </div>
       </Modal>
 
+      {!dummy && (
       <div className="history-toolbar">
         <div className="history-toolbar__date">
           <DatePicker
@@ -775,11 +764,12 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             onClick={getHistory}
             disabled={!selectedGroup || !selectedGame}
           >
-            {dummy ? "Entries so far" : "Fetch History"}
+            Fetch History
           </Button>
           <CalculatorButton className="btn-ghost btn-responsive" />
         </div>
       </div>
+      )}
 
       <div className="containerx">
         {/* Left Input Section with overlay highlighter */}
@@ -891,6 +881,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             />
           </div>
 
+          {!dummy && (
           <Button
             className="btn-ghost btn-responsive"
             onClick={handlePasteButtonClick}
@@ -899,6 +890,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           >
             Paste image (ChatGPT)
           </Button>
+          )}
 
           {(extractingImages || pastedImagePreviews.length > 0) && (
             <div className="pasted-images-row">
@@ -922,9 +914,11 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             </small>
           </div>
 
+          {!dummy && (
           <Button type="primary" className="btn-responsive" onClick={handleSubmit} disabled={isBlocked}>
-            {dummy ? "Check (practice)" : "Update"}
+            Update
           </Button>
+          )}
 
           {/* Compact banner message only — no line numbers */}
           <div className="validation-banner">
