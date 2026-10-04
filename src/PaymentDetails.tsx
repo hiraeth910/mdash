@@ -75,18 +75,19 @@ type Section = TableImage["sections"][number];
 // Only the slots switched to "include" go into a picture, and only their filled fields.
 export const paymentImageSections = (info: PaymentInfo): Section[] => {
   const phones = info.phones.filter((p) => p.include && p.number.trim());
-  const banks = info.banks.filter((b) => b.include);
+  const banks = info.banks.map((b, slot) => ({ b, slot })).filter(({ b }) => b.include);
   const sections: Section[] = [];
   if (phones.length) {
     sections.push({
-      heading: "Pay to",
+      heading: "PhonePe",
       beside: true,
       badge: "phonepe",
       columns: [{ header: "Name" }, { header: "PhonePe number" }],
       rows: phones.map((p) => ({ cells: [p.name.trim() || "PhonePe", p.number.trim()] })),
     });
   }
-  const bankRows = banks.flatMap((b) => {
+  // each included account is its own table headed "Bank 1" / "Bank 2" (its slot), beside the calculation
+  banks.forEach(({ b, slot }) => {
     const lines: [string, string][] = [
       ["Account name", b.holder],
       ["Account no", b.account],
@@ -94,15 +95,17 @@ export const paymentImageSections = (info: PaymentInfo): Section[] => {
       ["Bank", b.bank],
     ];
     const filled = lines.filter(([, v]) => v.trim());
-    if (filled.length === 0) return [];
-    return [
-      ...(b.name.trim() ? [{ cells: [b.name.trim(), ""], bold: true, shaded: true }] : []),
-      ...filled.map(([label, v]) => ({ cells: [label, v.trim()] })),
-    ];
+    if (filled.length === 0) return;
+    sections.push({
+      beside: true,
+      heading: `Bank ${slot + 1}`,
+      columns: [{ header: "Detail" }, { header: "Value" }],
+      rows: [
+        ...(b.name.trim() ? [{ cells: [b.name.trim(), ""], bold: true, shaded: true }] : []),
+        ...filled.map(([label, v]) => ({ cells: [label, v.trim()] })),
+      ],
+    });
   });
-  if (bankRows.length) {
-    sections.push({ beside: true, heading: phones.length ? "Bank account" : "Pay to — bank account", columns: [{ header: "Detail" }, { header: "Value" }], rows: bankRows });
-  }
   return sections;
 };
 
@@ -162,7 +165,7 @@ export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: 
       {info.banks.map((b, i) => (
         <div className="payment-details__account" key={i}>
           <div className="payment-details__head payment-details__head--bank">
-            <strong>Bank account {i + 1}</strong>
+            <strong>Bank {i + 1}</strong>
             <span className="payment-details__actions">
               <IncludeButton on={b.include} label={`Include account ${i + 1}`} onToggle={() => setBank(i, { include: !b.include })} />
               <Button
