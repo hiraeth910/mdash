@@ -1303,3 +1303,45 @@ body.drag-selecting,
 .ant-tabs .ant-tabs-nav::before {
   border-color: var(--color-border);
 }
+
+/* Day -> Week: group tables side by side with the selected-days table beside them */
+.week-split {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.week-groups {
+  flex: 1 1 520px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.week-group {
+  flex: 1 1 320px;
+  max-width: 440px;
+}
+.week-group__title {
+  margin: 0 0 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.week-group__admin {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.week-selected {
+  flex: 0 1 520px;
+  min-width: 320px;
+}
+.bill-table__tools {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}

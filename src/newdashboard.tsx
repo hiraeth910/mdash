@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { DatePicker, Spin, message, Button, Table, InputNumber, Select, Tabs } from "antd";
 import WeekTab from "./WeekTab";
+import SheetTab from "./SheetTab";
 import { LoadingOutlined, HolderOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
@@ -85,7 +86,7 @@ const SummaryDashboard: React.FC = () => {
   const [dragging, setDragging] = useState<number | null>(null);
 
   // Groups the viewer has ticked; they leave their own table and gather in the table on the right.
-  const [view, setView] = useState<"day" | "week">("day");
+  const [view, setView] = useState<"day" | "week" | "sheet">("day");
   const [selectMode, setSelectMode] = useState(false);
   const [picked, setPicked] = useState<(number | string)[]>([]);
   const [ldPercent, setLdPercent] = useState<number | null>(null);
@@ -406,10 +407,11 @@ const SummaryDashboard: React.FC = () => {
         <h2>Day Profit and Loss</h2>
         <Tabs
           activeKey={view}
-          onChange={(k) => setView(k as "day" | "week")}
+          onChange={(k) => setView(k as "day" | "week" | "sheet")}
           items={[
             { key: "day", label: "Day" },
             { key: "week", label: "Week" },
+            { key: "sheet", label: "Sheet" },
           ]}
         />
         {view === "day" && <div className="inputs-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -429,7 +431,9 @@ const SummaryDashboard: React.FC = () => {
         </div>}
       </div>
 
-      {view === "week" ? (
+      {view === "sheet" ? (
+        <SheetTab />
+      ) : view === "week" ? (
         <WeekTab groups={groups} adminNames={adminNames} />
       ) : loading ? (
         <div className="loading-container" style={{ textAlign: "center", padding: 50 }}>

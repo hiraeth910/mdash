@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, InputNumber, Select, Spin, Table, message } from "antd";
+import { DatePicker, Select, Spin, Table, message } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { apiClient } from "./utils/api";
-import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
+import { normName } from "./utils/settlement";
+import BillTable, { type BillRow } from "./BillTable";
 
 interface IGroup {
   group_id: number;
@@ -16,15 +17,6 @@ interface Props {
   adminNames: Record<number, string>;
 }
 
-type Row = {
-  key: string;
-  kind: "day" | "total" | "ld" | "calc" | "cd" | "final";
-  label: string;
-  type: string; // "Due" / "Payment" for the days
-  amount: number;
-};
-
-const round2 = (v: number) => Math.round(v * 100) / 100;
 const color = (v: number) => (v < 0 ? "red" : "#009416ff");
 const typeOf = (v: number) => (v < 0 ? "Payment" : v > 0 ? "Due" : "");
 
@@ -32,47 +24,67 @@ const typeOf = (v: number) => (v < 0 ? "Payment" : v > 0 ? "Due" : "");
 const mondayOf = (d: Dayjs) => d.startOf("day").subtract((d.day() + 6) % 7, "day");
 const lastWeekMonday = () => mondayOf(dayjs()).subtract(7, "day");
 
-// One group's final due/payment for each day of a week, then L/D and CD taken off the total.
+// Pick a group name: every group with that name shows its week side by side. Tick days to gather
+// them in one table (amounts editable there) with total, L/D, week due, old due and the final figure.
 const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
-  const [groupId, setGroupId] = useState<number | null>(null);
+  const [name, setName] = useState<string | null>(null);
   const [monday, setMonday] = useState<Dayjs>(lastWeekMonday);
-  const [amounts, setAmounts] = useState<number[]>([]);
+  const [amounts, setAmounts] = useState<Record<number, number[]>>({});
   const [loading, setLoading] = useState(false);
-  const [ldPercent, setLdPercent] = useState<number | null>(null);
-  const [cdPercent, setCdPercent] = useState<number | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [overrides, setOverrides] = useState<Record<string, number>>({});
   const [refreshTick, setRefreshTick] = useState(0);
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => monday.add(i, "day")), [monday]);
-  const group = groups.find((g) => g.group_id === groupId) ?? null;
+  const adminLabel = (g: IGroup) => adminNames[g.admin_id ?? -1] || `Admin #${g.admin_id}`;
+
+  // Unique group names; the groups carrying a name, in admin order.
+  const byName = useMemo(() => {
+    const map = new Map<string, IGroup[]>();
+    groups.forEach((g) => map.set(normName(g.group_name), [...(map.get(normName(g.group_name)) || []), g]));
+    map.forEach((list) => list.sort((a, b) => adminLabel(a).localeCompare(adminLabel(b))));
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, adminNames]);
 
   const options = useMemo(
     () =>
-      [...groups]
-        .map((g) => ({
-          value: g.group_id,
-          label: `${g.group_name} — ${adminNames[g.admin_id ?? -1] || `Admin #${g.admin_id}`}`,
-        }))
+      [...byName.entries()]
+        .map(([key, list]) => ({ value: key, label: list.length > 1 ? `${list[0].group_name} (${list.length} groups)` : list[0].group_name }))
         .sort((a, b) => a.label.localeCompare(b.label)),
-    [groups, adminNames]
+    [byName]
   );
 
+  const chosen = useMemo(() => (name ? byName.get(name) ?? [] : []), [name, byName]);
+  const chosenKey = chosen.map((g) => g.group_id).join(",");
+
   useEffect(() => {
-    if (groupId === null) return;
+    setPicked([]);
+    setOverrides({});
+  }, [name, monday]);
+
+  useEffect(() => {
+    if (chosen.length === 0) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
       try {
-        const results = await Promise.all(
-          days.map(async (d) => {
-            const res = await apiClient.post<{ res_win_amt: number }[]>("/group-payments-by-date", {
-              gamedate: d.format("YYYY-MM-DD"),
-              groupid: groupId,
-              gameid: 0,
-            });
-            return res.data.length > 0 ? Number(res.data[res.data.length - 1].res_win_amt) || 0 : 0;
+        const entries = await Promise.all(
+          chosen.map(async (g) => {
+            const results = await Promise.all(
+              days.map(async (d) => {
+                const res = await apiClient.post<{ res_win_amt: number }[]>("/group-payments-by-date", {
+                  gamedate: d.format("YYYY-MM-DD"),
+                  groupid: g.group_id,
+                  gameid: 0,
+                });
+                return res.data.length > 0 ? Number(res.data[res.data.length - 1].res_win_amt) || 0 : 0;
+              })
+            );
+            return [g.group_id, results] as const;
           })
         );
-        if (!cancelled) setAmounts(results);
+        if (!cancelled) setAmounts(Object.fromEntries(entries));
       } catch {
         if (!cancelled) message.error("Failed to load the week");
       } finally {
@@ -82,132 +94,42 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
     return () => {
       cancelled = true;
     };
-  }, [groupId, days, refreshTick]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosenKey, days, refreshTick]);
 
-  // A recalculation started from the header: load the week again.
+  // A recalculation started from the header: load the week again (typed-over amounts are dropped).
   useEffect(() => {
-    const refresh = () => setRefreshTick((n) => n + 1);
+    const refresh = () => {
+      setOverrides({});
+      setRefreshTick((n) => n + 1);
+    };
     window.addEventListener("recalculated", refresh);
     return () => window.removeEventListener("recalculated", refresh);
   }, []);
 
-  const total = round2(amounts.reduce((s, v) => s + v, 0));
-  // The percent keeps the sign of the total and is subtracted, so "minus a minus" adds back.
-  const ldPct = ldPercent || 0;
-  const ldAmount = round2((total * ldPct) / 100);
-  const afterLd = round2(total - ldAmount);
-  // CD is only offered when the total is a due (positive); it comes off the amount above it.
-  const cdAvailable = total > 0;
-  const cdPct = cdAvailable ? cdPercent || 0 : 0;
-  const cdAmount = round2((afterLd * cdPct) / 100);
-  const finalAmount = round2(afterLd - cdAmount);
-  const finalLabel = finalAmount < 0 ? "Final payment" : "Final due";
+  const keyOf = (g: IGroup, i: number) => `${g.group_id}|${i}`;
+  const amountOf = (g: IGroup, i: number) => overrides[keyOf(g, i)] ?? amounts[g.group_id]?.[i] ?? 0;
+  const multi = chosen.length > 1;
 
-  const rows: Row[] = [
-    ...days.map((d, i) => ({ key: d.format("YYYY-MM-DD"), kind: "day" as const, label: d.format("ddd, DD-MM-YYYY"), type: typeOf(amounts[i] ?? 0), amount: amounts[i] ?? 0 })),
-    { key: "total", kind: "total", label: "Total", type: "", amount: total },
-    { key: "ld", kind: "ld", label: "L/D", type: "", amount: ldAmount },
-    { key: "calc", kind: "calc", label: "After L/D", type: "", amount: afterLd },
-    ...(cdAvailable ? [{ key: "cd", kind: "cd" as const, label: "CD", type: "", amount: cdAmount }] : []),
-    { key: "final", kind: "final", label: finalLabel, type: "", amount: finalAmount },
-  ];
-
-  const percentInput = (value: number | null, onChange: (v: number | null) => void, label: string) => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <strong>{label}</strong>
-      <InputNumber
-        size="small"
-        min={0}
-        max={100}
-        value={value}
-        onChange={(v) => onChange(v === null ? null : Number(v))}
-        addonAfter="%"
-        placeholder={`${label} %`}
-        aria-label={`${label} percent`}
-        style={{ width: 120 }}
-      />
-    </span>
+  const pickedRows: BillRow[] = chosen.flatMap((g) =>
+    days.flatMap((d, i) =>
+      picked.includes(keyOf(g, i))
+        ? [{ key: keyOf(g, i), label: d.format("ddd, DD-MM-YYYY"), group: multi ? adminLabel(g) : undefined, amount: amountOf(g, i) }]
+        : []
+    )
   );
 
-  const columns = [
-    {
-      title: "Date",
-      key: "label",
-      render: (_: unknown, r: Row) =>
-        r.kind === "ld" ? (
-          percentInput(ldPercent, setLdPercent, "L/D")
-        ) : r.kind === "cd" ? (
-          percentInput(cdPercent, setCdPercent, "CD")
-        ) : r.kind === "day" ? (
-          r.label
-        ) : (
-          <strong>{r.label}</strong>
-        ),
-    },
-    { title: "Due/Payment", dataIndex: "type", key: "type" },
-    {
-      title: "Amount",
-      key: "amount",
-      align: "right" as const,
-      render: (_: unknown, r: Row) => (
-        <span style={{ color: r.kind === "ld" || r.kind === "cd" ? undefined : color(r.amount), fontWeight: r.kind === "day" ? undefined : 700 }}>
-          {r.amount}
-        </span>
-      ),
-    },
-  ];
-
-  // Rows whose percent is zero are left out of the picture.
-  const image = (): TableImage => {
-    const tone = (v: number) => (v < 0 ? ("negative" as const) : ("positive" as const));
-    const dayRows = days.map((d, i) => ({
-      cells: [d.format("ddd, DD-MM-YYYY"), typeOf(amounts[i] ?? 0), String(amounts[i] ?? 0)],
-      tone: tone(amounts[i] ?? 0),
-    }));
-    return {
-      title: `${group?.group_name ?? ""} — ${adminNames[group?.admin_id ?? -1] || ""}`.replace(/ — $/, ""),
-      subtitle: `${days[0].format("DD-MM-YYYY")} to ${days[6].format("DD-MM-YYYY")}`,
-      fileName: `Week_${days[0].format("DD-MM-YYYY")}_${group?.group_name ?? "group"}.png`,
-      sections: [
-        {
-          columns: [{ header: "Date" }, { header: "Due/Payment" }, { header: "Amount", align: "right" }],
-          rows: [
-            ...dayRows,
-            { cells: ["Total", "", String(total)], bold: true, shaded: true, tone: tone(total) },
-            ...(ldPct > 0
-              ? [
-                  { cells: [`L/D ${ldPct}%`, "", String(ldAmount)] },
-                  { cells: ["After L/D", "", String(afterLd)], bold: true, tone: tone(afterLd) },
-                ]
-              : []),
-            ...(cdPct > 0 ? [{ cells: [`CD ${cdPct}%`, "", String(cdAmount)] }] : []),
-            { cells: [finalLabel, "", String(finalAmount)], bold: true, shaded: true, tone: tone(finalAmount) },
-          ],
-        },
-      ],
-    };
-  };
-
-  const copyImage = async () => {
-    const img = image();
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": renderTableImage(img) })]);
-      message.success("Image copied. Paste it where you want to send it.");
-    } catch {
-      downloadTableImage(img).catch(() => message.error("Could not create the image"));
-      message.info("Couldn't copy the image here, so it was downloaded instead.");
-    }
-  };
+  const range = `${days[0].format("DD-MM-YYYY")} to ${days[6].format("DD-MM-YYYY")}`;
 
   return (
     <div className="week-tab">
       <div className="inputs-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <Select
           showSearch
-          placeholder="Select group"
+          placeholder="Select group name"
           style={{ minWidth: 260 }}
-          value={groupId}
-          onChange={setGroupId}
+          value={name}
+          onChange={setName}
           options={options}
           optionFilterProp="label"
           getPopupContainer={() => document.body}
@@ -220,28 +142,70 @@ const WeekTab: React.FC<Props> = ({ groups, adminNames }) => {
           format={() => `${monday.format("DD-MM-YYYY")} – ${monday.add(6, "day").format("DD-MM-YYYY")}`}
           disabledDate={(d) => d.isAfter(dayjs(), "day")}
         />
-        <Button onClick={copyImage} disabled={groupId === null || loading}>
-          Copy image
-        </Button>
       </div>
-      {groupId === null ? (
-        <p className="day-hint">Pick a group to see its week (Monday to Sunday). Showing last week.</p>
+      {name === null ? (
+        <p className="day-hint">Pick a group name to see its week (Monday to Sunday) for every group with that name. Showing last week.</p>
       ) : loading ? (
         <div style={{ textAlign: "center", padding: 50 }}>
           <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
         </div>
       ) : (
-        <div className="table-container" style={{ marginTop: 20, maxWidth: 560 }}>
-          <Table
-            className="week-table"
-            columns={columns}
-            dataSource={rows}
-            pagination={false}
-            bordered
-            size="small"
-            rowClassName={(r) => (r.kind === "day" ? "" : "total-row")}
-          />
-          {!cdAvailable && <p className="day-hint">CD is available when the total is a due (positive).</p>}
+        <div className="week-split">
+          <div className="week-groups">
+            {chosen.map((g) => {
+              const rows = days.map((d, i) => ({ key: keyOf(g, i), date: d.format("ddd, DD-MM-YYYY"), amount: amountOf(g, i) }));
+              const mine = rows.filter((r) => picked.includes(r.key)).map((r) => r.key);
+              return (
+                <div className="table-container week-group" key={g.group_id}>
+                  <h3 className="week-group__title">
+                    {g.group_name}
+                    <span className="week-group__admin">{adminLabel(g)}</span>
+                  </h3>
+                  <Table
+                    className="week-table"
+                    size="small"
+                    bordered
+                    pagination={false}
+                    dataSource={rows}
+                    columns={[
+                      { title: "Date", dataIndex: "date", key: "date" },
+                      { title: "Due/Payment", key: "type", render: (_: unknown, r: { amount: number }) => typeOf(r.amount) },
+                      {
+                        title: "Amount",
+                        key: "amount",
+                        align: "right" as const,
+                        render: (_: unknown, r: { amount: number }) => <span style={{ color: color(r.amount) }}>{r.amount}</span>,
+                      },
+                    ]}
+                    rowSelection={{
+                      selectedRowKeys: mine,
+                      onSelect: (record, selected) =>
+                        setPicked((p) => (selected ? [...p, record.key] : p.filter((k) => k !== record.key))),
+                      onSelectAll: (selected) =>
+                        setPicked((p) => {
+                          const others = p.filter((k) => !rows.some((r) => r.key === k));
+                          return selected ? [...others, ...rows.map((r) => r.key)] : others;
+                        }),
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="week-selected">
+            <h3 className="week-group__title">Selected days</h3>
+            <BillTable
+              rows={pickedRows}
+              labelHeader="Date"
+              groupHeader="Admin"
+              periodLabel="Week"
+              onAmount={(key, v) => setOverrides((o) => ({ ...o, [key]: v }))}
+              imageTitle={`${chosen[0]?.group_name ?? ""} — week`}
+              imageSubtitle={range}
+              fileName={`Week_${days[0].format("DD-MM-YYYY")}_${chosen[0]?.group_name ?? "group"}.png`}
+              emptyText="Tick days in the tables; they are listed here and their amounts can be edited."
+            />
+          </div>
         </div>
       )}
     </div>
