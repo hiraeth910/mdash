@@ -288,12 +288,15 @@ const Dashboard: React.FC = () => {
     return [...lines, { label: finalLabel, value: finalAmount, strong: true }];
   };
 
-  const billImageTitle = () => `Bill — ${grpname ?? "All Groups"} — ${dayjs(selectedDate).format("DD-MM-YYYY")}`;
+  // "Mon 5 Oct 2026"
+  const prettyDate = dayjs(selectedDate).format("ddd D MMM YYYY");
   // The detailed picture adds the per-type winning numbers under the calculation.
   const billImage = (detailed = false): TableImage | null => {
     if (!settlement) return null;
     return {
-      title: billImageTitle(),
+      title: grpname ?? "All Groups",
+      subtitle: prettyDate,
+      centered: true,
       fileName: `Bill_${dayjs(selectedDate).format("DD-MM-YYYY")}(${grpname ?? "All Groups"})${detailed ? "_detailed" : ""}.png`,
       sections: [
         {
@@ -540,6 +543,12 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
+      {selectedGroupId !== null && (
+        <div className="bill-heading">
+          <u className="bill-heading__group">{grpname}</u>
+          <span className="bill-heading__date">{prettyDate}</span>
+        </div>
+      )}
       {loading ? (
         <div className="loading-container">
           <Spin size="large" />

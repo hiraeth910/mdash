@@ -25,6 +25,8 @@ type Section = {
 export type TableImage = {
   title: string;
   subtitle?: string;
+  // Title and subtitle centred over the picture, the title underlined (used for a bill's group and date).
+  centered?: boolean;
   // Sections are stacked top to bottom in one picture.
   sections: Section[];
   fileName: string;
@@ -39,7 +41,7 @@ const HEADING_H = 34;
 const GAP = 14;
 
 // Draws plain white tables (so they read well when shared) as one PNG.
-export const renderTableImage = ({ title, subtitle, sections }: TableImage): Promise<Blob> => {
+export const renderTableImage = ({ title, subtitle, sections, centered }: TableImage): Promise<Blob> => {
   const measure = document.createElement("canvas").getContext("2d");
   if (!measure) return Promise.reject(new Error("Canvas is not available"));
 
@@ -70,7 +72,7 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
   measure.font = font(true, 18);
   const titleW = measure.measureText(title).width;
   const width = Math.ceil(Math.max(titleW, ...bands.map(bandW))) + MARGIN * 2;
-  const top = MARGIN + 30 + (subtitle ? 20 : 0);
+  const top = MARGIN + 30 + (subtitle ? (centered ? 26 : 20) : 0);
   const height = top + bands.reduce((h, band) => h + bandH(band) + GAP, 0) - GAP + MARGIN;
 
   const canvas = document.createElement("canvas");
@@ -86,12 +88,24 @@ export const renderTableImage = ({ title, subtitle, sections }: TableImage): Pro
 
   ctx.fillStyle = "#12302a";
   ctx.font = font(true, 18);
-  ctx.textAlign = "left";
-  ctx.fillText(title, MARGIN, MARGIN + 12);
+  ctx.textAlign = centered ? "center" : "left";
+  const titleX = centered ? width / 2 : MARGIN;
+  ctx.fillText(title, titleX, MARGIN + 12);
+  if (centered) {
+    // underline the title
+    const w = ctx.measureText(title).width;
+    ctx.strokeStyle = "#12302a";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(titleX - w / 2, MARGIN + 24);
+    ctx.lineTo(titleX + w / 2, MARGIN + 24);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
   if (subtitle) {
-    ctx.fillStyle = "#5b6b66";
-    ctx.font = font(false, 12);
-    ctx.fillText(subtitle, MARGIN, MARGIN + 34);
+    ctx.fillStyle = centered ? "#12302a" : "#5b6b66";
+    ctx.font = font(!!centered, centered ? 14 : 12);
+    ctx.fillText(subtitle, titleX, MARGIN + 38);
   }
 
   let y0 = top;

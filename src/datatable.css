@@ -1448,3 +1448,24 @@ body.drag-selecting,
 .payment-details__account .payment-details__bank {
   grid-template-columns: 1fr 1fr;
 }
+
+/* Settlement / Bills: the group and date heading */
+.bill-heading {
+  text-align: center;
+  margin: 12px 0 4px;
+  color: var(--color-heading);
+}
+.bill-heading__group {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+.bill-heading__date {
+  display: block;
+  margin-top: 2px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
