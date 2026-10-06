@@ -1137,6 +1137,11 @@ body.drag-selecting,
   gap: 12px;
   flex-wrap: wrap;
 }
+.compare-panel__section + .compare-panel__section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
 .compare-admins {
   font-size: 0.8rem;
   font-weight: 400;

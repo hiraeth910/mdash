@@ -39,6 +39,14 @@ interface Props {
   className?: string;
 }
 
+interface NameSection {
+  name: string;
+  admins: string[];
+  total: number;
+  gameCount: number;
+  mismatches: GameMismatch[];
+}
+
 type TableRow = {
   key: string;
   first: boolean;
@@ -49,6 +57,7 @@ type TableRow = {
   members: DiffMember[];
   numbers: NumberDiff[];
   numbersTotal: number;
+  section: string;
   mismatchKey: string;
   gameBase: string;
   user: string;
@@ -60,54 +69,31 @@ type TableRow = {
 
 const HEADINGS: Record<CompareColumn, string> = { bet: "Bet amount", win: "Win amount" };
 
-// One admin1-vs-admin2 comparison: pick the two admins, then which of their group names to look
-// at (a name either admin has; if only one side has it, that side's figures still show, marked
-// as missing on the other). Independent of any other panel on the page.
+// One admin-vs-admin comparison: pick the two admins and every group name both of them have is
+// compared automatically (same as the old single-page view, just scoped to this pair instead of
+// every admin at once). Independent of any other panel on the page.
 const ComparePanel: React.FC<Props> = ({ date, groups, adminOptions, plainUsers, gamesMap, className }) => {
   const [admin1, setAdmin1] = useState<number | null>(null);
   const [admin2, setAdmin2] = useState<number | null>(null);
-  const [groupName, setGroupName] = useState<string | null>(null); // normName
-  const [mismatches, setMismatches] = useState<GameMismatch[]>([]);
-  const [total, setTotal] = useState(0);
-  const [gameCount, setGameCount] = useState(0);
-  const [admins, setAdmins] = useState<string[]>([]);
-  const [soloAdmin, setSoloAdmin] = useState<string | null>(null); // set when only one side has this group name
-  const [loaded, setLoaded] = useState(false);
+  const [sections, setSections] = useState<NameSection[]>([]);
+  const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const latestLoad = useRef(0);
   const [refreshTick, setRefreshTick] = useState(0);
-  const [numbersFor, setNumbersFor] = useState<TableRow | null>(null);
+  const [numbersKey, setNumbersKey] = useState<{ section: string; key: string } | null>(null);
 
-  const groupsOf = (adminId: number | null) => (adminId === null ? [] : groups.filter((g) => g.admin_id === adminId));
-
-  // Every group name either chosen admin has, with who has it, so a name only one side uses is
-  // still pickable (the other side then shows as missing).
-  const nameOptions = useMemo(() => {
+  // Group names both chosen admins have (each gets its own comparison card).
+  const repeated = useMemo(() => {
     if (admin1 === null || admin2 === null) return [];
-    const g1 = groupsOf(admin1);
-    const g2 = groupsOf(admin2);
-    const byName = new Map<string, { label: string; count: number }>();
-    [...g1, ...g2].forEach((g) => {
-      const key = normName(g.group_name);
-      if (!byName.has(key)) byName.set(key, { label: g.group_name, count: 0 });
-    });
-    g1.forEach((g) => (byName.get(normName(g.group_name))!.count |= 1));
-    g2.forEach((g) => (byName.get(normName(g.group_name))!.count |= 2));
-    return [...byName.entries()]
-      .map(([value, { label, count }]) => ({
-        value,
-        label: count === 3 ? label : `${label} (one side only)`,
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const mine = groups.filter((g) => g.admin_id === admin1 || g.admin_id === admin2);
+    const byName = new Map<string, IGroupRow[]>();
+    mine.forEach((g) => byName.set(normName(g.group_name), [...(byName.get(normName(g.group_name)) || []), g]));
+    return [...byName.values()]
+      .filter((list) => list.length >= 2)
+      .sort((a, b) => a[0].group_name.localeCompare(b[0].group_name));
   }, [admin1, admin2, groups]);
 
-  // Changing either admin invalidates the group picked so far.
-  useEffect(() => {
-    setGroupName(null);
-    setMismatches([]);
-    setLoaded(false);
-  }, [admin1, admin2]);
+  const repeatedKey = repeated.map((list) => list.map((g) => g.group_id).join(",")).join("|");
 
   useEffect(() => {
     const refresh = () => setRefreshTick((n) => n + 1);
@@ -116,107 +102,106 @@ const ComparePanel: React.FC<Props> = ({ date, groups, adminOptions, plainUsers,
   }, []);
 
   useEffect(() => {
-    if (admin1 === null || admin2 === null || groupName === null) return;
-    const matching = [...groupsOf(admin1), ...groupsOf(admin2)].filter((g) => normName(g.group_name) === groupName);
-    if (matching.length === 0) return;
+    if (admin1 === null || admin2 === null) {
+      setSections([]);
+      setReady(false);
+      return;
+    }
     const loadId = ++latestLoad.current;
     setLoading(true);
+    setReady(false);
     (async () => {
       try {
         const adminNameOf = (id: number) => adminOptions.find((a) => a.id === id)?.name || `Admin #${id}`;
-        const compared: CompareGroup[] = await Promise.all(
-          matching.map(async (g) => {
-            const res = await apiClient.post<PaymentData[]>("/group-payments-by-date", { gamedate: date, groupid: g.group_id, gameid: 0 });
-            const adminName = adminNameOf(g.admin_id ?? -1);
-            const assignedUsers = plainUsers.filter((u) => (u.group_ids || []).map(Number).includes(g.group_id)).sort((a, b) => a.user_name.localeCompare(b.user_name));
-            const assigned = assignedUsers.map((u) => u.user_name);
-            const games = sideRows(res.data);
-            const numbers: Record<string, NumberAmount[]> = {};
-            const bases = [...new Set(games.map((r) => r.key.replace(/ \((open|close)\)$/, "")))];
-            await Promise.all(
-              bases.map(async (base) => {
-                const gameid = gamesMap.gameIds.get(base);
-                if (gameid === undefined) throw new Error(`Game not found: ${base}`);
-                const items = (
-                  await apiClient.post<{ itypeid: number; itypename: string; inumber: string | number; total_amount: number }[]>("/summed-history-by-uid", {
-                    userid: 0,
-                    date,
-                    game: gameid,
-                    groupid: [g.group_id],
+        const built = await Promise.all(
+          repeated.map(async (list): Promise<NameSection> => {
+            const compared: CompareGroup[] = await Promise.all(
+              list.map(async (g) => {
+                const res = await apiClient.post<PaymentData[]>("/group-payments-by-date", { gamedate: date, groupid: g.group_id, gameid: 0 });
+                const adminName = adminNameOf(g.admin_id ?? -1);
+                const assignedUsers = plainUsers.filter((u) => (u.group_ids || []).map(Number).includes(g.group_id)).sort((a, b) => a.user_name.localeCompare(b.user_name));
+                const assigned = assignedUsers.map((u) => u.user_name);
+                const games = sideRows(res.data);
+                const numbers: Record<string, NumberAmount[]> = {};
+                const bases = [...new Set(games.map((r) => r.key.replace(/ \((open|close)\)$/, "")))];
+                await Promise.all(
+                  bases.map(async (base) => {
+                    const gameid = gamesMap.gameIds.get(base);
+                    if (gameid === undefined) throw new Error(`Game not found: ${base}`);
+                    const items = (
+                      await apiClient.post<{ itypeid: number; itypename: string; inumber: string | number; total_amount: number }[]>("/summed-history-by-uid", {
+                        userid: 0,
+                        date,
+                        game: gameid,
+                        groupid: [g.group_id],
+                      })
+                    ).data;
+                    (["open", "close"] as const).forEach((side) => {
+                      numbers[`${base} (${side})`] = items
+                        .filter((it) => SIDE_TYPES[side].includes(Number(it.itypeid)))
+                        .map((it) => ({ typeId: Number(it.itypeid), type: it.itypename, number: String(it.inumber), amount: Number(it.total_amount || 0) }));
+                    });
                   })
-                ).data;
-                (["open", "close"] as const).forEach((side) => {
-                  numbers[`${base} (${side})`] = items
-                    .filter((it) => SIDE_TYPES[side].includes(Number(it.itypeid)))
-                    .map((it) => ({ typeId: Number(it.itypeid), type: it.itypename, number: String(it.inumber), amount: Number(it.total_amount || 0) }));
-                });
+                );
+                return {
+                  groupId: g.group_id,
+                  adminName,
+                  userName: assigned.join(", ") || `No user (${adminName})`,
+                  groupName: g.group_name,
+                  userId: assignedUsers[0]?.user_id ?? null,
+                  games,
+                  numbers,
+                };
               })
             );
-            return {
-              groupId: g.group_id,
-              adminName,
-              userName: assigned.join(", ") || `No user (${adminName})`,
-              groupName: g.group_name,
-              userId: assignedUsers[0]?.user_id ?? null,
-              games,
-              numbers,
-            };
+            return { name: list[0].group_name, admins: compared.map((c) => c.adminName), ...compareGames(compared) };
           })
         );
-        const result = compareGames(compared);
-        if (loadId === latestLoad.current) {
-          setMismatches(result.mismatches);
-          setTotal(result.total);
-          setGameCount(result.gameCount);
-          setAdmins(compared.map((c) => c.adminName));
-          setSoloAdmin(compared.length === 1 ? compared[0].adminName : null);
-          setLoaded(true);
-        }
+        if (loadId === latestLoad.current) setSections(built);
       } catch {
         if (loadId === latestLoad.current) message.error("Failed to load the groups' data");
       } finally {
-        if (loadId === latestLoad.current) setLoading(false);
+        if (loadId === latestLoad.current) {
+          setLoading(false);
+          setReady(true);
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [admin1, admin2, groupName, date, refreshTick, groups]);
+  }, [admin1, admin2, repeatedKey, date, refreshTick]);
 
-  const tableRows: TableRow[] = useMemo(
-    () =>
-      mismatches.flatMap((m, index) => {
-        const base = (x: GameMismatch) => x.key.replace(/ \((open|close)\)$/, "");
-        const band = mismatches.slice(0, index + 1).filter((x, i, all) => i === 0 || base(x) !== base(all[i - 1])).length;
-        return m.rows.map((r, i) => ({
-          key: `${m.key}-${r.groupId}`,
-          first: i === 0,
-          middle: i === Math.floor((m.rows.length - 1) / 2),
-          groupSize: m.rows.length,
-          diff: m.diff,
-          game: m.game,
-          members: m.rows.map((x) => ({ groupId: x.groupId, userName: x.userName, userId: x.userId, groupName: x.groupName })),
-          numbers: m.numbers,
-          numbersTotal: m.numbersTotal,
-          mismatchKey: m.key,
-          gameBase: m.game.replace(/ \((open|close)\)$/, ""),
-          user: r.userName,
-          band,
-          missing: r.row === null,
-          values: Object.fromEntries(COMPARE_COLUMNS.map((c) => [c, r.row ? r.row[c] : null])) as Record<CompareColumn, number | null>,
-          differs: r.differs,
-        }));
-      }),
-    [mismatches]
-  );
+  const tableRows = (mismatches: GameMismatch[], section = ""): TableRow[] =>
+    mismatches.flatMap((m, index) => {
+      const base = (x: GameMismatch) => x.key.replace(/ \((open|close)\)$/, "");
+      const band = mismatches.slice(0, index + 1).filter((x, i, all) => i === 0 || base(x) !== base(all[i - 1])).length;
+      return m.rows.map((r, i) => ({
+        key: `${m.key}-${r.groupId}`,
+        first: i === 0,
+        middle: i === Math.floor((m.rows.length - 1) / 2),
+        groupSize: m.rows.length,
+        diff: m.diff,
+        game: m.game,
+        members: m.rows.map((x) => ({ groupId: x.groupId, userName: x.userName, userId: x.userId, groupName: x.groupName })),
+        numbers: m.numbers,
+        numbersTotal: m.numbersTotal,
+        section,
+        mismatchKey: m.key,
+        gameBase: m.game.replace(/ \((open|close)\)$/, ""),
+        user: r.userName,
+        band,
+        missing: r.row === null,
+        values: Object.fromEntries(COMPARE_COLUMNS.map((c) => [c, r.row ? r.row[c] : null])) as Record<CompareColumn, number | null>,
+        differs: r.differs,
+      }));
+    });
 
-  // Keep the open numbers modal in step with reloads (e.g. right after a settle); close it once
-  // its row is gone.
+  const numbersFor = numbersKey
+    ? tableRows(sections.find((x) => x.name === numbersKey.section)?.mismatches ?? [], numbersKey.section).find((r) => r.mismatchKey === numbersKey.key) ?? null
+    : null;
+
   useEffect(() => {
-    if (!numbersFor) return;
-    const again = tableRows.find((r) => r.mismatchKey === numbersFor.mismatchKey);
-    if (!loading && again === undefined) setNumbersFor(null);
-    else if (again && again !== numbersFor) setNumbersFor(again);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableRows, loading]);
+    if (numbersKey && !loading && ready && !numbersFor) setNumbersKey(null);
+  }, [numbersKey, loading, ready, numbersFor]);
 
   const settleNumber = async (row: TableRow, n: NumberDiff) => {
     const game = gamesMap.byNorm.get(normName(row.gameBase));
@@ -261,7 +246,7 @@ const ComparePanel: React.FC<Props> = ({ date, groups, adminOptions, plainUsers,
                 <span className="compare-gap">
                   {r.numbers.length} number{r.numbers.length > 1 ? "s" : ""} differ
                 </span>
-                <Button size="small" onClick={() => setNumbersFor(r)}>
+                <Button size="small" onClick={() => setNumbersKey({ section: r.section, key: r.mismatchKey })}>
                   View numbers
                 </Button>
               </>
@@ -271,33 +256,35 @@ const ComparePanel: React.FC<Props> = ({ date, groups, adminOptions, plainUsers,
     },
   ];
 
+  const totalDiffs = sections.reduce((n, s) => n + s.mismatches.length, 0);
+
   const compareImage = (): TableImage | null => {
-    if (mismatches.length === 0) return null;
-    const label = nameOptions.find((o) => o.value === groupName)?.label ?? groupName ?? "";
+    const differing = sections.filter((s) => s.mismatches.length > 0);
+    if (differing.length === 0) return null;
+    const matching = sections.filter((s) => s.mismatches.length === 0 && s.total > 0).map((s) => s.name);
     return {
-      title: `Compare — ${label} — ${dayjs(date).format("DD-MM-YYYY")}`,
-      subtitle: admins.join(" · "),
-      fileName: `Compare_${label.replace(/[^\w-]+/g, "_")}_${dayjs(date).format("DD-MM-YYYY")}.png`,
-      sections: [
-        {
-          columns: [
-            { header: "Game" },
-            { header: "User" },
-            ...COMPARE_COLUMNS.map((c) => ({ header: HEADINGS[c], align: "right" as const })),
-            { header: "Difference", align: "center" as const },
+      title: `Compare — ${adminOptions.find((a) => a.id === admin1)?.name ?? ""} vs ${adminOptions.find((a) => a.id === admin2)?.name ?? ""} — ${dayjs(date).format("DD-MM-YYYY")}`,
+      subtitle: matching.length ? `All games match: ${matching.join(", ")}` : undefined,
+      fileName: `Compare_${dayjs(date).format("DD-MM-YYYY")}.png`,
+      sections: differing.map((s) => ({
+        heading: `${s.name} — ${s.admins.join(" · ")}`,
+        columns: [
+          { header: "Game" },
+          { header: "User" },
+          ...COMPARE_COLUMNS.map((c) => ({ header: HEADINGS[c], align: "right" as const })),
+          { header: "Difference", align: "center" as const },
+        ],
+        rows: tableRows(s.mismatches).map((r) => ({
+          cells: [
+            r.game,
+            r.user,
+            ...COMPARE_COLUMNS.map((c, i) => (r.missing ? (i === 0 ? "No data" : "") : fmt(r.values[c]))),
+            r.middle ? `Bet ${fmt(r.diff.bet)} · Win ${fmt(r.diff.win)}${r.numbers.length ? ` · ${r.numbers.length} number${r.numbers.length > 1 ? "s" : ""} differ (total ${fmt(r.numbersTotal)})` : ""}` : "",
           ],
-          rows: tableRows.map((r) => ({
-            cells: [
-              r.game,
-              r.user,
-              ...COMPARE_COLUMNS.map((c, i) => (r.missing ? (i === 0 ? "No data" : "") : fmt(r.values[c]))),
-              r.middle ? `Bet ${fmt(r.diff.bet)} · Win ${fmt(r.diff.win)}${r.numbers.length ? ` · ${r.numbers.length} number${r.numbers.length > 1 ? "s" : ""} differ (total ${fmt(r.numbersTotal)})` : ""}` : "",
-            ],
-            shaded: r.band % 2 === 1,
-            marked: [...(r.missing ? [] : COMPARE_COLUMNS.flatMap((c, i) => (r.differs[c] ? [i + 2] : []))), ...(r.middle ? [COMPARE_COLUMNS.length + 2] : [])],
-          })),
-        },
-      ],
+          shaded: r.band % 2 === 1,
+          marked: [...(r.missing ? [] : COMPARE_COLUMNS.flatMap((c, i) => (r.differs[c] ? [i + 2] : []))), ...(r.middle ? [COMPARE_COLUMNS.length + 2] : [])],
+        })),
+      })),
     };
   };
 
@@ -321,63 +308,64 @@ const ComparePanel: React.FC<Props> = ({ date, groups, adminOptions, plainUsers,
         <Select {...searchProps} placeholder="First admin" value={admin1 ?? undefined} onChange={setAdmin1} getPopupContainer={() => document.body} style={{ minWidth: 180 }} options={otherOptions(admin2).map((a) => ({ value: a.id, label: a.name }))} />
         <span className="compare-panel__vs">vs</span>
         <Select {...searchProps} placeholder="Second admin" value={admin2 ?? undefined} onChange={setAdmin2} getPopupContainer={() => document.body} style={{ minWidth: 180 }} options={otherOptions(admin1).map((a) => ({ value: a.id, label: a.name }))} />
-        <Select
-          {...searchProps}
-          placeholder="Group"
-          value={groupName ?? undefined}
-          onChange={setGroupName}
-          getPopupContainer={() => document.body}
-          style={{ minWidth: 200 }}
-          disabled={admin1 === null || admin2 === null}
-          options={nameOptions}
-          notFoundContent={admin1 !== null && admin2 !== null ? "Neither admin has any groups" : undefined}
-        />
-        <Button onClick={copyImage} disabled={!loaded || mismatches.length === 0}>
-          Copy image
-        </Button>
+        {!loading && ready && (
+          <Button onClick={copyImage} disabled={totalDiffs === 0}>
+            Copy image
+          </Button>
+        )}
       </div>
 
       {admin1 === null || admin2 === null ? (
         <p className="compare-note">Pick two admins to compare.</p>
-      ) : groupName === null ? (
-        <p className="compare-note">Pick a group name.</p>
-      ) : loading ? (
+      ) : loading || !ready ? (
         <div style={{ textAlign: "center", padding: 24 }}>
           <Spin indicator={<LoadingOutlined style={{ fontSize: 32 }} spin />} />
         </div>
-      ) : !loaded ? null : mismatches.length === 0 ? (
-        <p className="compare-ok">
-          {soloAdmin
-            ? `Only ${soloAdmin} has a group by this name — nothing to compare it to.`
-            : total === 0
-              ? "No bets in these groups on this date."
-              : `All ${gameCount} game${gameCount > 1 ? "s" : ""} match.`}
-        </p>
+      ) : repeated.length === 0 ? (
+        <p className="compare-note">No group name is used by both admins.</p>
       ) : (
         <>
-          <p className="compare-note">
-            {mismatches.length} of {total} rows differ (each game's open and close rows are compared on their own). Differing figures are marked.
+          <p className="compare-summary">
+            {repeated.length} group name{repeated.length > 1 ? "s" : ""} shared ·{" "}
+            {totalDiffs === 0 ? "everything tallies" : `${totalDiffs} row${totalDiffs > 1 ? "s" : ""} differ`}
           </p>
-          <Table
-            className="settlement-table compare-table"
-            dataSource={tableRows}
-            columns={columns}
-            pagination={false}
-            size="middle"
-            scroll={{ x: "max-content" }}
-            rowClassName={(r) => (r.band % 2 ? "compare-band-odd" : "compare-band-even")}
-          />
+          {sections.map((s) => (
+            <div key={s.name} className="compare-panel__section">
+              <h3>
+                {s.name}
+                <span className="compare-admins">{s.admins.join(" · ")}</span>
+              </h3>
+              {s.mismatches.length === 0 ? (
+                <p className="compare-ok">{s.total === 0 ? "No bets in these groups on this date." : `All ${s.gameCount} game${s.gameCount > 1 ? "s" : ""} match.`}</p>
+              ) : (
+                <>
+                  <p className="compare-note">
+                    {s.mismatches.length} of {s.total} rows differ (each game's open and close rows are compared on their own). Differing figures are marked.
+                  </p>
+                  <Table
+                    className="settlement-table compare-table"
+                    dataSource={tableRows(s.mismatches, s.name)}
+                    columns={columns}
+                    pagination={false}
+                    size="middle"
+                    scroll={{ x: "max-content" }}
+                    rowClassName={(r) => (r.band % 2 ? "compare-band-odd" : "compare-band-even")}
+                  />
+                </>
+              )}
+            </div>
+          ))}
         </>
       )}
 
-      {numbersFor && (
+      {numbersKey && (
         <NumbersDiffModal
-          onClose={() => setNumbersFor(null)}
-          onSettle={(n) => settleNumber(numbersFor, n)}
-          title={`${numbersFor.game} — numbers that differ · ${dayjs(date).format("DD-MM-YYYY")}`}
-          members={numbersFor.members}
-          numbers={numbersFor.numbers}
-          total={numbersFor.numbersTotal}
+          onClose={() => setNumbersKey(null)}
+          onSettle={numbersFor ? (n) => settleNumber(numbersFor, n) : undefined}
+          title={`${numbersFor?.game ?? ""} — numbers that differ · ${dayjs(date).format("DD-MM-YYYY")}`}
+          members={numbersFor?.members ?? []}
+          numbers={numbersFor?.numbers ?? []}
+          total={numbersFor?.numbersTotal ?? 0}
         />
       )}
     </div>
