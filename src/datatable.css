@@ -1469,3 +1469,33 @@ body.drag-selecting,
   font-weight: 600;
   color: var(--color-text);
 }
+
+/* Compare: two admins + a group-name picker at the top of each panel; up to two panels side by side */
+.compare-panels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.compare-panels .compare-card {
+  flex: 1 1 480px;
+  min-width: 420px;
+}
+/* The second panel is always mounted (so a half-made pick there is never lost) but only shown
+   when there's room for it beside the first; below that it just stays off-screen. */
+@media (max-width: 1099px) {
+  .compare-panels__second {
+    display: none;
+  }
+}
+.compare-panel__pickers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.compare-panel__vs {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
