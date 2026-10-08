@@ -11,6 +11,7 @@ import { Modal } from "antd";
 import Login from "./login";
 import GamesPage from "./games";
 import Compare from "./compare";
+import ImagePasteStats from "./ImagePasteStats";
 import AdminBar from "./AdminBar";
 import Users from "./users";
 import InsertHistory from "./InsertHistory";
@@ -170,6 +171,14 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={["superadmin"]}>
               <Compare />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/image-paste-stats"
+          element={
+            <ProtectedRoute allowedRoles={["superadmin"]}>
+              <ImagePasteStats />
             </ProtectedRoute>
           }
         />

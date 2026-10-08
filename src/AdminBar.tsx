@@ -67,6 +67,11 @@ const AdminBar: React.FC = () => {
               Practice insert
             </Link>
           )}
+          {isSuper && (
+            <Link to="/image-paste-stats" className="admin-bar__link">
+              ChatGPT pastes
+            </Link>
+          )}
           <CalculatorButton className="admin-bar__btn admin-bar__btn--calc" />
         <Button
           className="admin-bar__btn admin-bar__btn--recalc"
