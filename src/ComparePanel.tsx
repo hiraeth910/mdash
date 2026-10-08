@@ -363,6 +363,7 @@ const ComparePanel: React.FC<Props> = ({ date, groups, adminOptions, plainUsers,
           onClose={() => setNumbersKey(null)}
           onSettle={numbersFor ? (n) => settleNumber(numbersFor, n) : undefined}
           title={`${numbersFor?.game ?? ""} — numbers that differ · ${dayjs(date).format("DD-MM-YYYY")}`}
+          groupName={numbersKey.section}
           members={numbersFor?.members ?? []}
           numbers={numbersFor?.numbers ?? []}
           total={numbersFor?.numbersTotal ?? 0}

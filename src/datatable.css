@@ -1142,6 +1142,13 @@ body.drag-selecting,
   padding-top: 20px;
   border-top: 1px solid var(--color-border);
 }
+.numbers-diff-modal__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 32px;
+}
 .compare-admins {
   font-size: 0.8rem;
   font-weight: 400;

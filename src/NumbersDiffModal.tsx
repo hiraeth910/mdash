@@ -14,6 +14,7 @@ export interface DiffMember {
 interface Props {
   onClose: () => void;
   title: string;
+  groupName: string;
   members: DiffMember[];
   numbers: NumberDiff[];
   total: number;
@@ -22,7 +23,7 @@ interface Props {
 }
 
 // The numbers whose accumulated bet amount is not the same in every group (bet amounts only).
-const NumbersDiffModal: React.FC<Props> = ({ onClose, title, members, numbers, total, onSettle }) => {
+const NumbersDiffModal: React.FC<Props> = ({ onClose, title, groupName, members, numbers, total, onSettle }) => {
   const [busy, setBusy] = useState<string | null>(null);
   const settle = async (n: NumberDiff) => {
     if (!onSettle) return;
@@ -35,8 +36,40 @@ const NumbersDiffModal: React.FC<Props> = ({ onClose, title, members, numbers, t
       setBusy(null);
     }
   };
+
+  const copyDiff = () => {
+    const lines = [
+      `${groupName} — ${title}`,
+      members.map((m) => m.userName).join(" vs "),
+      "",
+      ...numbers.map((n) => `${n.number}: ${members.map((m, i) => `${m.userName} ${fmt(n.amounts[i])}`).join(", ")} — diff ${fmt(n.gap)}`),
+      "",
+      `Total difference: ${fmt(total)}`,
+    ];
+    navigator.clipboard.writeText(lines.join("\n")).then(
+      () => message.success("Difference copied to clipboard"),
+      () => message.error("Failed to copy to clipboard")
+    );
+  };
+
   return (
-  <Modal open onCancel={onClose} footer={null} width={720} title={title} destroyOnClose>
+  <Modal
+    open
+    onCancel={onClose}
+    footer={null}
+    width={720}
+    title={
+      <span className="numbers-diff-modal__title">
+        <span>{groupName} — {title}</span>
+        {numbers.length > 0 && (
+          <Button size="small" onClick={copyDiff}>
+            Copy
+          </Button>
+        )}
+      </span>
+    }
+    destroyOnClose
+  >
     {numbers.length === 0 ? (
       <p>No number has a different bet amount between these groups.</p>
     ) : (
