@@ -335,6 +335,17 @@
   color: var(--color-text);
 }
 
+.pana-quick-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pana-quick-row__amount {
+  max-width: 110px;
+}
+
 .pasted-images-row {
   display: flex;
   align-items: center;

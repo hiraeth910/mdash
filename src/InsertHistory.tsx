@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Input, Button, message, Spin, Select, Card, Modal, DatePicker } from "antd";
+import { Input, Button, message, Spin, Select, Card, Modal, DatePicker, Dropdown } from "antd";
+import type { MenuProps } from "antd";
 import { apiClient } from "./utils/api";
 import dayjs from "dayjs";
 import { Link, useParams } from "react-router-dom";
@@ -41,6 +42,35 @@ const PRACTICE_GROUPS = [
   { id: 2, groupname: "Practice B" },
 ];
 
+// The standard single/double/triple pana charts, grouped by digit (digit = the numbers' digit sum
+// mod 10). Clicking a digit inserts that whole group as one "numbers=amount" line, which the parser
+// above already reads as a shared-amount group.
+const SP_PANA: Record<string, string> = {
+  "0": "127.136.145.190.235.280.370.389.460.479.569.578",
+  "1": "137.128.146.236.245.290.380.470.489.560.678.579",
+  "2": "129.138.147.156.237.246.345.390.480.570.589.679",
+  "3": "120.139.148.157.238.247.256.346.490.580.670.689",
+  "4": "130.149.158.167.239.248.257.347.356.590.680.789",
+  "5": "140.159.168.230.249.258.267.348.357.456.690.780",
+  "6": "123.150.169.178.240.259.268.349.358.367.457.790",
+  "7": "124.160.179.250.269.278.340.359.368.458.467.890",
+  "8": "125.134.170.189.260.279.350.369.378.459.468.567",
+  "9": "126.135.180.234.270.289.360.379.450.459.478.568",
+};
+const DP_PANA: Record<string, string> = {
+  "0": "118.226.244.299.334.488.668.677.550",
+  "1": "119.155.227.335.344.399.588.669.100",
+  "2": "110.228.255.336.499.660.688.778.200",
+  "3": "166.229.337.355.445.599.779.788.300",
+  "4": "112.220.266.338.446.455.699.770.400",
+  "5": "113.122.177.339.366.447.799.889.500",
+  "6": "114.277.330.448.466.556.880.899.600",
+  "7": "115.133.188.223.377.449.557.566.700",
+  "8": "116.224.233.288.440.477.558.990.800",
+  "9": "117.144.199.225.388.559.577.667.900",
+};
+const TP_PANA = "000.111.222.333.444.555.666.777.888.999";
+
 const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const { gameid, gamename, groupid, typ } = useParams<{
     gameid: string;
@@ -70,6 +100,7 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const [extractingImages, setExtractingImages] = useState(false);
   const [readingLocally, setReadingLocally] = useState(false); // the first local read downloads the reader
   const [dropActive, setDropActive] = useState(false); // an image file is being dragged over the box
+  const [panaAmount, setPanaAmount] = useState("10"); // shared amount used by the SP/DP/TP quick-insert buttons
   const prevInputRef = useRef<string>("");
   const [practiceMessages, setPracticeMessages] = useState<GameMessage[]>([]);
 
@@ -555,6 +586,22 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     }
   };
 
+  // Appends one SP/DP/TP group ("numbers=amount") to the input box, same as an image extraction would.
+  const insertPana = (numbers: string) => {
+    const amount = panaAmount.trim() || "10";
+    const line = `${numbers}=${amount}`;
+    setInputValue((prev) => (prev.trim() ? `${prev}\n${line}` : line));
+  };
+
+  const digitMenu = (chart: Record<string, string>): MenuProps => ({
+    items: Object.keys(chart).map((digit) => ({ key: digit, label: digit })),
+    onClick: ({ key }) => insertPana(chart[key]),
+  });
+  const tpMenu: MenuProps = {
+    items: [{ key: "all", label: "000 · 111 · 222 · … · 999" }],
+    onClick: () => insertPana(TP_PANA),
+  };
+
   // const mapPosition = (original: string, cleaned: string, pos: number): number => {
   //   const originalLines = original.split(/\r?\n/);
   //   const cleanedLines = cleaned.split(/\r?\n/);
@@ -891,6 +938,26 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             Paste image (ChatGPT)
           </Button>
           )}
+
+          <div className="pana-quick-row">
+            <Dropdown menu={digitMenu(SP_PANA)} trigger={["click"]} getPopupContainer={() => document.body}>
+              <Button className="btn-ghost btn-responsive">SP ▾</Button>
+            </Dropdown>
+            <Dropdown menu={digitMenu(DP_PANA)} trigger={["click"]} getPopupContainer={() => document.body}>
+              <Button className="btn-ghost btn-responsive">DP ▾</Button>
+            </Dropdown>
+            <Dropdown menu={tpMenu} trigger={["click"]} getPopupContainer={() => document.body}>
+              <Button className="btn-ghost btn-responsive">TP ▾</Button>
+            </Dropdown>
+            <Input
+              className="pana-quick-row__amount"
+              size="middle"
+              value={panaAmount}
+              onChange={(e) => setPanaAmount(e.target.value.replace(/\D/g, ""))}
+              placeholder="Amount"
+              aria-label="Amount for SP/DP/TP quick-insert"
+            />
+          </div>
 
           {(extractingImages || pastedImagePreviews.length > 0) && (
             <div className="pasted-images-row">
