@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button, Modal, Popconfirm, Table, message } from "antd";
 import { fmt } from "./utils/settlement";
 import type { NumberDiff } from "./utils/compare";
+import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 
 export interface DiffMember {
   groupId: number;
@@ -37,19 +38,37 @@ const NumbersDiffModal: React.FC<Props> = ({ onClose, title, groupName, members,
     }
   };
 
-  const copyDiff = () => {
-    const lines = [
-      `${groupName} — ${title}`,
-      members.map((m) => m.userName).join(" vs "),
-      "",
-      ...numbers.map((n) => `${n.number}: ${members.map((m, i) => `${m.userName} ${fmt(n.amounts[i])}`).join(", ")} — diff ${fmt(n.gap)}`),
-      "",
-      `Total difference: ${fmt(total)}`,
-    ];
-    navigator.clipboard.writeText(lines.join("\n")).then(
-      () => message.success("Difference copied to clipboard"),
-      () => message.error("Failed to copy to clipboard")
-    );
+  const diffImage = (): TableImage => ({
+    title: `${groupName} — ${title}`,
+    subtitle: members.map((m) => m.userName).join(" vs "),
+    fileName: `${groupName}_numbers_diff.png`.replace(/\s+/g, "_"),
+    sections: [
+      {
+        columns: [
+          { header: "Number" },
+          { header: "Type" },
+          ...members.map((m) => ({ header: m.userName, align: "right" as const })),
+          { header: "Difference", align: "right" as const },
+        ],
+        rows: [
+          ...numbers.map((n) => ({
+            cells: [n.number, n.type, ...n.amounts.map((a) => fmt(a)), fmt(n.gap)],
+            marked: [2 + members.length],
+          })),
+          { cells: ["Total", "", ...members.map(() => ""), fmt(total)], bold: true, shaded: true },
+        ],
+      },
+    ],
+  });
+
+  const copyImage = async () => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": renderTableImage(diffImage()) })]);
+      message.success("Image copied. Paste it where you want to send it.");
+    } catch {
+      downloadTableImage(diffImage()).catch(() => message.error("Could not create the image"));
+      message.info("Couldn't copy the image here, so it was downloaded instead.");
+    }
   };
 
   return (
@@ -62,8 +81,8 @@ const NumbersDiffModal: React.FC<Props> = ({ onClose, title, groupName, members,
       <span className="numbers-diff-modal__title">
         <span>{groupName} — {title}</span>
         {numbers.length > 0 && (
-          <Button size="small" onClick={copyDiff}>
-            Copy
+          <Button size="small" onClick={copyImage}>
+            Copy image
           </Button>
         )}
       </span>
