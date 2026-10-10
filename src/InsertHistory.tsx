@@ -261,9 +261,75 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     return digits.every((d, i, arr) => i === 0 || priority[arr[i - 1]] <= priority[d]);
   };
 
+  // A run of bare "key only" lines (no amount, no separator) sitting between two plain key-amount
+  // lines inherits their amount, the same way a handwritten bracket group shares one amount across
+  // several keys — just written one key per line instead of a "-amount" on every line. Only plain
+  // single-key-amount lines are used as the anchors; if both sides disagree, nothing is guessed.
+  const resolveBareGroups = (rawLines: string[]): string[] => {
+    const trimmed = rawLines.map((l) => l.trim());
+    const isSeparatorLine = (ln: string) => /^[\s=+\-_*#]{2,}$/.test(ln);
+    const isBareNumber = (ln: string) => /^\d{1,3}$/.test(ln);
+
+    // Mirrors the main parser below: a bare number right after a row of dashes/equals is a header
+    // index (e.g. a "0" before a group block), never part of a shared-amount run.
+    const excluded = new Array(trimmed.length).fill(false);
+    let prevNonEmptyIdx = -1;
+    for (let i = 0; i < trimmed.length; i++) {
+      const line = trimmed[i];
+      if (line === "") continue;
+      if (isSeparatorLine(line)) {
+        prevNonEmptyIdx = i;
+        continue;
+      }
+      if (isBareNumber(line) && prevNonEmptyIdx >= 0 && isSeparatorLine(trimmed[prevNonEmptyIdx])) {
+        excluded[i] = true;
+      }
+      prevNonEmptyIdx = i;
+    }
+
+    const simplePairAmount = (ln: string): number | null => {
+      const m = ln.match(/^\d{1,3}\s*[.\-=:]\s*(\d[\d,.]*)$/);
+      if (!m) return null;
+      const amt = parseInt(m[1].replace(/,/g, ""), 10);
+      return Number.isFinite(amt) && amt > 1 ? amt : null;
+    };
+
+    const out = rawLines.slice();
+    let i = 0;
+    while (i < trimmed.length) {
+      if (trimmed[i] === "" || excluded[i] || !isBareNumber(trimmed[i])) {
+        i++;
+        continue;
+      }
+      const runStart = i;
+      let j = i;
+      while (j < trimmed.length && (trimmed[j] === "" || (isBareNumber(trimmed[j]) && !excluded[j]))) j++;
+      const runEnd = j - 1;
+
+      let before = runStart - 1;
+      while (before >= 0 && trimmed[before] === "") before--;
+      let after = runEnd + 1;
+      while (after < trimmed.length && trimmed[after] === "") after++;
+
+      const beforeAmt = before >= 0 ? simplePairAmount(trimmed[before]) : null;
+      const afterAmt = after < trimmed.length ? simplePairAmount(trimmed[after]) : null;
+      const amount =
+        beforeAmt !== null && afterAmt !== null ? (beforeAmt === afterAmt ? beforeAmt : null) : beforeAmt ?? afterAmt;
+
+      if (amount !== null) {
+        for (let k = runStart; k <= runEnd; k++) {
+          if (isBareNumber(trimmed[k])) out[k] = `${trimmed[k]}-${amount}`;
+        }
+      }
+      i = j;
+    }
+    return out;
+  };
+
   // ---------- Parser (same logic you required) ----------
   const validateAndGroupNumbers = (input: string) => {
-    const lines = input.split(/\r?\n/);
+    const rawLines = input.split(/\r?\n/);
+    const lines = resolveBareGroups(rawLines);
     const validNumbers: { [key: number]: NumberEntry[] } = { 1: [], 2: [], 3: [] };
     const invalids: { line: number; raw: string; reason: string }[] = [];
     const ambigs: { line: number; raw: string; reason: string }[] = [];
@@ -272,8 +338,8 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     let prevNonEmptyIdx = -1;
 
     for (let i = 0; i < lines.length; i++) {
-      const rawLine = lines[i];
-      const line = rawLine.trim();
+      const rawLine = rawLines[i];
+      const line = lines[i].trim();
       if (line === "") continue;
 
       if (isSeparatorLine(line)) {
