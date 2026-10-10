@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useDeferredValue } from "react";
 import { Input, Button, message, Spin, Select, Card, Modal, DatePicker, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { apiClient } from "./utils/api";
@@ -85,6 +85,13 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
 
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const [inputValue, setInputValue] = useState("");
+  // The real textarea always renders `inputValue` directly so typing stays instant. The colored
+  // overlay is purely cosmetic and, for a huge paste, expensive to rebuild (hundreds of <span>
+  // elements in a very tall scrollable box) — recomputing it synchronously on every keystroke was
+  // costing roughly a second per character once the box held a few thousand lines. Deferring it
+  // lets React keep the textarea responsive and catch the overlay up once the browser is idle,
+  // instead of blocking each keystroke on a full highlight rebuild.
+  const deferredInputValue = useDeferredValue(inputValue);
   const [groupedData, setGroupedData] = useState<{ [key: number]: NumberEntry[] }>({ 1: [], 2: [], 3: [] });
   const [types, setTypes] = useState<{ typeid: number; typename: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -533,17 +540,20 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   function makeHighlightedHTML(text: string) {
     if (text === "") return "<div></div>";
-    let html = escapeHtml(text);
+    if (issueMap.size === 0) return `<div class="highlight-content">${escapeHtml(text)}</div>`;
 
-    const keys = Array.from(issueMap.keys()).sort((a, b) => b.length - a.length);
-    keys.forEach((raw) => {
-      if (!raw) return;
-      const kind = issueMap.get(raw) || "ambig";
-      const cls = kind === "invalid" ? "issue-invalid" : kind === "filled" ? "issue-filled" : "issue-ambig";
-      const esc = raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const re = new RegExp(esc, "gm");
-      html = html.replace(re, `<span class="${cls}">${escapeHtml(raw)}</span>`);
-    });
+    // One pass over the lines with an O(1) map lookup per line, rather than one full-text regex
+    // scan per flagged line — the old approach was O(issues × text length) and could take several
+    // seconds to freeze the tab on a large paste with many ambiguous/invalid lines.
+    const html = text
+      .split("\n")
+      .map((line) => {
+        const kind = issueMap.get(line.trim());
+        if (!kind) return escapeHtml(line);
+        const cls = kind === "invalid" ? "issue-invalid" : kind === "filled" ? "issue-filled" : "issue-ambig";
+        return `<span class="${cls}">${escapeHtml(line)}</span>`;
+      })
+      .join("\n");
 
     return `<div class="highlight-content">${html}</div>`;
   }
@@ -638,7 +648,9 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     const before = value.slice(0, selectionStart);
     const after = value.slice(selectionEnd);
     const leadingNewline = before.length > 0 && !before.endsWith("\n") ? "\n" : "";
-    const trailingNewline = !after.startsWith("\n") && !text.endsWith("\n") ? "\n" : "";
+    // A full blank line after the paste (not just one newline) so the gap before the cursor is
+    // unmistakable to look at, even if the view hasn't scrolled to the exact spot yet.
+    const trailingNewline = text.endsWith("\n\n") ? "" : text.endsWith("\n") ? "\n" : "\n\n";
     const insertion = `${leadingNewline}${text}${trailingNewline}`;
     const newValue = `${before}${insertion}${after}`;
     const newCursor = before.length + insertion.length;
@@ -990,7 +1002,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               ref={highlighterRef}
               className="input-highlighter"
               aria-hidden
-              dangerouslySetInnerHTML={{ __html: makeHighlightedHTML(inputValue) }}
+              dangerouslySetInnerHTML={{ __html: makeHighlightedHTML(deferredInputValue) }}
             />
             <textarea
               ref={textareaRef}
