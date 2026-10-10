@@ -9,18 +9,19 @@ import "./datatable.css";
 
 const { RangePicker } = DatePicker;
 
-interface DayStat {
+interface UserDayStat {
   day: string;
+  user_id: number | null;
+  username: string | null;
   images: number;
   events: number;
-  users: number;
 }
 
-// How many images users pasted into the ChatGPT extraction button on Insert History, day by day,
-// over a date range the platform admin picks.
+// How many images each user pasted into the ChatGPT extraction button on Insert History, day by
+// day, over a date range the platform admin picks.
 const ImagePasteStats: React.FC = () => {
   const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(6, "day"), dayjs()]);
-  const [rows, setRows] = useState<DayStat[]>([]);
+  const [rows, setRows] = useState<UserDayStat[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchStats = async (start: Dayjs, end: Dayjs) => {
@@ -28,7 +29,7 @@ const ImagePasteStats: React.FC = () => {
     try {
       const stillLoggedIn = await checkAuthAndHandleLogout();
       if (!stillLoggedIn) return;
-      const response = await apiClient.get<DayStat[]>("/image-paste-stats", {
+      const response = await apiClient.get<UserDayStat[]>("/image-paste-stats", {
         params: { start: start.format("YYYY-MM-DD"), end: end.format("YYYY-MM-DD") },
       });
       setRows(response.data || []);
@@ -55,12 +56,13 @@ const ImagePasteStats: React.FC = () => {
     (acc, r) => ({ images: acc.images + r.images, events: acc.events + r.events }),
     { images: 0, events: 0 }
   );
+  const userCount = new Set(rows.map((r) => r.user_id)).size;
 
-  const columns: ColumnsType<DayStat> = [
+  const columns: ColumnsType<UserDayStat> = [
     { title: "Date", dataIndex: "day", key: "day", render: (d: string) => dayjs(d).format("ddd D MMM YYYY") },
+    { title: "User", dataIndex: "username", key: "username", render: (u: string | null) => u ?? "(deleted user)" },
     { title: "Images pasted", dataIndex: "images", key: "images", align: "right" },
     { title: "Paste events", dataIndex: "events", key: "events", align: "right" },
-    { title: "Users", dataIndex: "users", key: "users", align: "right" },
   ];
 
   return (
@@ -82,13 +84,13 @@ const ImagePasteStats: React.FC = () => {
       </div>
 
       <div className="compare-summary" style={{ margin: "4px 0 16px" }}>
-        {totals.images} image{totals.images === 1 ? "" : "s"} across {totals.events} paste{totals.events === 1 ? "" : "s"} in this range
+        {totals.images} image{totals.images === 1 ? "" : "s"} across {totals.events} paste{totals.events === 1 ? "" : "s"} by {userCount} user{userCount === 1 ? "" : "s"} in this range
       </div>
 
-      <Table<DayStat>
+      <Table<UserDayStat>
         dataSource={rows}
         columns={columns}
-        rowKey="day"
+        rowKey={(r) => `${r.day}-${r.user_id}`}
         loading={loading}
         pagination={false}
         locale={{ emptyText: "No images were pasted into ChatGPT in this range." }}
