@@ -524,6 +524,9 @@ const Dashboard: React.FC = () => {
           >
             Recalculate
           </Button>
+          <Button disabled={!selectedGroupId} loading={loading} onClick={fetchData}>
+            Refresh
+          </Button>
           {activeTab === "settlement" ? (
             <Button type="primary" onClick={exportToCSV}>
               Export as Excel
