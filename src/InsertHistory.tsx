@@ -97,6 +97,7 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
 
   const [invalidLines, setInvalidLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
   const [ambiguousLines, setAmbiguousLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
+  const [filledLines, setFilledLines] = useState<{ line: number; raw: string }[]>([]);
   const [pastedImagePreviews, setPastedImagePreviews] = useState<string[]>([]);
   const [extractingImages, setExtractingImages] = useState(false);
   const [readingLocally, setReadingLocally] = useState(false); // the first local read downloads the reader
@@ -337,6 +338,12 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   const validateAndGroupNumbers = (input: string) => {
     const rawLines = input.split(/\r?\n/);
     const lines = resolveBareGroups(rawLines);
+    // Lines resolveBareGroups rewrote (a bare key or "key-" picked up its amount from the group) —
+    // highlighted so it's visible the amount wasn't typed on that line itself.
+    const filleds: { line: number; raw: string }[] = [];
+    lines.forEach((resolved, idx) => {
+      if (resolved.trim() !== rawLines[idx].trim()) filleds.push({ line: idx, raw: rawLines[idx] });
+    });
     const validNumbers: { [key: number]: NumberEntry[] } = { 1: [], 2: [], 3: [] };
     const invalids: { line: number; raw: string; reason: string }[] = [];
     const ambigs: { line: number; raw: string; reason: string }[] = [];
@@ -488,19 +495,24 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     setGroupedData(validNumbers);
     setInvalidLines(invalids);
     setAmbiguousLines(ambigs);
+    setFilledLines(filleds);
   };
 
   // ---------- Highlighting logic ----------
   // issueMap: exact raw-line strings -> type
   const issueMap = React.useMemo(() => {
-    const map = new Map<string, "invalid" | "ambig">();
+    const map = new Map<string, "invalid" | "ambig" | "filled">();
     invalidLines.forEach((l) => map.set(l.raw.trim(), "invalid"));
     ambiguousLines.forEach((l) => {
       const key = l.raw.trim();
       if (!map.has(key)) map.set(key, "ambig");
     });
+    filledLines.forEach((l) => {
+      const key = l.raw.trim();
+      if (!map.has(key)) map.set(key, "filled");
+    });
     return map;
-  }, [invalidLines, ambiguousLines]);
+  }, [invalidLines, ambiguousLines, filledLines]);
 
   function escapeHtml(unsafe: string) {
     // keep newlines intact (do not replace with <br/>)
@@ -515,7 +527,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     keys.forEach((raw) => {
       if (!raw) return;
       const kind = issueMap.get(raw) || "ambig";
-      const cls = kind === "invalid" ? "issue-invalid" : "issue-ambig";
+      const cls = kind === "invalid" ? "issue-invalid" : kind === "filled" ? "issue-filled" : "issue-ambig";
       const esc = raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const re = new RegExp(esc, "gm");
       html = html.replace(re, `<span class="${cls}">${escapeHtml(raw)}</span>`);

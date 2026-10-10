@@ -312,7 +312,8 @@
 }
 
 .issue-invalid,
-.issue-ambig {
+.issue-ambig,
+.issue-filled {
   display: inline;
   background-clip: padding-box;
   box-decoration-break: clone;
@@ -332,6 +333,16 @@
   text-decoration-color: var(--color-warning);
   text-decoration-thickness: 2px;
   background: rgba(253, 176, 34, 0.18);
+  color: var(--color-text);
+}
+
+/* A key whose amount was filled in from the group around it (e.g. "37-" between two "-10" lines),
+   not typed on that line itself. */
+.issue-filled {
+  text-decoration: underline;
+  text-decoration-color: var(--color-primary);
+  text-decoration-thickness: 2px;
+  background: rgba(62, 207, 142, 0.16);
   color: var(--color-text);
 }
 
