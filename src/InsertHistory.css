@@ -667,9 +667,28 @@
   margin-left: auto;
   color: var(--color-text-muted);
 }
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.group-header__right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .group-total {
-  float: right;
   font-size: 0.85em;
   font-weight: 600;
   color: var(--color-text-muted);
+}
+
+.group-copy-btn {
+  font-size: 0.72rem;
+  height: 22px;
+  padding: 0 0.45rem;
+  line-height: 1;
 }

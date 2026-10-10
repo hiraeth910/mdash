@@ -11,6 +11,7 @@ import { isAdminRole } from "./utils/session";
 import "./datatable.css";
 import { IGame, IGameResult } from "./games";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import { useDocumentTitle } from "./utils/useDocumentTitle";
 import ResultModal from "./ResultModal";
 import { searchProps } from "./utils/selectSearch";
 
@@ -77,6 +78,7 @@ const DataTables: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [userGroups, setUserGroups] = useState<IGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<IGroup | null>(null);
+  useDocumentTitle(selectedGroup?.groupname);
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [users, setUsers] = useState<IUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);

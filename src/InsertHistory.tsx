@@ -12,6 +12,7 @@ import moment from "moment";
 import { IGame } from "./games";
 import { IGroup } from "./userGames";
 import { checkAuthAndHandleLogout } from "./authcheck";
+import { useDocumentTitle } from "./utils/useDocumentTitle";
 import {  fillWithNextValue } from "./utils/helpter";
 import { compressForUpload } from "./utils/imageCompress";
 import { ocrBetPairs } from "./utils/ocr";
@@ -94,6 +95,7 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const [selectedGame, setSelectedGame] = useState<IGame | null>(null);
   const [userGroups, setUserGroups] = useState<IGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<IGroup | null>(null);
+  useDocumentTitle(selectedGroup?.groupname);
 
   const [invalidLines, setInvalidLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
   const [ambiguousLines, setAmbiguousLines] = useState<{ line: number; raw: string; reason: string }[]>([]);
@@ -615,13 +617,40 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   };
 
   // Pasting an image straight into the box reads it with OCR in the browser (typed lists).
+  // Pasting text always starts it on its own line, rather than gluing it onto whatever already
+  // sits on the line the cursor happens to be on.
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
-    if (imageItems.length === 0) return; // let normal text paste proceed
+    if (imageItems.length > 0) {
+      e.preventDefault();
+      const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
+      readInBox(files);
+      return;
+    }
 
+    const text = e.clipboardData.getData("text");
+    if (!text) return;
     e.preventDefault();
-    const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
-    readInBox(files);
+
+    const textarea = e.currentTarget;
+    const { selectionStart, selectionEnd, value } = textarea;
+    const before = value.slice(0, selectionStart);
+    const after = value.slice(selectionEnd);
+    const leadingNewline = before.length > 0 && !before.endsWith("\n") ? "\n" : "";
+    const trailingNewline = after.length > 0 && !after.startsWith("\n") && !text.endsWith("\n") ? "\n" : "";
+    const insertion = `${leadingNewline}${text}${trailingNewline}`;
+    const newValue = `${before}${insertion}${after}`;
+    const newCursor = before.length + insertion.length;
+
+    setInputValue(newValue);
+
+    if (pendingRafRef.current !== null) cancelAnimationFrame(pendingRafRef.current);
+    pendingRafRef.current = requestAnimationFrame(() => {
+      pendingRafRef.current = null;
+      if (!textareaRef.current) return;
+      textareaRef.current.setSelectionRange(newCursor, newCursor);
+      syncScroll();
+    });
   };
 
   // Pasting or dropping into the box only ever reads on this device. If it cannot, the person is
@@ -806,6 +835,23 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   const entryTotal = entries.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   const isBlocked = invalidLines.length > 0 || Object.values(groupedData).flat().length === 0;
+
+  // Copies one type's table (number-amount per line, cut already applied) as plain text.
+  const copyGroupTable = async (typename: string, numbers: NumberEntry[]) => {
+    const total = numbers.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const text = [
+      typename.toUpperCase(),
+      ...numbers.map((item) => `${item.number}-${item.amount}`),
+      `Total-${total}`,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success(`${typename.toUpperCase()} table copied`);
+    } catch (err) {
+      console.error("Copy failed:", err);
+      message.error("Failed to copy");
+    }
+  };
 
   return (
     <div className="insert-history-page card-container">
@@ -1026,16 +1072,13 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             />
           </div>
 
-          {!dummy && (
           <Button
             className="btn-ghost btn-responsive"
             onClick={handlePasteButtonClick}
-            disabled={extractingImages || dummy}
-            title={dummy ? "Not available in practice mode (it uses the server)" : undefined}
+            disabled={extractingImages}
           >
             Paste image (ChatGPT)
           </Button>
-          )}
 
           <div className="pana-quick-row">
             <Dropdown menu={digitMenu(SP_PANA)} trigger={["click"]} getPopupContainer={() => document.body}>
@@ -1132,9 +1175,18 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             Object.entries(groupedData).map(([length, numbers], idx) =>
               numbers.length > 0 ? (
                 <div className="group" key={length}>
-                  <h3>
-                    {getMapping(Number(length))?.typename.toUpperCase()}
-                    <span className="group-total">{new Intl.NumberFormat("en-IN").format(numbers.reduce((sum, item) => sum + (Number(item.amount) || 0), 0))}</span>
+                  <h3 className="group-header">
+                    <span className="group-header__title">{getMapping(Number(length))?.typename.toUpperCase()}</span>
+                    <span className="group-header__right">
+                      <span className="group-total">{new Intl.NumberFormat("en-IN").format(numbers.reduce((sum, item) => sum + (Number(item.amount) || 0), 0))}</span>
+                      <Button
+                        size="small"
+                        className="group-copy-btn"
+                        onClick={() => copyGroupTable(getMapping(Number(length))?.typename || "", numbers)}
+                      >
+                        Copy
+                      </Button>
+                    </span>
                   </h3>
                   <div className="scroll-container" ref={(el) => (groupRefs.current[idx] = el)}>
                     {numbers.map((item, index) => (
