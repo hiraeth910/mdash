@@ -115,6 +115,11 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
   const highlighterRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // Only the most recent keystroke's cursor-restoration frame should ever apply — typing (or a
+  // select+delete) faster than a paint lets an older frame fire after a newer edit and yank the
+  // cursor/selection back to a stale position (seen as the cursor landing on the wrong line, or a
+  // selection the user just made getting silently overridden).
+  const pendingRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const fetchGamesAndGroups = async () => {
@@ -958,56 +963,56 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   prevInputRef.current = normalized;
   setInputValue(normalized);
 
-  // Step 3: Intelligent cursor restoration
-  requestAnimationFrame(() => {
+  // Step 3: Cursor restoration, deferred a frame so it runs after React has actually committed the
+  // (possibly autofill-grown) value to the textarea — setting .value natively shoves the cursor to
+  // the end, so without this it would always land there instead of where the user was.
+  if (pendingRafRef.current !== null) cancelAnimationFrame(pendingRafRef.current);
+  pendingRafRef.current = requestAnimationFrame(() => {
+    pendingRafRef.current = null;
     if (!textareaRef.current) return;
 
     try {
-      let newStart = start;
-      let newEnd = end;
+      let newStart: number;
+      let newEnd: number;
 
-      // If autofill added text, adjust cursor position
-      if (needsFilling && normalized.length > cleaned.length) {
-        // Find which line was affected
-        const originalLines = cleaned.split("\n");
-        const normalizedLines = normalized.split("\n");
-        
-        let charCount = 0;
-        let adjustedStart = start;
-        
-        for (let i = 0; i < originalLines.length; i++) {
-          const origLine = originalLines[i];
-          const normLine = normalizedLines[i] || "";
-          
-          // If cursor is on or before this line
-          if (start <= charCount + origLine.length + 1) {
-            // If this line was autofilled
-            if (normLine.length > origLine.length) {
-              // Keep cursor at same position within the line
-              const posInLine = start - charCount;
-              adjustedStart = charCount + Math.min(posInLine, origLine.length);
-            } else {
-              adjustedStart = charCount + (start - charCount);
-            }
-            break;
-          }
-          
-          charCount += origLine.length + 1; // +1 for newline
-        }
-        
-        newStart = Math.min(adjustedStart, normalized.length);
-        newEnd = Math.min(newStart + (end - start), normalized.length);
-      } else {
-        // Simple case: just clamp to new length
+      if (normalized === cleaned) {
         newStart = Math.min(start, normalized.length);
         newEnd = Math.min(end, normalized.length);
+      } else {
+        // Map the cursor from "cleaned" to "normalized" by the longest common prefix/suffix, rather
+        // than walking line-by-line: that walk assumed the edit and the autofill landed on the same
+        // line, which breaks the moment they don't (e.g. deleting an earlier line while a later one
+        // gets filled) and can plant the cursor — and the next keystroke — on the wrong line.
+        let prefixLen = 0;
+        const maxPrefix = Math.min(cleaned.length, normalized.length);
+        while (prefixLen < maxPrefix && cleaned[prefixLen] === normalized[prefixLen]) prefixLen++;
+
+        let suffixLen = 0;
+        const maxSuffix = Math.min(cleaned.length - prefixLen, normalized.length - prefixLen);
+        while (
+          suffixLen < maxSuffix &&
+          cleaned[cleaned.length - 1 - suffixLen] === normalized[normalized.length - 1 - suffixLen]
+        ) {
+          suffixLen++;
+        }
+
+        const mapPos = (pos: number) => {
+          if (pos <= prefixLen) return pos;
+          if (pos >= cleaned.length - suffixLen) return normalized.length - (cleaned.length - pos);
+          // The cursor sat inside the stretch autofill rewrote — settle it right after the part
+          // that's still the same, rather than guessing a position inside the changed text.
+          return prefixLen;
+        };
+
+        newStart = Math.min(mapPos(start), normalized.length);
+        newEnd = Math.min(mapPos(end), normalized.length);
       }
 
       textareaRef.current.setSelectionRange(newStart, newEnd);
     } catch (err) {
       console.warn("Could not restore selection:", err);
     }
-    
+
     syncScroll();
   });
 }}
