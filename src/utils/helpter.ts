@@ -15,16 +15,16 @@ export function fillWithNextValue(input: string): string {
       continue;
     }
 
-    // Detect full key=value pair
-    if (/^[0-9A-Za-z]+=[0-9A-Za-z]+$/.test(line)) {
-      const [key, value] = line.split("=");
-      nextValue = value;
-      output[i] = `${key}=${value}`;
+    // Detect a full key<separator>value pair ("x"/"X" counts as a separator too)
+    const fullPair = line.match(/^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]([0-9A-Za-z]+)$/);
+    if (fullPair) {
+      nextValue = fullPair[1];
+      output[i] = line;
       continue;
     }
 
     // Incomplete (ends with any symbol)
-    if (/^[0-9A-Za-z]+[=\-\+\:\;\,\.]$/.test(line)) {
+    if (/^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]$/.test(line)) {
       const key = line.slice(0, -1);
       const symbol = line.slice(-1);
       const filled = `${key}${symbol}${nextValue ?? ""}`;
@@ -50,5 +50,5 @@ export function fillWithNextValue(input: string): string {
  * Check if input contains patterns that would trigger fillWithNextValue
  */
 export function needsAutofill(input: string): boolean {
-  return /^[0-9A-Za-z]+[=\-\+\:\;\,\.]$/m.test(input);
+  return /^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]$/m.test(input);
 }

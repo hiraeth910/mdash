@@ -288,7 +288,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     }
 
     const simplePairAmount = (ln: string): number | null => {
-      const m = ln.match(/^\d{1,3}\s*[.\-=:]\s*(\d[\d,.]*)$/);
+      const m = ln.match(/^\d{1,3}\s*[.\-=:xX]\s*(\d[\d,.]*)$/);
       if (!m) return null;
       const amt = parseInt(m[1].replace(/,/g, ""), 10);
       return Number.isFinite(amt) && amt > 1 ? amt : null;
@@ -392,7 +392,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         continue;
       }
 
-      const pairMatch = line.match(/^\s*(\d{1,3})\s*[.\-=:]\s*(\d[\d,.]*)\s*$/);
+      const pairMatch = line.match(/^\s*(\d{1,3})\s*[.\-=:xX]\s*(\d[\d,.]*)\s*$/);
       if (pairMatch) {
         const num = pairMatch[1];
         const amtStr = pairMatch[2].replace(/,/g, "");
@@ -437,7 +437,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           prevNonEmptyIdx = i;
           continue;
         }
-        const numbers = rawNums.replace(/[,.\-\+:*]+/g, " ").trim().split(/\s+/).filter(Boolean);
+        const numbers = rawNums.replace(/[,.\-\+:*xX]+/g, " ").trim().split(/\s+/).filter(Boolean);
         let anyInvalid = false;
         numbers.forEach((num) => {
           const cleaned = (num.match(/\d+/) || [""])[0];
@@ -920,7 +920,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     .join("\n");
 
   // Step 2: Only apply autofill if needed AND text has changed
-  const needsFilling = /^[0-9A-Za-z]+[=\-\+\:\;\,\.]$/m.test(cleaned);
+  const needsFilling = /^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]$/m.test(cleaned);
   const normalized = needsFilling ? fillWithNextValue(cleaned) : cleaned;
 
   // Optimization: Skip update if nothing changed
