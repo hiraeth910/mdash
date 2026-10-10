@@ -482,6 +482,10 @@ button:focus-visible {
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
+  font-size: 1.15rem;
+}
+.admin-bar__who strong {
+  font-size: 1.3rem;
 }
 .admin-bar__role {
   font-size: 0.75rem;
