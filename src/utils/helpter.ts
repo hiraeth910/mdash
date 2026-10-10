@@ -1,4 +1,4 @@
-export function fillWithNextValue(input: string): string {
+export function fillWithNextValue(input: string, currentLine?: number): string {
   const lines = input.split(/\r?\n/);
   const output: string[] = [];
   let nextValue: string | null = null;
@@ -18,7 +18,9 @@ export function fillWithNextValue(input: string): string {
     // Detect a full key<separator>value pair ("x"/"X" counts as a separator too)
     const fullPair = line.match(/^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]([0-9A-Za-z]+)$/);
     if (fullPair) {
-      nextValue = fullPair[1];
+      // The line the cursor is on may still be mid-typed (e.g. "43-1" on the way to "43-10"), so
+      // it can be a fill target but must never become the source value for earlier lines yet.
+      if (i !== currentLine) nextValue = fullPair[1];
       output[i] = line;
       continue;
     }

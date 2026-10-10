@@ -268,7 +268,13 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   const resolveBareGroups = (rawLines: string[]): string[] => {
     const trimmed = rawLines.map((l) => l.trim());
     const isSeparatorLine = (ln: string) => /^[\s=+\-_*#]{2,}$/.test(ln);
-    const isBareNumber = (ln: string) => /^\d{1,3}$/.test(ln);
+    // A bare key, with or without a trailing separator and no amount yet (e.g. a line left as "37-"
+    // because the live autofill hasn't had a chance to resolve it, or was typed that way on purpose).
+    const bareKey = (ln: string): string | null => {
+      const m = ln.match(/^(\d{1,3})[.\-=:xX]?$/);
+      return m ? m[1] : null;
+    };
+    const isBareNumber = (ln: string) => bareKey(ln) !== null;
 
     // Mirrors the main parser below: a bare number right after a row of dashes/equals is a header
     // index (e.g. a "0" before a group block), never part of a shared-amount run.
@@ -318,7 +324,8 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
       if (amount !== null) {
         for (let k = runStart; k <= runEnd; k++) {
-          if (isBareNumber(trimmed[k])) out[k] = `${trimmed[k]}-${amount}`;
+          const key = bareKey(trimmed[k]);
+          if (key !== null) out[k] = `${key}-${amount}`;
         }
       }
       i = j;
@@ -921,7 +928,10 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   // Step 2: Only apply autofill if needed AND text has changed
   const needsFilling = /^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]$/m.test(cleaned);
-  const normalized = needsFilling ? fillWithNextValue(cleaned) : cleaned;
+  // The line the cursor is on may still be mid-typed (e.g. "43-1" on the way to "43-10"), so it must
+  // never be used as the source value propagated to earlier bare/incomplete lines — only as a target.
+  const currentLine = originalValue.slice(0, start).split("\n").length - 1;
+  const normalized = needsFilling ? fillWithNextValue(cleaned, currentLine) : cleaned;
 
   // Optimization: Skip update if nothing changed
   if (normalized === prevInputRef.current) {
