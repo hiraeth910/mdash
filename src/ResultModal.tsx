@@ -78,6 +78,7 @@ const ResultModal: React.FC<Props> = ({ open, gameId, gameName, date, result, on
           inputMode="numeric"
           value={openPana}
           onChange={(e) => setOpenPana(e.target.value.replace(/\D/g, ""))}
+          onPressEnter={() => changed && valid && save()}
         />
         <label htmlFor="result-close-pana">Close Pana</label>
         <Input
@@ -86,6 +87,7 @@ const ResultModal: React.FC<Props> = ({ open, gameId, gameName, date, result, on
           inputMode="numeric"
           value={closePana}
           onChange={(e) => setClosePana(e.target.value.replace(/\D/g, ""))}
+          onPressEnter={() => changed && valid && save()}
           // The close result can only follow an open result that is already saved.
           disabled={id === -1}
           placeholder={id === -1 ? "Save the open result first" : undefined}

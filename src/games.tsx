@@ -238,6 +238,17 @@ if (name === "open_pana")  setOpenPana(value);
     }
   };
 
+  // Shared by the result modal's OK button and Enter-to-save on its inputs.
+  const resultSaveDisabled = (() => {
+    const isChanged = openPana !== dbOpenPana || closePana !== dbClosePana;
+    if (!isChanged) return true;
+    if (id === -1) return !isOpenValid;
+    const isCloseNowEntered = closePana !== "";
+    if (!isOpenValid) return true;
+    if (isCloseNowEntered && !isCloseValid) return true;
+    return false;
+  })();
+
   return (
     <>
       <div className="container">
@@ -368,6 +379,7 @@ if (name === "open_pana")  setOpenPana(value);
               name="gamename"
               value={newGame.gamename}
               onChange={handleInputChange}
+              onPressEnter={isEditing ? handleUpdate : addGameToList}
             />
             <label>Description</label>
             <Input
@@ -375,6 +387,7 @@ if (name === "open_pana")  setOpenPana(value);
               name="gamedescription"
               value={newGame.gamedescription}
               onChange={handleInputChange}
+              onPressEnter={isEditing ? handleUpdate : addGameToList}
             />
             {!isEditing && (
               <>
@@ -404,26 +417,7 @@ title={
           open={resultModalVisible}
           onCancel={() => setResultModalVisible(false)}
           onOk={handleSubmitResult}
-          okButtonProps={{
-            disabled: (() => {
-              const isChanged = openPana !== dbOpenPana || closePana !== dbClosePana;
-              if (!isChanged) return true;
-              
-              if (id === -1) {
-                // Initial entry: must have valid open, close is disabled
-                return !isOpenValid;
-              } else {
-                // Update entry: 
-                // 1. open must be valid (always)
-                // 2. if close is entered (non-empty), it must be valid
-                // 3. if close was already in DB, it must still be valid (covered by isCloseValid if they edit it)
-                const isCloseNowEntered = closePana !== "";
-                if (!isOpenValid) return true;
-                if (isCloseNowEntered && !isCloseValid) return true;
-                return false;
-              }
-            })()
-          }}
+          okButtonProps={{ disabled: resultSaveDisabled }}
         >
           <div style={{ color: 'var(--color-text)' }}>
             <label>Game Date</label>
@@ -443,6 +437,7 @@ title={
               name="open_pana"
               value={openPana}
               onChange={handleResultInputChange}
+              onPressEnter={() => !resultSaveDisabled && handleSubmitResult()}
             />
             <label>Close Pana</label>
             <Input
@@ -451,6 +446,7 @@ title={
               name="close_pana"
               value={closePana}
               onChange={handleResultInputChange}
+              onPressEnter={() => !resultSaveDisabled && handleSubmitResult()}
               // Disable closePana input when inserting a new result
               disabled={id === -1}
             />

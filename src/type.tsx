@@ -181,6 +181,7 @@ const Types: React.FC = () => {
           name="gamename"
           value={newGame.gamename}
           onChange={handleInputChange}
+          onPressEnter={isEditing ? handleUpdate : addGameToList}
         />
         <label>Description</label>
         <Input
@@ -188,6 +189,7 @@ const Types: React.FC = () => {
           name="gamedescription"
           value={newGame.gamedescription}
           onChange={handleInputChange}
+          onPressEnter={isEditing ? handleUpdate : addGameToList}
         />
 
         {!isEditing && (

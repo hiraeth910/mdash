@@ -380,6 +380,7 @@ const Users: React.FC = () => {
             name="userid"
             value={newUser.userid}
             onChange={handleInputChange}
+            onPressEnter={isEditing ? handleUpdate : handleSubmit}
           />
           <label>Password</label>
           <Input
@@ -388,6 +389,7 @@ const Users: React.FC = () => {
             name="password"
             value={newUser.password}
             onChange={handleInputChange}
+            onPressEnter={isEditing ? handleUpdate : handleSubmit}
           />
           <label>Role</label>
           <Select {...searchProps}

@@ -211,13 +211,13 @@ const Groups: React.FC = () => {
   onCancel={() => setIsModalOpen(false)}
 >
   <div style={{ color: 'var(--color-text)' }}>
-    <Form form={form} layout="vertical">
+    <Form form={form} layout="vertical" onFinish={handleSubmit}>
       <Form.Item
         name="groupname"
         label="Group Name"
         rules={[{ required: true }]}
       >
-        <Input />
+        <Input onPressEnter={() => form.submit()} />
       </Form.Item>
 
       <Form.Item
@@ -241,6 +241,7 @@ const Groups: React.FC = () => {
               form.setFieldsValue({ nonpana_payable: 100 - commissionValue });
             }
           }}
+          onPressEnter={() => form.submit()}
         />
       </Form.Item>
 
@@ -249,7 +250,7 @@ const Groups: React.FC = () => {
       </Form.Item>
 
       <Form.Item name="pana_payable" label="Pana Payable">
-        <Input type="number" />
+        <Input type="number" onPressEnter={() => form.submit()} />
       </Form.Item>
     </Form>
   </div>

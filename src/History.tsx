@@ -695,6 +695,7 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
           <Input
             value={editingRecord?.history_number}
             onChange={(e) => handleModalChange("history_number", e.target.value)}
+            onPressEnter={handleModalOk}
           />
           {modalErrors.number && (
             <div style={{ color: "red", fontSize: "12px" }}>
@@ -710,6 +711,7 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
             onChange={(e) =>
               handleModalChange("history_amount", e.target.value)
             }
+            onPressEnter={handleModalOk}
           />
           {modalErrors.amount && (
             <div style={{ color: "red", fontSize: "12px" }}>
