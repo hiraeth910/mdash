@@ -4,6 +4,7 @@ import { Table, Button, DatePicker, Grid, Select, Spin, message } from "antd";
 import { CloseOutlined, CopyOutlined, PaperClipOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
+import { getGames } from "./utils/gamesCache";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
 import { isAdminRole } from "./utils/session";
@@ -159,8 +160,7 @@ const DataTables: React.FC = () => {
     try {
       const stillLoggedIn = await checkAuthAndHandleLogout();
       if (!stillLoggedIn) return;
-      const gameresponse = await apiClient.get("/games");
-      const gamesResp: IGame[] = gameresponse.data || [];
+      const gamesResp: IGame[] = await getGames();
       // same extract function locally
       const extractSortKey = (g: IGame) => {
         const desc = (g as any).gamedescription || "";
@@ -217,11 +217,16 @@ const DataTables: React.FC = () => {
     }
   }, [selectedDate, selectedUser, selectedGroup, selectedUserId, selectedGame, pickedGroups]);
 
+  // Re-reads both the bet totals and the declared result for whatever is selected right now;
+  // the result otherwise only gets checked on first landing (or after saving one in ResultModal).
+  const refreshAll = () => {
+    if (selectedUser !== null && selectedGame) fetchData();
+    setResultReload((n) => n + 1);
+  };
+
   // A recalculation started from the header: reload whatever is selected right now.
   const refreshRef = useRef<() => void>(() => undefined);
-  refreshRef.current = () => {
-    if (selectedUser !== null && selectedGame) fetchData();
-  };
+  refreshRef.current = refreshAll;
   useEffect(() => {
     const refresh = () => refreshRef.current();
     window.addEventListener("recalculated", refresh);
@@ -653,7 +658,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <label>Group</label>
-                  <Button onClick={() => fetchData()} type="primary" size="small">Refresh</Button>
+                  <Button onClick={refreshAll} type="primary" size="small">Refresh</Button>
                 </div>
                 <Select {...searchProps}
                   placeholder="Select Group"

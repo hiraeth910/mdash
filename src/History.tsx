@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { useUserStore } from "./store/store";
 import { apiClient } from "./utils/api";
+import { getGames } from "./utils/gamesCache";
 import { IGroup } from "./userGames";
 import { IGame } from "./games";
 import { checkAuthAndHandleLogout } from "./authcheck";
@@ -169,8 +170,7 @@ const fetchGames = async () => {
   try {
     const stillLoggedIn = await checkAuthAndHandleLogout();
     if (!stillLoggedIn) return;
-    const response = await apiClient.get("/games");
-    const gamesResp: IGame[] = response.data || [];
+    const gamesResp: IGame[] = await getGames();
     const sorted = gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b));
     setGames(sorted);
   } catch {

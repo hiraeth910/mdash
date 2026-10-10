@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
 import { isAdminRole } from "./utils/session";
 import { apiClient } from "./utils/api";
+import { getGames } from "./utils/gamesCache";
 import { checkAuthAndHandleLogout } from "./authcheck";
 import "./usergames.css";
 import { searchProps } from "./utils/selectSearch";
@@ -38,9 +39,8 @@ const Games: React.FC = () => {
       try {
         const stillLoggedIn = await checkAuthAndHandleLogout();
   if (!stillLoggedIn) return;
-        const gamesResponse = await apiClient.get("/games");
         setloading(true)
-        setGames(gamesResponse.data);
+        setGames(await getGames());
 
         const groupsResponse = await apiClient.get(`/user/groups/${userId}`);
         setUserGroups(groupsResponse.data);

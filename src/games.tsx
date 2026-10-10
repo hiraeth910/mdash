@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "./store/store";
 import { isAdminRole } from "./utils/session";
 import { apiClient } from "./utils/api";
+import { getGames, invalidateGamesCache } from "./utils/gamesCache";
 import "./game.css";
 import { checkAuthAndHandleLogout } from "./authcheck";
 
@@ -77,8 +78,7 @@ const isCloseValid = /^\d{3}$/.test(closePana);
     try {
       const stillLoggedIn = await checkAuthAndHandleLogout();
   if (!stillLoggedIn) return;
-      const response = await apiClient.get<IGame[]>("/games");
-      setGames(response.data);
+      setGames(await getGames());
     } catch (error) {
       console.error(error);
       message.error("Failed to fetch games");
@@ -111,6 +111,7 @@ const isCloseValid = /^\d{3}$/.test(closePana);
       message.success("Games processed successfully!");
       setNewGamesList([]);
       setModalVisible(false);
+      invalidateGamesCache();
       fetchGames();
     } catch (error) {
       console.error(error);
@@ -140,6 +141,7 @@ const isCloseValid = /^\d{3}$/.test(closePana);
       await apiClient.post("/managemasterdata", { data: [updateEntry] });
       message.success("Game updated successfully!");
       setModalVisible(false);
+      invalidateGamesCache();
       fetchGames();
     } catch (error) {
       console.error(error);

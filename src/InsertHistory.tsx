@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input, Button, message, Spin, Select, Card, Modal, DatePicker, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { apiClient } from "./utils/api";
+import { getGames } from "./utils/gamesCache";
 import dayjs from "dayjs";
 import { Link, useParams } from "react-router-dom";
 import "./InsertHistory.css";
@@ -123,8 +124,7 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
       try {
         const stillLoggedIn = await checkAuthAndHandleLogout();
         if (!stillLoggedIn) return;
-       const gamesResponse = await apiClient.get("/games");
-const gamesResp: IGame[] = gamesResponse.data || [];
+       const gamesResp: IGame[] = await getGames();
 // same extract function locally
 const extractSortKey = (g: IGame) => {
   const desc = (g as any).gamedescription || "";
