@@ -618,7 +618,8 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   // Pasting an image straight into the box reads it with OCR in the browser (typed lists).
   // Pasting text always starts it on its own line, rather than gluing it onto whatever already
-  // sits on the line the cursor happens to be on.
+  // sits on the line the cursor happens to be on, and leaves the cursor on a fresh line right
+  // after the pasted content (not at the end of the paste), ready for the next line to be typed.
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
     if (imageItems.length > 0) {
@@ -637,7 +638,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     const before = value.slice(0, selectionStart);
     const after = value.slice(selectionEnd);
     const leadingNewline = before.length > 0 && !before.endsWith("\n") ? "\n" : "";
-    const trailingNewline = after.length > 0 && !after.startsWith("\n") && !text.endsWith("\n") ? "\n" : "";
+    const trailingNewline = !after.startsWith("\n") && !text.endsWith("\n") ? "\n" : "";
     const insertion = `${leadingNewline}${text}${trailingNewline}`;
     const newValue = `${before}${insertion}${after}`;
     const newCursor = before.length + insertion.length;
