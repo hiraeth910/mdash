@@ -646,12 +646,29 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     setInputValue(newValue);
 
     if (pendingRafRef.current !== null) cancelAnimationFrame(pendingRafRef.current);
-    pendingRafRef.current = requestAnimationFrame(() => {
+    // A huge paste can take React longer than one frame to actually commit to the DOM (it has to
+    // re-render the whole highlighted overlay too). Acting before that commit lands would set the
+    // selection against the still-old (shorter) value — getting silently clamped — and leave the
+    // real cursor positioned differently from where the code (and the user) thinks it is: it reads
+    // as "further down" once the real commit catches up, exactly as "logically on the next line,
+    // physically still on the last one" until you start typing and it jumps.
+    const applySelection = (attemptsLeft: number) => {
       pendingRafRef.current = null;
-      if (!textareaRef.current) return;
-      textareaRef.current.setSelectionRange(newCursor, newCursor);
+      const el = textareaRef.current;
+      if (!el) return;
+      if (el.value !== newValue && attemptsLeft > 0) {
+        pendingRafRef.current = requestAnimationFrame(() => applySelection(attemptsLeft - 1));
+        return;
+      }
+      el.setSelectionRange(newCursor, newCursor);
+      // setSelectionRange doesn't reliably scroll a long textarea to reveal the new position on
+      // its own, especially right after a huge value change, so do it explicitly.
+      const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+      const linesBeforeCursor = newValue.slice(0, newCursor).split("\n").length - 1;
+      el.scrollTop = Math.max(0, linesBeforeCursor * lineHeight - el.clientHeight / 2);
       syncScroll();
-    });
+    };
+    pendingRafRef.current = requestAnimationFrame(() => applySelection(10));
   };
 
   // Pasting or dropping into the box only ever reads on this device. If it cannot, the person is
