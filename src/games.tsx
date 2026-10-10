@@ -295,7 +295,7 @@ if (name === "open_pana")  setOpenPana(value);
                             handleEdit(game);
                           }}
                         />
-                        {userRole === "superadmin" && (
+                        {isAdminRole(userRole) && (
                         <Button
                           type="default"
                           danger
@@ -341,7 +341,7 @@ if (name === "open_pana")  setOpenPana(value);
                             handleEdit(game);
                           }}
                         />
-                        {userRole === "superadmin" && (
+                        {isAdminRole(userRole) && (
                         <Button
                           type="default"
                           danger

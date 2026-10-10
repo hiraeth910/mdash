@@ -757,7 +757,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
                 ? "Winning numbers are highlighted in each table below"
                 : "Ank is the last digit of the pana's digit sum"}
             </p>
-            {userRole === "superadmin" && (
+            {isAdminRole(userRole) && (
               <Button
                 size="small"
                 className="btn-ghost"
