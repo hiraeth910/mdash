@@ -103,6 +103,7 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const [readingLocally, setReadingLocally] = useState(false); // the first local read downloads the reader
   const [dropActive, setDropActive] = useState(false); // an image file is being dragged over the box
   const [panaAmount, setPanaAmount] = useState("10"); // shared amount used by the SP/DP/TP quick-insert buttons
+  const [cutPercent, setCutPercent] = useState(""); // practice-only: % taken off every parsed amount
   const prevInputRef = useRef<string>("");
   const [practiceMessages, setPracticeMessages] = useState<GameMessage[]>([]);
 
@@ -178,7 +179,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       setAmbiguousLines([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputValue, selectedTyp]);
+  }, [inputValue, selectedTyp, cutPercent]);
 
   const fetchTypes = async () => {
     if (dummy) return; // the default type names are used
@@ -347,6 +348,10 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     const validNumbers: { [key: number]: NumberEntry[] } = { 1: [], 2: [], 3: [] };
     const invalids: { line: number; raw: string; reason: string }[] = [];
     const ambigs: { line: number; raw: string; reason: string }[] = [];
+    // Practice mode only: shaves the given % off every parsed amount before it reaches the table,
+    // so testing a cut doesn't require re-typing the whole list.
+    const cutPct = dummy ? parseFloat(cutPercent) || 0 : 0;
+    const applyCut = (amt: number) => (cutPct > 0 ? Math.round(amt * (1 - cutPct / 100)) : amt);
 
     const isSeparatorLine = (ln: string) => /^[\s=+\-_*#]{2,}$/.test(ln.trim());
     let prevNonEmptyIdx = -1;
@@ -390,7 +395,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               validNumbers[len].push({
                 number: num,
                 type: mapping.typename,
-                amount,
+                amount: applyCut(amount),
                 typeid: mapping.typeid,
               });
             } else {
@@ -423,7 +428,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             validNumbers[len].push({
               number: num,
               type: mapping.typename,
-              amount: amt,
+              amount: applyCut(amt),
               typeid: mapping.typeid,
             });
           } else {
@@ -462,7 +467,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               validNumbers[len].push({
                 number: cleaned,
                 type: mapping.typename,
-                amount,
+                amount: applyCut(amount),
                 typeid: mapping.typeid,
               });
             } else {
@@ -1046,6 +1051,21 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               aria-label="Amount for SP/DP/TP quick-insert"
             />
           </div>
+
+          {dummy && (
+            <div className="cut-percent-row">
+              <label>Cut</label>
+              <Input
+                className="cut-percent-row__input"
+                size="middle"
+                value={cutPercent}
+                onChange={(e) => setCutPercent(e.target.value.replace(/[^\d.]/g, ""))}
+                placeholder="0"
+                suffix="%"
+                aria-label="Cut percentage taken off every amount"
+              />
+            </div>
+          )}
 
           {(extractingImages || pastedImagePreviews.length > 0) && (
             <div className="pasted-images-row">

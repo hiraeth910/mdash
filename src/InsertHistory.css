@@ -357,6 +357,16 @@
   max-width: 110px;
 }
 
+.cut-percent-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cut-percent-row__input {
+  max-width: 110px;
+}
+
 .pasted-images-row {
   display: flex;
   align-items: center;
