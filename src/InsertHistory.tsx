@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useDeferredValue } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Input, Button, message, Spin, Select, Card, Modal, DatePicker, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { apiClient } from "./utils/api";
@@ -17,6 +17,8 @@ import {  fillWithNextValue } from "./utils/helpter";
 import { compressForUpload } from "./utils/imageCompress";
 import { ocrBetPairs } from "./utils/ocr";
 import { searchProps } from "./utils/selectSearch";
+import InsertHistoryEditor, { LineIssueKind } from "./InsertHistoryEditor";
+import type { EditorView } from "@codemirror/view";
 
 interface NumberEntry {
   number: string;
@@ -85,13 +87,6 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
 
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const [inputValue, setInputValue] = useState("");
-  // The real textarea always renders `inputValue` directly so typing stays instant. The colored
-  // overlay is purely cosmetic and, for a huge paste, expensive to rebuild (hundreds of <span>
-  // elements in a very tall scrollable box) — recomputing it synchronously on every keystroke was
-  // costing roughly a second per character once the box held a few thousand lines. Deferring it
-  // lets React keep the textarea responsive and catch the overlay up once the browser is idle,
-  // instead of blocking each keystroke on a full highlight rebuild.
-  const deferredInputValue = useDeferredValue(inputValue);
   const [groupedData, setGroupedData] = useState<{ [key: number]: NumberEntry[] }>({ 1: [], 2: [], 3: [] });
   const [types, setTypes] = useState<{ typeid: number; typename: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -113,17 +108,8 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const [dropActive, setDropActive] = useState(false); // an image file is being dragged over the box
   const [panaAmount, setPanaAmount] = useState("10"); // shared amount used by the SP/DP/TP quick-insert buttons
   const [cutPercent, setCutPercent] = useState(""); // practice-only: % taken off every parsed amount
-  const prevInputRef = useRef<string>("");
   const [practiceMessages, setPracticeMessages] = useState<GameMessage[]>([]);
-
-  // Text set from code (an image paste, or clearing after Update) must count as the previous value,
-  // otherwise deleting it by hand looks like "no change" and the box refuses to clear.
-  useEffect(() => {
-    prevInputRef.current = inputValue;
-  }, [inputValue]);
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const highlighterRef = useRef<HTMLDivElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     const fetchGamesAndGroups = async () => {
@@ -521,9 +507,10 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   };
 
   // ---------- Highlighting logic ----------
-  // issueMap: exact raw-line strings -> type
+  // issueMap: exact trimmed-line strings -> issue kind. Handed to the editor, which turns it into
+  // per-line CSS classes (a line decoration — see InsertHistoryEditor.tsx for why that's safe).
   const issueMap = React.useMemo(() => {
-    const map = new Map<string, "invalid" | "ambig" | "filled">();
+    const map = new Map<string, LineIssueKind>();
     invalidLines.forEach((l) => map.set(l.raw.trim(), "invalid"));
     ambiguousLines.forEach((l) => {
       const key = l.raw.trim();
@@ -535,37 +522,6 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     });
     return map;
   }, [invalidLines, ambiguousLines, filledLines]);
-
-  function escapeHtml(unsafe: string) {
-    // keep newlines intact (do not replace with <br/>)
-    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  function makeHighlightedHTML(text: string) {
-    if (text === "") return "<div></div>";
-    if (issueMap.size === 0) return `<div class="highlight-content">${escapeHtml(text)}</div>`;
-
-    // One pass over the lines with an O(1) map lookup per line, rather than one full-text regex
-    // scan per flagged line — the old approach was O(issues × text length) and could take several
-    // seconds to freeze the tab on a large paste with many ambiguous/invalid lines.
-    const html = text
-      .split("\n")
-      .map((line) => {
-        const kind = issueMap.get(line.trim());
-        if (!kind) return escapeHtml(line);
-        const cls = kind === "invalid" ? "issue-invalid" : kind === "filled" ? "issue-filled" : "issue-ambig";
-        return `<span class="${cls}">${escapeHtml(line)}</span>`;
-      })
-      .join("\n");
-
-    return `<div class="highlight-content">${html}</div>`;
-  }
-
-  const syncScroll = () => {
-    if (!textareaRef.current || !highlighterRef.current) return;
-    highlighterRef.current.scrollTop = textareaRef.current.scrollTop;
-    highlighterRef.current.scrollLeft = textareaRef.current.scrollLeft;
-  };
 
   // ---------- Paste-an-image-to-extract-text ----------
   // Reads the images with `extract` and appends the resulting lines to the input box.
@@ -627,16 +583,6 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     const pairs: string[] = [];
     for (const file of files) pairs.push(...(await ocrBetPairs(file)));
     return pairs.join("\n");
-  };
-
-  // Pasting an image straight into the box reads it with OCR in the browser (typed lists).
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
-    if (imageItems.length === 0) return; // let normal text paste proceed
-
-    e.preventDefault();
-    const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
-    readInBox(files);
   };
 
   // Pasting or dropping into the box only ever reads on this device. If it cannot, the person is
@@ -712,30 +658,43 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     onClick: () => insertPana(TP_PANA),
   };
 
-  // const mapPosition = (original: string, cleaned: string, pos: number): number => {
-  //   const originalLines = original.split(/\r?\n/);
-  //   const cleanedLines = cleaned.split(/\r?\n/);
-  //   let currentPos = 0;
-  //   let newPos = 0;
-  //   for (let k = 0; k < originalLines.length; k++) {
-  //     const origLine = originalLines[k];
-  //     const cleanLine = cleanedLines[k] || "";
-  //     const removed = origLine.length - cleanLine.length;
-  //     const lineStart = currentPos;
-  //     const lineEnd = currentPos + origLine.length;
-  //     if (pos >= lineStart && pos < lineEnd) {
-  //       const posInLine = pos - lineStart;
-  //       if (posInLine < removed) {
-  //         return newPos;
-  //       } else {
-  //         return newPos + (posInLine - removed);
-  //       }
-  //     }
-  //     currentPos += origLine.length + (k < originalLines.length - 1 ? 1 : 0);
-  //     newPos += cleanLine.length + (k < cleanedLines.length - 1 ? 1 : 0);
-  //   }
-  //   return newPos;
-  // };
+  // Chat-export style timestamp prefixes ("[10/9, 11:30 PM] John:") stripped from pasted content.
+  const HEADER_RE =
+    /^\s*\[\s*\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s+\d{1,2}:\d{2}(?:\s*[APMapm]{2})?)?\s*\][^:]*:\s*/;
+
+  // Runs on every edit the editor reports. Unlike the old textarea version, there is no cursor
+  // math here at all: CodeMirror automatically maps the existing selection through any change
+  // that doesn't touch it, so only the specific lines that actually need rewriting (header
+  // stripping, autofill) are patched — never the line the cursor is currently on — and the cursor
+  // simply stays where the person left it, by construction, rather than by us recomputing it.
+  const handleEditorChange = (rawText: string, currentLine: number, view: EditorView) => {
+    const cleaned = rawText
+      .split(/\r?\n/)
+      .map((line) => line.replace(HEADER_RE, ""))
+      .join("\n");
+
+    const needsFilling = /^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]$/m.test(cleaned);
+    // The line the cursor is on may still be mid-typed (e.g. "43-1" on the way to "43-10"), so it
+    // must never be used as the source value for earlier bare/incomplete lines — only as a target
+    // — and fillWithNextValue already leaves it untouched as a target too.
+    const normalized = needsFilling ? fillWithNextValue(cleaned, currentLine) : cleaned;
+
+    if (normalized !== rawText) {
+      const rawLines = rawText.split("\n");
+      const normLines = normalized.split("\n");
+      const changes: { from: number; to: number; insert: string }[] = [];
+      let pos = 0;
+      for (let i = 0; i < rawLines.length; i++) {
+        const lineLen = rawLines[i].length;
+        const nextLine = normLines[i] ?? "";
+        if (rawLines[i] !== nextLine) changes.push({ from: pos, to: pos + lineLen, insert: nextLine });
+        pos += lineLen + 1;
+      }
+      if (changes.length > 0) view.dispatch({ changes });
+    }
+
+    setInputValue(normalized);
+  };
 
   // ---------- Submit ----------
   const handleSubmit = async () => {
@@ -946,7 +905,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       )}
 
       <div className="containerx">
-        {/* Left Input Section with overlay highlighter */}
+        {/* Left Input Section */}
         <div className="input-section">
           <div
             className={`input-shell ${invalidLines.length > 0 ? "input-shell--error" : ""} ${dropActive ? "input-shell--drop" : ""}`}
@@ -954,107 +913,13 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div
-              ref={highlighterRef}
-              className="input-highlighter"
-              aria-hidden
-              dangerouslySetInnerHTML={{ __html: makeHighlightedHTML(deferredInputValue) }}
-            />
-            <textarea
-              ref={textareaRef}
+            <InsertHistoryEditor
               value={inputValue}
-     onChange={(e) => {
-  const textarea = e.target as HTMLTextAreaElement;
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const originalValue = e.target.value;
-
-  // Step 1: Strip headers
-  const cleaned = originalValue
-    .split(/\r?\n/)
-    .map((line) =>
-      line.replace(
-        /^\s*\[\s*\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s+\d{1,2}:\d{2}(?:\s*[APMapm]{2})?)?\s*\][^:]*:\s*/,
-        ""
-      )
-    )
-    .join("\n");
-
-  // Step 2: Only apply autofill if needed AND text has changed
-  const needsFilling = /^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]$/m.test(cleaned);
-  // The line the cursor is on may still be mid-typed (e.g. "43-1" on the way to "43-10"), so it must
-  // never be used as the source value propagated to earlier bare/incomplete lines — only as a target.
-  const currentLine = originalValue.slice(0, start).split("\n").length - 1;
-  const normalized = needsFilling ? fillWithNextValue(cleaned, currentLine) : cleaned;
-
-  // Optimization: Skip update if nothing changed
-  if (normalized === prevInputRef.current) {
-    return;
-  }
-
-  prevInputRef.current = normalized;
-  setInputValue(normalized);
-
-  // Step 3: Intelligent cursor restoration
-  requestAnimationFrame(() => {
-    if (!textareaRef.current) return;
-
-    try {
-      let newStart = start;
-      let newEnd = end;
-
-      // If autofill added text, adjust cursor position
-      if (needsFilling && normalized.length > cleaned.length) {
-        // Find which line was affected
-        const originalLines = cleaned.split("\n");
-        const normalizedLines = normalized.split("\n");
-
-        let charCount = 0;
-        let adjustedStart = start;
-
-        for (let i = 0; i < originalLines.length; i++) {
-          const origLine = originalLines[i];
-          const normLine = normalizedLines[i] || "";
-
-          // If cursor is on or before this line
-          if (start <= charCount + origLine.length + 1) {
-            // If this line was autofilled
-            if (normLine.length > origLine.length) {
-              // Keep cursor at same position within the line
-              const posInLine = start - charCount;
-              adjustedStart = charCount + Math.min(posInLine, origLine.length);
-            } else {
-              adjustedStart = charCount + (start - charCount);
-            }
-            break;
-          }
-
-          charCount += origLine.length + 1; // +1 for newline
-        }
-
-        newStart = Math.min(adjustedStart, normalized.length);
-        newEnd = Math.min(newStart + (end - start), normalized.length);
-      } else {
-        // Simple case: just clamp to new length
-        newStart = Math.min(start, normalized.length);
-        newEnd = Math.min(end, normalized.length);
-      }
-
-      textareaRef.current.setSelectionRange(newStart, newEnd);
-    } catch (err) {
-      console.warn("Could not restore selection:", err);
-    }
-
-    syncScroll();
-  });
-}}
-
-              onInput={syncScroll}
-              onScroll={syncScroll}
-              onKeyUp={syncScroll}
-              onClick={syncScroll}
-              onPaste={handlePaste}
+              onValueChange={handleEditorChange}
+              issueMap={issueMap}
+              onPasteImages={readInBox}
               placeholder="Enter numbers separated by comma, space, or dash — or paste / drop an image (up to 2)"
+              className="input-editor"
             />
           </div>
 
