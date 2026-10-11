@@ -124,11 +124,6 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
   const highlighterRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  // Only the most recent keystroke's cursor-restoration frame should ever apply — typing (or a
-  // select+delete) faster than a paint lets an older frame fire after a newer edit and yank the
-  // cursor/selection back to a stale position (seen as the cursor landing on the wrong line, or a
-  // selection the user just made getting silently overridden).
-  const pendingRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const fetchGamesAndGroups = async () => {
@@ -635,60 +630,13 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   };
 
   // Pasting an image straight into the box reads it with OCR in the browser (typed lists).
-  // Pasting text always starts it on its own line, rather than gluing it onto whatever already
-  // sits on the line the cursor happens to be on, and leaves the cursor on a fresh line right
-  // after the pasted content (not at the end of the paste), ready for the next line to be typed.
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith("image/"));
-    if (imageItems.length > 0) {
-      e.preventDefault();
-      const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
-      readInBox(files);
-      return;
-    }
+    if (imageItems.length === 0) return; // let normal text paste proceed
 
-    const text = e.clipboardData.getData("text");
-    if (!text) return;
     e.preventDefault();
-
-    const textarea = e.currentTarget;
-    const { selectionStart, selectionEnd, value } = textarea;
-    const before = value.slice(0, selectionStart);
-    const after = value.slice(selectionEnd);
-    const leadingNewline = before.length > 0 && !before.endsWith("\n") ? "\n" : "";
-    // A full blank line after the paste (not just one newline) so the gap before the cursor is
-    // unmistakable to look at, even if the view hasn't scrolled to the exact spot yet.
-    const trailingNewline = text.endsWith("\n\n") ? "" : text.endsWith("\n") ? "\n" : "\n\n";
-    const insertion = `${leadingNewline}${text}${trailingNewline}`;
-    const newValue = `${before}${insertion}${after}`;
-    const newCursor = before.length + insertion.length;
-
-    setInputValue(newValue);
-
-    if (pendingRafRef.current !== null) cancelAnimationFrame(pendingRafRef.current);
-    // A huge paste can take React longer than one frame to actually commit to the DOM (it has to
-    // re-render the whole highlighted overlay too). Acting before that commit lands would set the
-    // selection against the still-old (shorter) value — getting silently clamped — and leave the
-    // real cursor positioned differently from where the code (and the user) thinks it is: it reads
-    // as "further down" once the real commit catches up, exactly as "logically on the next line,
-    // physically still on the last one" until you start typing and it jumps.
-    const applySelection = (attemptsLeft: number) => {
-      pendingRafRef.current = null;
-      const el = textareaRef.current;
-      if (!el) return;
-      if (el.value !== newValue && attemptsLeft > 0) {
-        pendingRafRef.current = requestAnimationFrame(() => applySelection(attemptsLeft - 1));
-        return;
-      }
-      el.setSelectionRange(newCursor, newCursor);
-      // setSelectionRange doesn't reliably scroll a long textarea to reveal the new position on
-      // its own, especially right after a huge value change, so do it explicitly.
-      const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
-      const linesBeforeCursor = newValue.slice(0, newCursor).split("\n").length - 1;
-      el.scrollTop = Math.max(0, linesBeforeCursor * lineHeight - el.clientHeight / 2);
-      syncScroll();
-    };
-    pendingRafRef.current = requestAnimationFrame(() => applySelection(10));
+    const files = imageItems.map((item) => item.getAsFile()).filter((f): f is File => !!f);
+    readInBox(files);
   };
 
   // Pasting or dropping into the box only ever reads on this device. If it cannot, the person is
@@ -1047,49 +995,49 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   prevInputRef.current = normalized;
   setInputValue(normalized);
 
-  // Step 3: Cursor restoration, deferred a frame so it runs after React has actually committed the
-  // (possibly autofill-grown) value to the textarea — setting .value natively shoves the cursor to
-  // the end, so without this it would always land there instead of where the user was.
-  if (pendingRafRef.current !== null) cancelAnimationFrame(pendingRafRef.current);
-  pendingRafRef.current = requestAnimationFrame(() => {
-    pendingRafRef.current = null;
+  // Step 3: Intelligent cursor restoration
+  requestAnimationFrame(() => {
     if (!textareaRef.current) return;
 
     try {
-      let newStart: number;
-      let newEnd: number;
+      let newStart = start;
+      let newEnd = end;
 
-      if (normalized === cleaned) {
-        newStart = Math.min(start, normalized.length);
-        newEnd = Math.min(end, normalized.length);
-      } else {
-        // Map the cursor from "cleaned" to "normalized" by the longest common prefix/suffix, rather
-        // than walking line-by-line: that walk assumed the edit and the autofill landed on the same
-        // line, which breaks the moment they don't (e.g. deleting an earlier line while a later one
-        // gets filled) and can plant the cursor — and the next keystroke — on the wrong line.
-        let prefixLen = 0;
-        const maxPrefix = Math.min(cleaned.length, normalized.length);
-        while (prefixLen < maxPrefix && cleaned[prefixLen] === normalized[prefixLen]) prefixLen++;
+      // If autofill added text, adjust cursor position
+      if (needsFilling && normalized.length > cleaned.length) {
+        // Find which line was affected
+        const originalLines = cleaned.split("\n");
+        const normalizedLines = normalized.split("\n");
 
-        let suffixLen = 0;
-        const maxSuffix = Math.min(cleaned.length - prefixLen, normalized.length - prefixLen);
-        while (
-          suffixLen < maxSuffix &&
-          cleaned[cleaned.length - 1 - suffixLen] === normalized[normalized.length - 1 - suffixLen]
-        ) {
-          suffixLen++;
+        let charCount = 0;
+        let adjustedStart = start;
+
+        for (let i = 0; i < originalLines.length; i++) {
+          const origLine = originalLines[i];
+          const normLine = normalizedLines[i] || "";
+
+          // If cursor is on or before this line
+          if (start <= charCount + origLine.length + 1) {
+            // If this line was autofilled
+            if (normLine.length > origLine.length) {
+              // Keep cursor at same position within the line
+              const posInLine = start - charCount;
+              adjustedStart = charCount + Math.min(posInLine, origLine.length);
+            } else {
+              adjustedStart = charCount + (start - charCount);
+            }
+            break;
+          }
+
+          charCount += origLine.length + 1; // +1 for newline
         }
 
-        const mapPos = (pos: number) => {
-          if (pos <= prefixLen) return pos;
-          if (pos >= cleaned.length - suffixLen) return normalized.length - (cleaned.length - pos);
-          // The cursor sat inside the stretch autofill rewrote — settle it right after the part
-          // that's still the same, rather than guessing a position inside the changed text.
-          return prefixLen;
-        };
-
-        newStart = Math.min(mapPos(start), normalized.length);
-        newEnd = Math.min(mapPos(end), normalized.length);
+        newStart = Math.min(adjustedStart, normalized.length);
+        newEnd = Math.min(newStart + (end - start), normalized.length);
+      } else {
+        // Simple case: just clamp to new length
+        newStart = Math.min(start, normalized.length);
+        newEnd = Math.min(end, normalized.length);
       }
 
       textareaRef.current.setSelectionRange(newStart, newEnd);
