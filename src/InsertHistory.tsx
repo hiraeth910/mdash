@@ -496,13 +496,21 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         continue;
       }
 
-      const smallNums = (line.match(/\b(\d{1,3})\b/g) || []).map((m) => m.replace(/\D/g, ""));
-      if (smallNums.length === 1) {
-        ambigs.push({ line: i, raw: rawLine, reason: "single number with no amount" });
+      // \b(\d{1,3})\b can never match inside a longer digit run — there's no word boundary between
+      // two adjacent digits — so a bare 4+ digit number with no amount ("1234" on its own line)
+      // matched nothing here and silently fell through every check below with no flag at all. Use
+      // the actual digit runs instead, same as the tokens branch above.
+      const digitRuns = line.match(/\d+/g) || [];
+      if (digitRuns.length === 1) {
+        if (digitRuns[0].length > 3) {
+          invalids.push({ line: i, raw: rawLine, reason: "numbers can only be up to 3 digits" });
+        } else {
+          ambigs.push({ line: i, raw: rawLine, reason: "single number with no amount" });
+        }
         prevNonEmptyIdx = i;
         continue;
       }
-      if (smallNums.length > 1) {
+      if (digitRuns.length > 1) {
         ambigs.push({ line: i, raw: rawLine, reason: "multiple numbers with no clear amount" });
         prevNonEmptyIdx = i;
         continue;

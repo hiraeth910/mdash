@@ -214,6 +214,52 @@ const fetchGames = async () => {
     });
   };
 
+  // Deletes every record matching the current filters in one backend call, instead of selecting
+  // and deleting them one by one — "Delete Selected" sends one id per row and times out well
+  // before a game/group/date with several thousand bets (a slow day, a backlog that built up).
+  const handleNukeAll = () => {
+    if (!selectedGame) {
+      message.warning("Select a game first.");
+      return;
+    }
+    const scopeLabel = `${selectedGame.gamename} on ${selectedDate}${
+      selectedGroup ? ` in group "${selectedGroup.groupname}"` : " across every group"
+    }`;
+    Modal.confirm({
+      title: "Delete everything for this selection?",
+      content: `This permanently deletes every history record for ${scopeLabel} (currently showing ${historyData.length} record${historyData.length === 1 ? "" : "s"}). This cannot be undone.`,
+      okText: "Continue",
+      okButtonProps: { danger: true },
+      onOk: () => {
+        Modal.confirm({
+          title: "Final confirmation",
+          content: "This is the second and last confirmation. There is no way to recover these records afterward. Delete everything?",
+          okText: "Yes, delete everything",
+          okButtonProps: { danger: true },
+          onOk: async () => {
+            try {
+              setLoading(true);
+              const res = await apiClient.post("/history/nuke", {
+                uid: userId,
+                gameid: selectedGame.gameid,
+                date: selectedDate,
+                groupid: selectedGroup?.id ?? -1,
+              });
+              const deleted = res.data?.deleted;
+              message.success(`Deleted ${typeof deleted === "number" ? deleted : "all matching"} records`);
+              setSelectedIds([]);
+              fetchHistory();
+            } catch {
+              message.error("Failed to delete");
+            } finally {
+              setLoading(false);
+            }
+          },
+        });
+      },
+    });
+  };
+
   useEffect(() => {
     fetchGamesAndGroups();
     fetchGames();
@@ -668,6 +714,9 @@ const handleCheckboxChange = (id: number, checked: boolean) => {
         {selectedIds.length > 0 && (
           <Button onClick={() => setSelectedIds([])}>Clear</Button>
         )}
+        <Button danger onClick={handleNukeAll} disabled={!selectedGame}>
+          Delete Everything
+        </Button>
         <span className="drag-select-hint">Tip: press a checkbox and drag over the rows to select many at once.</span>
       </div>
      <div style={{ maxHeight: isMobile ? '80vh' : 'auto', overflowY: isMobile ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
