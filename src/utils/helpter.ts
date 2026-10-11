@@ -27,15 +27,25 @@ export function fillWithNextValue(input: string, currentLine?: number): string {
 
     // Incomplete (ends with any symbol)
     if (/^[0-9A-Za-z]+[=\-\+\:\;\,\.xX]$/.test(line)) {
+      // The line the cursor is on may just have gotten its separator a moment ago, with the person
+      // about to type their own amount right after it (e.g. "37-" on the way to "37-25"). Filling
+      // it immediately would race them: their next keystroke would land after the auto-filled
+      // value instead of replacing it. Leave it alone until they move off this line — the same
+      // rule that already protects it from being used as a fill *source* above.
+      if (i === currentLine) {
+        output[i] = line;
+        continue;
+      }
+
       const key = line.slice(0, -1);
       const symbol = line.slice(-1);
       const filled = `${key}${symbol}${nextValue ?? ""}`;
-      
+
       // Mark if we actually made a change
       if (filled !== line) {
         hasChanges = true;
       }
-      
+
       output[i] = filled;
       continue;
     }
