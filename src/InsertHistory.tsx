@@ -918,7 +918,6 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               onValueChange={handleEditorChange}
               issueMap={issueMap}
               onPasteImages={readInBox}
-              placeholder="Enter numbers separated by comma, space, or dash — or paste / drop an image (up to 2)"
               className="input-editor"
             />
           </div>

@@ -288,8 +288,8 @@ const Dashboard: React.FC = () => {
     return [...lines, { label: finalLabel, value: finalAmount, strong: true }];
   };
 
-  // "Mon 5 Oct 2026"
-  const prettyDate = dayjs(selectedDate).format("ddd D MMM YYYY");
+  // "05-10-2026"
+  const prettyDate = dayjs(selectedDate).format("DD-MM-YYYY");
   // The detailed picture adds the per-type winning numbers under the calculation.
   const billImage = (detailed = false): TableImage | null => {
     if (!settlement) return null;

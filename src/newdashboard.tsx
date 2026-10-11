@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DatePicker, Spin, message, Button, Table, InputNumber, Select, Tabs } from "antd";
+import { DatePicker, Spin, message, Button, Input, Table, InputNumber, Select, Tabs } from "antd";
 import WeekTab from "./WeekTab";
 import SheetTab from "./SheetTab";
-import { LoadingOutlined, HolderOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, HolderOutlined, LeftOutlined, LoadingOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { saveAs } from "file-saver";
 import { Link } from "react-router-dom";
@@ -69,10 +69,16 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
 // A row of the table of picked groups: a group, or one of the closing rows under it.
 type PickedRow = {
   key: number | string;
-  kind: "group" | "total" | "ld" | "day" | "old" | "final";
+  kind: "group" | "total" | "ld" | "day" | "custom" | "old" | "final";
   group_name: string;
   pnl: number;
+  sign?: 1 | -1;
+  rawAmount?: number;
 };
+
+type CustomRow = { key: string; title: string; sign: 1 | -1; amount: number };
+
+const newCustomKey = () => `custom-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 const SummaryDashboard: React.FC = () => {
   const { userRole } = useUserStore();
@@ -93,6 +99,21 @@ const SummaryDashboard: React.FC = () => {
   const [ldPercent, setLdPercent] = useState<number | null>(null);
   const [oldType, setOldType] = useState<"due" | "payment">("due");
   const [oldAmount, setOldAmount] = useState<number | null>(null);
+  const [customRows, setCustomRows] = useState<CustomRow[]>([]);
+
+  const addCustomRow = () => setCustomRows((rs) => [...rs, { key: newCustomKey(), title: "", sign: 1, amount: 0 }]);
+  const updateCustomRow = (key: string, patch: Partial<CustomRow>) =>
+    setCustomRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const removeCustomRow = (key: string) => setCustomRows((rs) => rs.filter((r) => r.key !== key));
+  const moveCustomRow = (key: string, dir: -1 | 1) =>
+    setCustomRows((rs) => {
+      const idx = rs.findIndex((r) => r.key === key);
+      const next = idx + dir;
+      if (idx === -1 || next < 0 || next >= rs.length) return rs;
+      const copy = [...rs];
+      [copy[idx], copy[next]] = [copy[next], copy[idx]];
+      return copy;
+    });
 
   const loaderIcon = <LoadingOutlined style={{ fontSize: 48 }} spin />;
 
@@ -188,9 +209,17 @@ const SummaryDashboard: React.FC = () => {
   const ldAmount = round2((pickedTotal * (ldPercent || 0)) / 100);
   const dayAmount = round2(pickedTotal - ldAmount);
   const dayLabel = dayAmount < 0 ? "Day payment" : "Day due";
+  // Each adjustment row does the math with the row above it (the day due/payment, or the previous
+  // adjustment row), so re-ordering them with the up/down buttons changes the running totals below.
+  const customChain = customRows.reduce<(CustomRow & { running: number })[]>((acc, r) => {
+    const prevRunning = acc.length > 0 ? acc[acc.length - 1].running : dayAmount;
+    const running = round2(prevRunning + r.sign * (Number(r.amount) || 0));
+    return [...acc, { ...r, running }];
+  }, []);
+  const effectiveDay = customChain.length > 0 ? customChain[customChain.length - 1].running : dayAmount;
   // What was carried over from before: a due adds to the day, a payment takes away from it.
   const oldDelta = oldType === "due" ? oldAmount || 0 : -(oldAmount || 0);
-  const finalAmount = round2(dayAmount + oldDelta);
+  const finalAmount = round2(effectiveDay + oldDelta);
   const finalLabel = finalAmount < 0 ? "Final payment" : "Final due";
 
   // Ticked groups stay in their own table and are copied into the table on the right.
@@ -219,6 +248,7 @@ const SummaryDashboard: React.FC = () => {
     { key: "total-picked", kind: "total", group_name: "Total", pnl: pickedTotal },
     { key: "total-ld", kind: "ld", group_name: "", pnl: ldAmount },
     { key: "total-day", kind: "day", group_name: "", pnl: dayAmount },
+    ...customChain.map((c) => ({ key: c.key, kind: "custom" as const, group_name: c.title, pnl: c.running, sign: c.sign, rawAmount: c.amount })),
     { key: "total-old", kind: "old", group_name: "", pnl: oldDelta },
     { key: "total-final", kind: "final", group_name: "", pnl: finalAmount },
   ];
@@ -238,6 +268,7 @@ const SummaryDashboard: React.FC = () => {
             ...((ldPercent || 0) > 0
               ? [{ cells: [`L/D ${ldPercent}%`, String(ldAmount)] }, { cells: [dayLabel, String(dayAmount)], bold: true, tone: tone(dayAmount) }]
               : []),
+            ...customChain.map((c) => ({ cells: [c.title || "Adjustment", String(c.running)], tone: tone(c.running) })),
             ...((oldAmount || 0) > 0 ? [{ cells: [oldType === "due" ? "Old due" : "Old payment", String(oldDelta)], tone: tone(oldDelta) }] : []),
             { cells: [finalLabel, String(finalAmount)], bold: true, shaded: true, tone: tone(finalAmount) },
           ],
@@ -281,6 +312,14 @@ const SummaryDashboard: React.FC = () => {
           </span>
         ) : r.kind === "day" ? (
           <strong>{dayLabel}</strong>
+        ) : r.kind === "custom" ? (
+          <Input
+            size="small"
+            value={r.group_name}
+            placeholder="Adjustment title"
+            aria-label="Adjustment row title"
+            onChange={(e) => updateCustomRow(String(r.key), { title: e.target.value })}
+          />
         ) : r.kind === "old" ? (
           <Select {...searchProps}
             size="small"
@@ -317,10 +356,79 @@ const SummaryDashboard: React.FC = () => {
           <strong style={{ color: r.pnl < 0 ? "red" : "#009416ff", textAlign: "right", display: "block" }}>{r.pnl}</strong>
         ) : r.kind === "ld" ? (
           <span style={{ textAlign: "right", display: "block" }}>{r.pnl}</span>
+        ) : r.kind === "custom" ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <span style={{ display: "inline-flex", gap: 4 }}>
+              <Select {...searchProps}
+                size="small"
+                value={r.sign}
+                onChange={(v) => updateCustomRow(String(r.key), { sign: v })}
+                getPopupContainer={() => document.body}
+                style={{ width: 56 }}
+                aria-label={`Sign for ${r.group_name || "adjustment row"}`}
+                options={[
+                  { value: 1, label: "+" },
+                  { value: -1, label: "−" },
+                ]}
+              />
+              <InputNumber
+                size="small"
+                controls={false}
+                precision={2}
+                value={r.rawAmount}
+                onChange={(v) => updateCustomRow(String(r.key), { amount: v === null ? 0 : Number(v) })}
+                aria-label={`Amount for ${r.group_name || "adjustment row"}`}
+                style={{ width: 90 }}
+                changeOnWheel={false}
+              />
+            </span>
+            <strong style={{ color: r.pnl < 0 ? "red" : "#009416ff" }}>{r.pnl}</strong>
+          </div>
         ) : (
           pnlCell(r.pnl)
         ),
     },
+    ...(customRows.length > 0
+      ? [
+          {
+            title: "",
+            key: "adjust",
+            width: 112,
+            render: (_: unknown, r: PickedRow) => {
+              if (r.kind !== "custom") return null;
+              const idx = customRows.findIndex((c) => c.key === r.key);
+              return (
+                <span style={{ display: "inline-flex" }}>
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<ArrowUpOutlined />}
+                    aria-label={`Move ${r.group_name || "adjustment row"} up`}
+                    disabled={idx <= 0}
+                    onClick={() => moveCustomRow(String(r.key), -1)}
+                  />
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<ArrowDownOutlined />}
+                    aria-label={`Move ${r.group_name || "adjustment row"} down`}
+                    disabled={idx === -1 || idx >= customRows.length - 1}
+                    onClick={() => moveCustomRow(String(r.key), 1)}
+                  />
+                  <Button
+                    size="small"
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    aria-label={`Remove ${r.group_name || "adjustment row"}`}
+                    onClick={() => removeCustomRow(String(r.key))}
+                  />
+                </span>
+              );
+            },
+          },
+        ]
+      : []),
   ];
 
   const pickedPanel =
@@ -328,6 +436,9 @@ const SummaryDashboard: React.FC = () => {
       <div className="day-picked">
         <div className="day-picked__head">
           <h3 className="day-picked__title">Selected groups</h3>
+          <Button size="small" icon={<PlusOutlined />} onClick={addCustomRow} disabled={pickedGroups.length === 0}>
+            Add adjustment row
+          </Button>
           <Button size="small" onClick={copyPickedImage} disabled={pickedGroups.length === 0}>
             Copy image
           </Button>
@@ -341,7 +452,7 @@ const SummaryDashboard: React.FC = () => {
             pagination={false}
             bordered
             size="small"
-            rowClassName={(r) => (r.kind === "group" ? "" : "total-row")}
+            rowClassName={(r) => (r.kind === "group" || r.kind === "custom" ? "" : "total-row")}
             rowSelection={{
               selectedRowKeys: pickedGroups.map((g) => g.key),
               onSelect: (record, selected) => !selected && unpick([record.key]),
