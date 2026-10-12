@@ -12,6 +12,7 @@ import { checkAuthAndHandleLogout } from "./authcheck";
 import { useUserStore } from "./store/store";
 import { downloadTableImage, renderTableImage, type TableImage } from "./utils/tableImage";
 import { searchProps } from "./utils/selectSearch";
+import { PaymentDetailsForm, paymentImageSections, usePaymentDetails } from "./PaymentDetails";
 
 type IGroup = {
   group_id: number;
@@ -100,6 +101,7 @@ const SummaryDashboard: React.FC = () => {
   const [oldType, setOldType] = useState<"due" | "payment">("due");
   const [oldAmount, setOldAmount] = useState<number | null>(null);
   const [customRows, setCustomRows] = useState<CustomRow[]>([]);
+  const [payInfo, setPayInfo, payStatus, savePayInfoNow] = usePaymentDetails();
 
   const addCustomRow = () => setCustomRows((rs) => [...rs, { key: newCustomKey(), title: "", sign: 1, amount: 0 }]);
   const updateCustomRow = (key: string, patch: Partial<CustomRow>) =>
@@ -273,6 +275,7 @@ const SummaryDashboard: React.FC = () => {
             { cells: [finalLabel, String(finalAmount)], bold: true, shaded: true, tone: tone(finalAmount) },
           ],
         },
+        ...(finalAmount > 0 ? paymentImageSections(payInfo) : []),
       ],
     };
   };
@@ -462,6 +465,7 @@ const SummaryDashboard: React.FC = () => {
             }}
           />
         )}
+        {finalAmount > 0 && <PaymentDetailsForm info={payInfo} onChange={setPayInfo} status={payStatus} onSaveNow={savePayInfoNow} />}
       </div>
     ) : null;
 
