@@ -4,7 +4,7 @@ import type { MenuProps } from "antd";
 import { apiClient } from "./utils/api";
 import { getGames } from "./utils/gamesCache";
 import dayjs from "dayjs";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import "./InsertHistory.css";
 import { useUserStore } from "./store/store";
 import CalculatorButton from "./Calculator";
@@ -82,6 +82,7 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
     groupid: string;
     typ: string;
   }>();
+  const navigate = useNavigate();
   const { userId } = useUserStore();
   const today = moment().format("YYYY-MM-DD");
 
@@ -160,6 +161,15 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   useEffect(() => {
     fetchTypes();
   }, []);
+
+  // Keeps the address bar pointed at whatever's currently selected, not just what the page was
+  // opened with, so refreshing, sharing the link, or using back/forward lands back on the same
+  // game/group/type instead of whatever was first loaded.
+  useEffect(() => {
+    if (dummy || !selectedGame || !selectedGroup) return;
+    const path = `/insert/${selectedGame.gameid}/${encodeURIComponent(selectedGame.gamename)}/${selectedGroup.id}/${encodeURIComponent(selectedGroup.groupname)}/${selectedTyp}`;
+    navigate(path, { replace: true });
+  }, [dummy, selectedGame, selectedGroup, selectedTyp, navigate]);
 
   useEffect(() => {
     groupRefs.current.forEach((ref) => {
