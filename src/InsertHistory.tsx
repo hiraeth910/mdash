@@ -90,6 +90,7 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const [groupedData, setGroupedData] = useState<{ [key: number]: NumberEntry[] }>({ 1: [], 2: [], 3: [] });
   const [types, setTypes] = useState<{ typeid: number; typename: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<GameMessage[]>([]);
   const [selectedTyp, setSelectedTyp] = useState<string>(typ || "Open");
@@ -202,6 +203,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       setIsOpen(true);
       return;
     }
+    setHistoryLoading(true);
     try {
       const payload = {
         gameid: selectedGame?.gameid,
@@ -217,6 +219,9 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       }
     } catch (error) {
       console.error("Error fetching history:", error);
+      message.error("Failed to fetch history");
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -895,6 +900,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             type="primary"
             className="btn-responsive"
             onClick={getHistory}
+            loading={historyLoading}
             disabled={!selectedGroup || !selectedGame}
           >
             Fetch History
@@ -988,7 +994,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           </div>
 
           {!dummy && (
-          <Button type="primary" className="btn-responsive" onClick={handleSubmit} disabled={isBlocked}>
+          <Button type="primary" className="btn-responsive" onClick={handleSubmit} loading={loading} disabled={isBlocked}>
             Update
           </Button>
           )}
