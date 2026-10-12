@@ -140,7 +140,9 @@ const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
       EditorView.theme({
         "&": { height: "100%", fontSize: "inherit" },
         ".cm-scroller": { fontFamily: "inherit", lineHeight: "inherit", overflow: "auto" },
-        ".cm-content": { padding: "0.75rem 1rem", caretColor: "var(--color-text)" },
+        // Extra room below the last line so there's space to click to place the cursor there,
+        // instead of only being able to click directly on existing text.
+        ".cm-content": { padding: "0.75rem 1rem", paddingBottom: "25%", caretColor: "var(--color-text)" },
         ".cm-line": { padding: "0" },
         "&.cm-focused": { outline: "none" },
       }),
