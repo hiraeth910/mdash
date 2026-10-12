@@ -69,7 +69,7 @@ const BillTable: React.FC<Props> = ({
   const [oldType, setOldType] = useState<"due" | "payment">("due");
   const [oldAmount, setOldAmount] = useState<number | null>(null);
   const [customRows, setCustomRows] = useState<CustomRow[]>([]);
-  const [payInfo, setPayInfo, payStatus] = usePaymentDetails();
+  const [payInfo, setPayInfo, payStatus, savePayInfoNow] = usePaymentDetails();
 
   const addCustomRow = () => setCustomRows((rs) => [...rs, { key: newCustomKey(), title: "", sign: 1, amount: 0 }]);
   const updateCustomRow = (key: string, patch: Partial<CustomRow>) =>
@@ -379,7 +379,7 @@ const BillTable: React.FC<Props> = ({
         rowClassName={(r) => (rowKinds.includes(r.kind) ? "" : "total-row")}
       />
       {!cdAvailable && <p className="day-hint">CD is available when the total is a due (positive).</p>}
-      {finalAmount > 0 && <PaymentDetailsForm info={payInfo} onChange={setPayInfo} status={payStatus} />}
+      {finalAmount > 0 && <PaymentDetailsForm info={payInfo} onChange={setPayInfo} status={payStatus} onSaveNow={savePayInfoNow} />}
     </div>
   );
 };

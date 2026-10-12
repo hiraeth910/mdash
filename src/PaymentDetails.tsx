@@ -128,7 +128,11 @@ export const usePaymentDetails = () => {
     return () => window.clearTimeout(id);
   }, [info, save]);
 
-  return [info, setInfo, status] as const;
+  // Saves right now instead of waiting on the debounce, for a "Save" button: cheap insurance
+  // against navigating away or closing the tab in the gap before the automatic save would fire.
+  const saveNow = useCallback(() => save(info), [save, info]);
+
+  return [info, setInfo, status, saveNow] as const;
 };
 
 type Section = TableImage["sections"][number];
@@ -184,9 +188,19 @@ const IncludeButton: React.FC<{ on: boolean; onToggle: () => void; label: string
 
 // Four PhonePe numbers and two bank accounts, each with a name. They stay saved and can be edited
 // or cleared; the Include button decides whether one is on the bill picture.
-export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: PaymentInfo) => void; status?: SaveStatus }> = ({ info, onChange, status }) => {
+export const PaymentDetailsForm: React.FC<{
+  info: PaymentInfo;
+  onChange: (next: PaymentInfo) => void;
+  status?: SaveStatus;
+  onSaveNow?: () => Promise<boolean>;
+}> = ({ info, onChange, status, onSaveNow }) => {
   // A picture of just the included PhonePe numbers and bank accounts, to send on their own.
   const paySections = paymentImageSections(info);
+  const saveNow = async () => {
+    const ok = onSaveNow ? await onSaveNow() : false;
+    if (ok) message.success("Saved.");
+    else message.error("Could not save — check connection");
+  };
   const copyPhones = async () => {
     if (paySections.length === 0) return;
     const image: TableImage = {
@@ -217,6 +231,9 @@ export const PaymentDetailsForm: React.FC<{ info: PaymentInfo; onChange: (next: 
         <span className="payment-details__hint">
           {status === "saving" ? "Saving…" : status === "error" ? "Not saved — check connection" : "Include puts it on the picture"}
         </span>
+        <Button size="small" type="primary" loading={status === "saving"} onClick={saveNow} aria-label="Save PhonePe and bank details now">
+          Save
+        </Button>
         <Button size="small" onClick={copyPhones} disabled={paySections.length === 0} aria-label="Copy PhonePe image">
           Copy image
         </Button>
