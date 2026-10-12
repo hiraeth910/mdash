@@ -119,12 +119,26 @@ const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
     });
 
     const pasteHandler = EditorView.domEventHandlers({
-      paste: (event) => {
+      paste: (event, view) => {
         const items = Array.from(event.clipboardData?.items || []).filter((item) => item.type.startsWith("image/"));
-        if (items.length === 0) return false; // let CodeMirror insert the text natively
+        if (items.length > 0) {
+          event.preventDefault();
+          const files = items.map((item) => item.getAsFile()).filter((f): f is File => !!f);
+          onPasteImagesRef.current(files);
+          return true;
+        }
+        // Plain text: pasting a block of numbers onto whatever's already on the current line
+        // (rather than a fresh line) would glue them into one unparseable line. If the cursor
+        // isn't already at the start of a line, start the pasted text on a new one.
+        const text = event.clipboardData?.getData("text/plain");
+        if (!text) return false;
+        const { from, to } = view.state.selection.main;
+        if (view.state.doc.lineAt(from).from === from) return false; // already at a line start
         event.preventDefault();
-        const files = items.map((item) => item.getAsFile()).filter((f): f is File => !!f);
-        onPasteImagesRef.current(files);
+        view.dispatch({
+          changes: { from, to, insert: `\n${text}` },
+          selection: { anchor: from + 1 + text.length },
+        });
         return true;
       },
     });
@@ -140,9 +154,11 @@ const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
       EditorView.theme({
         "&": { height: "100%", fontSize: "inherit" },
         ".cm-scroller": { fontFamily: "inherit", lineHeight: "inherit", overflow: "auto" },
-        // Extra room below the last line so there's space to click to place the cursor there,
-        // instead of only being able to click directly on existing text.
-        ".cm-content": { padding: "0.75rem 1rem", paddingBottom: "25%", caretColor: "var(--color-text)" },
+        // Extra room below the last line -- about 3.5 blank rows worth (line-height 1.5 x 3.5 =
+        // 5.25, in em so it scales with the responsive font-size) -- so there's always some
+        // visible space to click into and place the cursor, even right after a huge paste fills
+        // the box right up to its current last line.
+        ".cm-content": { padding: "0.75rem 1rem", paddingBottom: "5.25em", caretColor: "var(--color-text)" },
         ".cm-line": { padding: "0" },
         "&.cm-focused": { outline: "none" },
       }),
