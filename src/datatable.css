@@ -1006,6 +1006,41 @@ body.drag-selecting,
   color: var(--color-success);
 }
 
+.settlement-calc__custom {
+  flex-wrap: wrap;
+}
+
+.settlement-calc__custom-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.settlement-calc__custom-title .ant-input {
+  min-width: 0;
+}
+
+.settlement-calc__custom-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.settlement-calc__custom-amount strong.is-negative {
+  color: var(--color-danger);
+}
+
+.settlement-calc__custom-amount strong.is-positive {
+  color: var(--color-success);
+}
+
+.settlement-calc__add-custom {
+  justify-content: flex-start;
+}
+
 /* Day page (platform admin): one draggable table per admin */
 .day-grand-total {
   display: flex;

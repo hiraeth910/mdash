@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Table, Button, DatePicker, Select, Spin, message, Modal, InputNumber, Tabs } from "antd";
+import { Table, Button, DatePicker, Input, Select, Spin, message, Modal, InputNumber, Tabs } from "antd";
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { apiClient } from "./utils/api";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -19,6 +20,9 @@ import { PaymentDetailsForm, paymentImageSections, usePaymentDetails } from "./P
 pdfMake.vfs = vfs;
 // Payment is what we owe them (negative), due is what they owe us.
 const conclusionLabel = (v: number) => (v < 0 ? "Payment" : "Due");
+
+type CustomRow = { key: string; title: string; sign: 1 | -1; amount: number };
+const newCustomKey = () => `custom-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 const Dashboard: React.FC = () => {
   const { gameid, gamename } = useParams<{
@@ -52,6 +56,23 @@ const Dashboard: React.FC = () => {
     const v = Number(fromUrl.current.get("ld"));
     return Number.isFinite(v) && v >= 1 && v <= 100 ? Math.round(v) : null;
   });
+  // Adjustment rows: title + sign + amount, chained off the row above (or the day's due/payment
+  // if first), inserted after the day's due/payment line.
+  const [customRows, setCustomRows] = useState<CustomRow[]>([]);
+  const addCustomRow = () => setCustomRows((rs) => [...rs, { key: newCustomKey(), title: "", sign: 1, amount: 0 }]);
+  const updateCustomRow = (key: string, patch: Partial<CustomRow>) =>
+    setCustomRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const removeCustomRow = (key: string) => setCustomRows((rs) => rs.filter((r) => r.key !== key));
+  const moveCustomRow = (key: string, dir: -1 | 1) =>
+    setCustomRows((rs) => {
+      const idx = rs.findIndex((r) => r.key === key);
+      const next = idx + dir;
+      if (idx === -1 || next < 0 || next >= rs.length) return rs;
+      const copy = [...rs];
+      [copy[idx], copy[next]] = [copy[next], copy[idx]];
+      return copy;
+    });
+
   const [activeTab, setActiveTab] = useState<string>(fromUrl.current.get("tab") === "bills" ? "bills" : "settlement");
   const [urlReady, setUrlReady] = useState(false); // the group in the address has been looked up
 
@@ -265,7 +286,15 @@ const Dashboard: React.FC = () => {
   const ldAmount = round2((ldBase * ldPct) / 100);
   const dayAmount = round2(ldBase - ldAmount);
   const dayLabel = dayAmount < 0 ? "Day's payment" : "Day's due";
-  const finalAmount = settlement ? round2(dayAmount + oldDelta) : 0;
+  // Each adjustment row does the math with the row above it (the day's due/payment, or the
+  // previous adjustment row), so re-ordering them changes the running totals below.
+  const customChain = customRows.reduce<(CustomRow & { running: number })[]>((acc, r) => {
+    const prevRunning = acc.length > 0 ? acc[acc.length - 1].running : dayAmount;
+    const running = round2(prevRunning + r.sign * (Number(r.amount) || 0));
+    return [...acc, { ...r, running }];
+  }, []);
+  const effectiveDay = customChain.length > 0 ? customChain[customChain.length - 1].running : dayAmount;
+  const finalAmount = settlement ? round2(effectiveDay + oldDelta) : 0;
   const finalLabel = `Final ${conclusionLabel(finalAmount).toLowerCase()}`;
 
   // The calculation as shown on screen, in the PDF and in the image.
@@ -282,6 +311,7 @@ const Dashboard: React.FC = () => {
     if (ldPct > 0) {
       lines.push({ label: `L/D ${ldPct}%`, value: ldAmount }, { label: dayLabel, value: dayAmount });
     }
+    customChain.forEach((c) => lines.push({ label: c.title || "Adjustment", value: c.running }));
     if (oldBalance > 0) {
       lines.push({ label: oldType === "due" ? "Old due" : "Old payment", value: oldDelta });
     }
@@ -781,6 +811,75 @@ const Dashboard: React.FC = () => {
                           <span>{fmt(dayAmount)}</span>
                         </div>
                       )}
+                      {customChain.map((c, idx) => (
+                        <div className="settlement-calc__row settlement-calc__custom" key={c.key}>
+                          <span className="settlement-calc__custom-title">
+                            <Input
+                              size="small"
+                              placeholder="Adjustment title"
+                              aria-label="Adjustment row title"
+                              value={c.title}
+                              onChange={(e) => updateCustomRow(c.key, { title: e.target.value })}
+                            />
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<ArrowUpOutlined />}
+                              aria-label={`Move ${c.title || "adjustment row"} up`}
+                              disabled={idx === 0}
+                              onClick={() => moveCustomRow(c.key, -1)}
+                            />
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<ArrowDownOutlined />}
+                              aria-label={`Move ${c.title || "adjustment row"} down`}
+                              disabled={idx === customChain.length - 1}
+                              onClick={() => moveCustomRow(c.key, 1)}
+                            />
+                            <Button
+                              size="small"
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              aria-label={`Remove ${c.title || "adjustment row"}`}
+                              onClick={() => removeCustomRow(c.key)}
+                            />
+                          </span>
+                          <span className="settlement-calc__custom-amount">
+                            <span style={{ display: "inline-flex", gap: 4 }}>
+                              <Select {...searchProps}
+                                size="small"
+                                value={c.sign}
+                                onChange={(v) => updateCustomRow(c.key, { sign: v })}
+                                getPopupContainer={() => document.body}
+                                style={{ width: 56 }}
+                                aria-label={`Sign for ${c.title || "adjustment row"}`}
+                                options={[
+                                  { value: 1, label: "+" },
+                                  { value: -1, label: "−" },
+                                ]}
+                              />
+                              <InputNumber
+                                size="small"
+                                controls={false}
+                                precision={2}
+                                value={c.amount}
+                                onChange={(v) => updateCustomRow(c.key, { amount: v === null ? 0 : Number(v) })}
+                                aria-label={`Amount for ${c.title || "adjustment row"}`}
+                                style={{ width: 90 }}
+                                changeOnWheel={false}
+                              />
+                            </span>
+                            <strong className={c.running < 0 ? "is-negative" : "is-positive"}>{fmt(c.running)}</strong>
+                          </span>
+                        </div>
+                      ))}
+                      <div className="settlement-calc__row settlement-calc__add-custom">
+                        <Button size="small" icon={<PlusOutlined />} onClick={addCustomRow}>
+                          Add adjustment row
+                        </Button>
+                      </div>
                       <div className="settlement-calc__row settlement-calc__adjust">
                         <div className="settlement-calc__old">
                           <Select {...searchProps}
