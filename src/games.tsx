@@ -52,12 +52,72 @@ const GamesPage: React.FC = () => {
   // New state for result modal
   const [resultModalVisible, setResultModalVisible] = useState<boolean>(false);
   const [selectedGame, setSelectedGame] = useState<IGame | undefined>(undefined);
-  const [resultDate, setResultDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  // dayjs() reads the browser's local time; this platform runs on IST, so this rolls over to
+  // "today" right at local midnight instead of ~5.5 hours later the way a UTC-based
+  // `new Date().toISOString()` would (IST is UTC+5:30).
+  const [resultDate, setResultDate] = useState<string>(dayjs().format("YYYY-MM-DD"));
  const [openPana, setOpenPana]   = useState<string>("");
 const [closePana, setClosePana] = useState<string>("");
 const [dbOpenPana, setDbOpenPana] = useState<string>("");
 const [dbClosePana, setDbClosePana] = useState<string>("");
-  
+
+  // Ticks every 30s so "is the open/close time already past" and "what's today" (for the result
+  // lookups below) stay correct live, including right across local midnight, without a refresh.
+  const [now, setNow] = useState(() => dayjs());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(dayjs()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const today = now.format("YYYY-MM-DD");
+
+  // Each game's result for today, fetched once the game list and the date are known and kept
+  // current after a result is saved (fetchGames() -> this effect re-runs) or at midnight (today
+  // changes). Keyed by gameid; undefined means "not fetched yet", null fields mean "no result".
+  const [resultsByGame, setResultsByGame] = useState<Record<number, { open_pana: string | null; close_pana: string | null }>>({});
+  useEffect(() => {
+    if (games.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        games.map(async (g) => {
+          try {
+            const res = await apiClient.get<IGameResult[]>("/get/game/result", { params: { gameid: g.gameid, game_date: today } });
+            const result = res.data[0];
+            return [g.gameid, { open_pana: result?.open_pana ?? null, close_pana: result?.close_pana ?? null }] as const;
+          } catch {
+            return [g.gameid, { open_pana: null, close_pana: null }] as const;
+          }
+        })
+      );
+      if (!cancelled) setResultsByGame(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [games, today]);
+
+  // A card is flagged when its time has passed and today's result for that side isn't in yet —
+  // close takes priority over open since it's the more overdue state. Neither flag once both
+  // sides are in (or before their time).
+  const gameStatus = (game: IGame): "missing-open" | "missing-close" | null => {
+    const [openTime, closeTime] = game.gamedescription.split("-");
+    const result = resultsByGame[game.gameid];
+    const pastTime = (t: string) => !!t && now.isAfter(dayjs(`${today} ${t}`, "YYYY-MM-DD HH:mm"));
+    if (pastTime(closeTime) && !result?.close_pana) return "missing-close";
+    if (pastTime(openTime) && !result?.open_pana) return "missing-open";
+    return null;
+  };
+
+  // Today's result, shown right on the card once it's in (or dashed while waiting on it).
+  const resultsLine = (game: IGame) => {
+    const result = resultsByGame[game.gameid];
+    if (!result || (!result.open_pana && !result.close_pana)) return null;
+    return (
+      <p className="game-results">
+        Open: {result.open_pana ?? "—"} · Close: {result.close_pana ?? "—"}
+      </p>
+    );
+  };
 
   const formatTime = (timeString: string): string => {
     if(!timeString){
@@ -151,7 +211,7 @@ const isCloseValid = /^\d{3}$/.test(closePana);
 
   const openResultModal = async (game: IGame) => {
     setSelectedGame(game);
-    const currentDate = new Date().toISOString().split("T")[0];
+    const currentDate = dayjs().format("YYYY-MM-DD");
     setResultDate(currentDate); // default to current date
     setResultModalVisible(true); // Open modal immediately
     try {
@@ -227,6 +287,15 @@ if (name === "open_pana")  setOpenPana(value);
     try {
       await apiClient.post("/game/result", resultData);
       message.success("Game result added/updated successfully!");
+      // The games list is cached and may not change reference, so the results-by-game effect
+      // (which only re-fetches when `games` or `today` change) wouldn't otherwise notice a save
+      // against today -- update the card's result right away instead of waiting on that.
+      if (selectedGame && resultDate === today) {
+        setResultsByGame((prev) => ({
+          ...prev,
+          [selectedGame.gameid]: { open_pana: openPana || null, close_pana: closePana || null },
+        }));
+      }
       setId(-1);
       setDbOpenPana("");
       setDbClosePana("");
@@ -273,10 +342,11 @@ if (name === "open_pana")  setOpenPana(value);
                 .sort((a, b) => a.gamedescription.split("-")[0].localeCompare(b.gamedescription.split("-")[0]))
                 .map((game) => {
                   const [openTime, closeTime] = game.gamedescription.split("-");
+                  const status = gameStatus(game);
                   return (
                     <div
                       key={game.gameid}
-                      className="game-card day-game"
+                      className={`game-card day-game ${status ? `game-card--${status}` : ""}`.trim()}
                     onClick={() => {
                       setSelectedGame(game);
                       navigate(`/data/${game.gameid}/${encodeURIComponent(game.gamename)}`);
@@ -285,6 +355,7 @@ if (name === "open_pana")  setOpenPana(value);
                       <div className="game-details">
                         <h4>{game.gamename}</h4>
                         <p>{formatTime(openTime)} - {formatTime(closeTime)}</p>
+                        {resultsLine(game)}
                       </div>
                       <div className="game-buttons">
                         <Button
@@ -319,10 +390,11 @@ if (name === "open_pana")  setOpenPana(value);
                 .sort((a, b) => a.gamedescription.split("-")[0].localeCompare(b.gamedescription.split("-")[0]))
                 .map((game) => {
                   const [openTime, closeTime] = game.gamedescription.split("-");
+                  const status = gameStatus(game);
                   return (
                     <div
                       key={game.gameid}
-                      className="game-card night-game"
+                      className={`game-card night-game ${status ? `game-card--${status}` : ""}`.trim()}
                     onClick={() => {
                       setSelectedGame(game);
                       navigate(`/data/${game.gameid}/${encodeURIComponent(game.gamename)}`);
@@ -331,6 +403,7 @@ if (name === "open_pana")  setOpenPana(value);
                       <div className="game-details">
                         <h4>{game.gamename}</h4>
                         <p>{formatTime(openTime)} - {formatTime(closeTime)}</p>
+                        {resultsLine(game)}
                       </div>
                       <div className="game-buttons">
                         <Button

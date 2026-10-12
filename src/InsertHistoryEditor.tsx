@@ -98,19 +98,22 @@ const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
   onValueChangeRef.current = onValueChange;
   const onPasteImagesRef = useRef(onPasteImages);
   onPasteImagesRef.current = onPasteImages;
-  // Set synchronously, right as we tell React about our own edit — before React has had any
-  // chance to re-render. Without this, the external-value-sync effect below can run with a
-  // `value` prop that's one render behind CodeMirror's actual (newer, already-typed) document —
-  // multiple keystrokes landing before React flushes is enough — and would forcibly overwrite
-  // what the person just typed with that stale snapshot. Since this flag is set at the exact
-  // moment of the edit rather than discovered later by comparing values, it can't itself be stale.
-  const suppressNextSyncRef = useRef(false);
+  // Holds the exact text we last produced ourselves, set synchronously right as we tell React
+  // about our own edit — before React has had any chance to re-render. The external-value-sync
+  // effect below compares the `value` prop it receives against this instead of a plain boolean
+  // flag: a value equal to what we just produced is our own edit catching up (skip it — the live
+  // document is already there or has moved further on, and dispatching the stale `value` would
+  // clobber newer typing); a value that differs is a genuine external change (clearing after
+  // submit, SP/DP/TP buttons, an image extraction appending lines) and must still be synced in
+  // even if it lands in the same render as one of our own edits — a boolean alone can't tell
+  // those two cases apart once two different value-changing sources land together.
+  const lastSelfValueRef = useRef<string | null>(null);
 
   useEffect(() => {
     const updateListener = EditorView.updateListener.of((update) => {
       if (!update.docChanged) return;
-      suppressNextSyncRef.current = true;
       const text = update.state.doc.toString();
+      lastSelfValueRef.current = text;
       const currentLine = update.state.doc.lineAt(update.state.selection.main.head).number - 1;
       onValueChangeRef.current(text, currentLine, update.view);
     });
@@ -163,20 +166,17 @@ const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
   }, []);
 
   // Syncs in text that changed for a reason other than the user's own typing here (clearing after
-  // submit, the SP/DP/TP buttons, an image extraction appending lines, a prop update). A `value`
-  // update that's just React catching up with our own edit is skipped via suppressNextSyncRef
-  // (see above) rather than by comparing it to the live document — the live document can already
-  // be ahead of this `value` by the time this effect runs, which a value comparison alone can't
-  // tell apart from a genuine external change.
+  // submit, the SP/DP/TP buttons, an image extraction appending lines, a prop update).
   useEffect(() => {
-    if (suppressNextSyncRef.current) {
-      suppressNextSyncRef.current = false;
-      return;
-    }
+    // One-shot: only answers for this specific `value` transition, so a later external update
+    // landing on the same text some time afterward isn't mistaken for an old self-edit too.
+    const selfValue = lastSelfValueRef.current;
+    lastSelfValueRef.current = null;
     const view = viewRef.current;
     if (!view) return;
     const current = view.state.doc.toString();
     if (current === value) return;
+    if (value === selfValue) return; // our own edit's value catching up to the prop, not an external change
     view.dispatch({
       changes: { from: 0, to: current.length, insert: value },
       selection: { anchor: value.length },

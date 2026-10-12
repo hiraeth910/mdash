@@ -110,6 +110,24 @@ body {
   border-left-color: var(--color-primary);
 }
 
+/* A result's time has passed with nothing entered yet -- missing-close is the more overdue state
+   and gets its own color so the two aren't confused at a glance. Fixed colors rather than the
+   theme's own warning/info tokens: day-game/night-game already use the theme's secondary/primary
+   for their border, and depending on the theme those land on amber or blue -- the exact hues a
+   token-based warning/info color would also pick, blending the "missing" state right into the
+   card's normal color instead of standing out from it. Violet and red stay clear of every theme's
+   day/night accent pair.
+*/
+.game-card--missing-open {
+  border-left-color: #a855f7;
+  background: rgba(168, 85, 247, 0.12);
+}
+
+.game-card--missing-close {
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
 .game-details h4 {
   margin: 0 0 0.25rem 0;
   font-size: clamp(1rem, 2vw, 1.125rem);
@@ -122,6 +140,13 @@ body {
   font-size: clamp(0.875rem, 1.5vw, 1rem);
   color: var(--color-text-muted);
   font-weight: 600;
+}
+
+.game-details p.game-results {
+  margin-top: 0.25rem;
+  font-size: clamp(0.8rem, 1.3vw, 0.9rem);
+  color: var(--color-heading);
+  font-weight: 700;
 }
 
 .game-buttons {
