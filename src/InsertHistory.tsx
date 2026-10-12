@@ -654,13 +654,36 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     setInputValue((prev) => (prev.trim() ? `${prev}\n${line}` : line));
   };
 
-  const digitMenu = (chart: Record<string, string>): MenuProps => ({
+  // Each dropdown stays open after a click instead of closing, so several digits/numbers can be
+  // inserted one after another without reopening it every time; it only closes on an outside
+  // click, Escape, or the toggle button itself.
+  const [spOpen, setSpOpen] = useState(false);
+  const [dpOpen, setDpOpen] = useState(false);
+  const [tpOpen, setTpOpen] = useState(false);
+
+  // antd closes the dropdown as part of handling the same click that reaches this onClick, so
+  // reopening it here runs first and gets overwritten by that close right after -- deferring to
+  // a macrotask runs this once the click has fully finished closing it.
+  const reopen = (setOpen: (open: boolean) => void) => setTimeout(() => setOpen(true), 0);
+
+  const digitMenu = (chart: Record<string, string>, setOpen: (open: boolean) => void): MenuProps => ({
     items: Object.keys(chart).map((digit) => ({ key: digit, label: digit })),
-    onClick: ({ key }) => insertPana(chart[key]),
+    onClick: ({ key }) => {
+      insertPana(chart[key]);
+      reopen(setOpen);
+    },
   });
+  // Every individual triple-pana number is its own option, plus a bulk "insert all" at the top.
   const tpMenu: MenuProps = {
-    items: [{ key: "all", label: "000 · 111 · 222 · … · 999" }],
-    onClick: () => insertPana(TP_PANA),
+    items: [
+      { key: "all", label: "000 · 111 · 222 · … · 999" },
+      { type: "divider" },
+      ...TP_PANA.split(".").map((num) => ({ key: num, label: num })),
+    ],
+    onClick: ({ key }) => {
+      insertPana(key === "all" ? TP_PANA : key);
+      reopen(setTpOpen);
+    },
   };
 
   // Chat-export style timestamp prefixes ("[10/9, 11:30 PM] John:") stripped from pasted content.
@@ -937,13 +960,25 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           </Button>
 
           <div className="pana-quick-row">
-            <Dropdown menu={digitMenu(SP_PANA)} trigger={["click"]} getPopupContainer={() => document.body}>
+            <Dropdown
+              menu={digitMenu(SP_PANA, setSpOpen)}
+              trigger={["click"]}
+              open={spOpen}
+              onOpenChange={setSpOpen}
+              getPopupContainer={() => document.body}
+            >
               <Button className="btn-ghost btn-responsive">SP ▾</Button>
             </Dropdown>
-            <Dropdown menu={digitMenu(DP_PANA)} trigger={["click"]} getPopupContainer={() => document.body}>
+            <Dropdown
+              menu={digitMenu(DP_PANA, setDpOpen)}
+              trigger={["click"]}
+              open={dpOpen}
+              onOpenChange={setDpOpen}
+              getPopupContainer={() => document.body}
+            >
               <Button className="btn-ghost btn-responsive">DP ▾</Button>
             </Dropdown>
-            <Dropdown menu={tpMenu} trigger={["click"]} getPopupContainer={() => document.body}>
+            <Dropdown menu={tpMenu} trigger={["click"]} open={tpOpen} onOpenChange={setTpOpen} getPopupContainer={() => document.body}>
               <Button className="btn-ghost btn-responsive">TP ▾</Button>
             </Dropdown>
             <Input
