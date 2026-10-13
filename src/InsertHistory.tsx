@@ -373,7 +373,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     // Practice mode only: shaves the given % off every parsed amount before it reaches the table,
     // so testing a cut doesn't require re-typing the whole list.
     const cutPct = dummy ? parseFloat(cutPercent) || 0 : 0;
-    const applyCut = (amt: number) => (cutPct > 0 ? Math.round(amt * (1 - cutPct / 100)) : amt);
+    const applyCut = (amt: number) => (cutPct > 0 ? Math.ceil((amt * (1 - cutPct / 100)) / 5) * 5 : amt);
 
     const isSeparatorLine = (ln: string) => /^[\s=+\-_*#]{2,}$/.test(ln.trim());
     let prevNonEmptyIdx = -1;
