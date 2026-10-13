@@ -113,6 +113,18 @@ const InsertHistory: React.FC<{ dummy?: boolean }> = ({ dummy = false }) => {
   const [practiceMessages, setPracticeMessages] = useState<GameMessage[]>([]);
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // Between midnight and 9 AM, entering numbers is locked unless the selected date is explicitly
+  // "Yesterday" — a guard against a tab left open overnight silently carrying on as if it were still
+  // the day before. Ticks every 30s so the lock lifts on its own at 9 AM without a page refresh.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  const realYesterday = dayjs(nowTick).subtract(1, "day").format("YYYY-MM-DD");
+  const dayLocked = !dummy && dayjs(nowTick).hour() < 9 && selectedDate !== realYesterday;
+  const dayLockMessage = "New day started — pick Yesterday's date to keep adding last night's numbers. Locked until 9:00 AM.";
+
   useEffect(() => {
     const fetchGamesAndGroups = async () => {
       if (dummy) {
@@ -736,6 +748,10 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   // ---------- Submit ----------
   const handleSubmit = async () => {
+    if (dayLocked) {
+      message.error(dayLockMessage);
+      return;
+    }
     if (!selectedGame || !selectedGroup) {
       message.error("Please select a game and group.");
       return;
@@ -947,7 +963,8 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
         {/* Left Input Section */}
         <div className="input-section">
           <div
-            className={`input-shell ${invalidLines.length > 0 ? "input-shell--error" : ""} ${dropActive ? "input-shell--drop" : ""}`}
+            className={`input-shell ${invalidLines.length > 0 ? "input-shell--error" : ""} ${dropActive ? "input-shell--drop" : ""} ${dayLocked ? "input-shell--locked" : ""}`}
+            data-blocker={dayLocked ? dayLockMessage : undefined}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -958,13 +975,14 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               issueMap={issueMap}
               onPasteImages={readInBox}
               className="input-editor"
+              disabled={dayLocked}
             />
           </div>
 
           <Button
             className="btn-ghost btn-responsive"
             onClick={handlePasteButtonClick}
-            disabled={extractingImages}
+            disabled={extractingImages || dayLocked}
           >
             Paste image (ChatGPT)
           </Button>
@@ -973,23 +991,25 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
             <Dropdown
               menu={digitMenu(SP_PANA, setSpOpen)}
               trigger={["click"]}
-              open={spOpen}
+              open={spOpen && !dayLocked}
               onOpenChange={setSpOpen}
               getPopupContainer={() => document.body}
+              disabled={dayLocked}
             >
-              <Button className="btn-ghost btn-responsive">SP ▾</Button>
+              <Button className="btn-ghost btn-responsive" disabled={dayLocked}>SP ▾</Button>
             </Dropdown>
             <Dropdown
               menu={digitMenu(DP_PANA, setDpOpen)}
               trigger={["click"]}
-              open={dpOpen}
+              open={dpOpen && !dayLocked}
               onOpenChange={setDpOpen}
               getPopupContainer={() => document.body}
+              disabled={dayLocked}
             >
-              <Button className="btn-ghost btn-responsive">DP ▾</Button>
+              <Button className="btn-ghost btn-responsive" disabled={dayLocked}>DP ▾</Button>
             </Dropdown>
-            <Dropdown menu={tpMenu} trigger={["click"]} open={tpOpen} onOpenChange={setTpOpen} getPopupContainer={() => document.body}>
-              <Button className="btn-ghost btn-responsive">TP ▾</Button>
+            <Dropdown menu={tpMenu} trigger={["click"]} open={tpOpen && !dayLocked} onOpenChange={setTpOpen} getPopupContainer={() => document.body} disabled={dayLocked}>
+              <Button className="btn-ghost btn-responsive" disabled={dayLocked}>TP ▾</Button>
             </Dropdown>
             <Input
               className="pana-quick-row__amount"
@@ -998,6 +1018,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
               onChange={(e) => setPanaAmount(e.target.value.replace(/\D/g, ""))}
               placeholder="Amount"
               aria-label="Amount for SP/DP/TP quick-insert"
+              disabled={dayLocked}
             />
           </div>
 
@@ -1039,7 +1060,7 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           </div>
 
           {!dummy && (
-          <Button type="primary" className="btn-responsive" onClick={handleSubmit} loading={loading} disabled={isBlocked}>
+          <Button type="primary" className="btn-responsive" onClick={handleSubmit} loading={loading} disabled={isBlocked || dayLocked}>
             Update
           </Button>
           )}

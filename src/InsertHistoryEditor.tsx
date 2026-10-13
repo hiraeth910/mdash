@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { EditorState, StateEffect, StateField, RangeSetBuilder, Extension } from "@codemirror/state";
+import { EditorState, StateEffect, StateField, RangeSetBuilder, Extension, Compartment } from "@codemirror/state";
 import {
   EditorView,
   Decoration,
@@ -80,6 +80,7 @@ export interface InsertHistoryEditorProps {
   onPasteImages: (files: File[]) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
@@ -89,9 +90,11 @@ const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
   onPasteImages,
   placeholder,
   className,
+  disabled,
 }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const editableCompartment = useRef(new Compartment()).current;
   // Callbacks are read through refs inside CodeMirror's extensions so the EditorView itself never
   // needs to be rebuilt when a parent re-render hands us new function identities.
   const onValueChangeRef = useRef(onValueChange);
@@ -163,6 +166,7 @@ const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
         "&.cm-focused": { outline: "none" },
       }),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),
+      editableCompartment.of([EditorView.editable.of(!disabled), EditorState.readOnly.of(!!disabled)]),
     ];
 
     const view = new EditorView({
@@ -208,6 +212,14 @@ const InsertHistoryEditor: React.FC<InsertHistoryEditorProps> = ({
     if (!view) return;
     view.dispatch({ effects: setIssueMap.of(issueMap) });
   }, [issueMap]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: editableCompartment.reconfigure([EditorView.editable.of(!disabled), EditorState.readOnly.of(!!disabled)]),
+    });
+  }, [disabled, editableCompartment]);
 
   return <div ref={hostRef} className={className} />;
 };
