@@ -57,6 +57,19 @@ body {
 }
 
 
+.games-result-date {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.games-result-date label {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
 .games-layout {
   display: grid;
   gap: 1.75rem;

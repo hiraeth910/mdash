@@ -209,31 +209,14 @@ const isCloseValid = /^\d{3}$/.test(closePana);
     }
   };
 
-  const openResultModal = async (game: IGame) => {
+  // Opens the modal for whatever date is already picked on the page (see the shared date
+  // picker above the game lists) instead of always resetting to today — so entering results
+  // for several games on the same (possibly past) date doesn't mean re-picking it each time.
+  // The fetch itself is left to the effect below, which already re-runs once selectedGame and
+  // resultModalVisible change.
+  const openResultModal = (game: IGame) => {
     setSelectedGame(game);
-    const currentDate = dayjs().format("YYYY-MM-DD");
-    setResultDate(currentDate); // default to current date
-    setResultModalVisible(true); // Open modal immediately
-    try {
-      const stillLoggedIn = await checkAuthAndHandleLogout();
-      if (!stillLoggedIn) return;
-      const response = await apiClient.get<IGameResult[]>("/get/game/result", {
-        params: { gameid: game.gameid, game_date: currentDate },
-      });
-      const result = response.data[0]; // Assuming the API returns an array
-      setOpenPana(result?.open_pana || '');
-      setClosePana(result?.close_pana || '');
-      setDbOpenPana(result?.open_pana || '');
-      setDbClosePana(result?.close_pana || '');
-      setId(result?.id || -1);
-    } catch (error) {
-      console.error(error);
-      message.error("Failed to fetch game result");
-      setOpenPana('');
-      setClosePana('');
-      setDbOpenPana('');
-      setDbClosePana('');
-    }
+    setResultModalVisible(true);
   };
 
   // Remove old date Input and use DatePicker instead.
@@ -331,6 +314,19 @@ if (name === "open_pana")  setOpenPana(value);
             <Link to="/result/:gameid/:gamename">Settlement</Link>
             <Link to="/summary">Day</Link>
             {userRole === "superadmin" && <Link to="/compare">Compare</Link>}
+          </div>
+        )}
+        {isAdminRole(userRole) && (
+          <div className="games-result-date">
+            <label>Result date</label>
+            <DatePicker
+              value={resultDate ? dayjs(resultDate) : null}
+              onChange={(date) => setResultDate((date || dayjs()).format("YYYY-MM-DD"))}
+              allowClear={false}
+            />
+            <Button className="btn-ghost btn-responsive" onClick={() => setResultDate(dayjs().format("YYYY-MM-DD"))}>
+              Today
+            </Button>
           </div>
         )}
         <div className="games-layout">
