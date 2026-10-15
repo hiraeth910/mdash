@@ -841,14 +841,10 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   const isBlocked = invalidLines.length > 0 || Object.values(groupedData).flat().length === 0;
 
-  // Copies one type's table (number-amount per line, cut already applied) as plain text.
+  // Copies one type's table (number-amount per line, cut already applied) as plain text --
+  // just the rows, no type header or total.
   const copyGroupTable = async (typename: string, numbers: NumberEntry[]) => {
-    const total = numbers.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const text = [
-      typename.toUpperCase(),
-      ...numbers.map((item) => `${item.number}-${item.amount}`),
-      `Total-${total}`,
-    ].join("\n");
+    const text = numbers.map((item) => `${item.number}-${item.amount}`).join("\n");
     try {
       await navigator.clipboard.writeText(text);
       message.success(`${typename.toUpperCase()} table copied`);
