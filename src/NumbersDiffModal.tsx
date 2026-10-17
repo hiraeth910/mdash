@@ -90,7 +90,11 @@ const NumbersDiffModal: React.FC<Props> = ({ onClose, title, groupName, members,
     destroyOnClose
   >
     {numbers.length === 0 ? (
-      <p>No number has a different bet amount between these groups.</p>
+      <p>
+        No number has a different bet amount between these groups. If the Bet or Win total still
+        differs, it isn't a bet-distribution mismatch — check for a stale cached result (try
+        Recalculate) or different group payout settings.
+      </p>
     ) : (
       <>
         <p className="compare-note" data-testid="numbers-diff-total">

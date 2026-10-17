@@ -241,11 +241,13 @@ const ComparePanel: React.FC<Props> = ({ date, groups, adminOptions, plainUsers,
                 {c === "bet" ? "Bet" : "Win"} <strong className={r.diff[c] ? "compare-gap" : undefined}>{fmt(r.diff[c])}</strong>
               </span>
             ))}
-            {r.numbers.length > 0 && (
+            {(r.diff.bet > 0 || r.diff.win > 0) && (
               <>
-                <span className="compare-gap">
-                  {r.numbers.length} number{r.numbers.length > 1 ? "s" : ""} differ
-                </span>
+                {r.numbers.length > 0 && (
+                  <span className="compare-gap">
+                    {r.numbers.length} number{r.numbers.length > 1 ? "s" : ""} differ
+                  </span>
+                )}
                 <Button size="small" onClick={() => setNumbersKey({ section: r.section, key: r.mismatchKey })}>
                   View numbers
                 </Button>
