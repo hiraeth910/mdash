@@ -714,9 +714,12 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
     },
   };
 
-  // Chat-export style timestamp prefixes ("[10/9, 11:30 PM] John:") stripped from pasted content.
+  // Chat-export style timestamp prefixes stripped from pasted content. WhatsApp Web/desktop
+  // copies as "[10/9/24, 11:30:45 PM] John:"; the WhatsApp mobile app instead copies as
+  // "10/9/24, 11:30 PM - John:" (no brackets, a dash before the name) — both are matched here,
+  // with or without seconds in the time.
   const HEADER_RE =
-    /^\s*\[\s*\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?(?:\s+\d{1,2}:\d{2}(?:\s*[APMapm]{2})?)?\s*\][^:]*:\s*/;
+    /^\s*(?:\[\s*\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?,?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[APMapm]{2})?\s*\]|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?,?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[APMapm]{2})?\s*-)\s*[^:]*:\s*/;
 
   // Runs on every edit the editor reports. Unlike the old textarea version, there is no cursor
   // math here at all: CodeMirror automatically maps the existing selection through any change
