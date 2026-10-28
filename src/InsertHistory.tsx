@@ -844,6 +844,24 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   const isBlocked = invalidLines.length > 0 || Object.values(groupedData).flat().length === 0;
 
+  // Practice mode only: the same number (e.g. jodi 00) typed across many lines shows as one row
+  // here with every entry folded into it, so the cumulative total -- already carrying each line's
+  // cut -- is visible at a glance instead of scrolling through duplicates.
+  const cumulativeByNumber = (numbers: NumberEntry[]) => {
+    const map = new Map<string, { number: string; count: number; total: number }>();
+    numbers.forEach((item) => {
+      const existing = map.get(item.number);
+      const amount = Number(item.amount) || 0;
+      if (existing) {
+        existing.count += 1;
+        existing.total += amount;
+      } else {
+        map.set(item.number, { number: item.number, count: 1, total: amount });
+      }
+    });
+    return [...map.values()].sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+  };
+
   // Copies one type's table (number-amount per line, cut already applied) as plain text --
   // just the rows, no type header or total.
   const copyGroupTable = async (typename: string, numbers: NumberEntry[]) => {
@@ -1115,6 +1133,18 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
                       </Button>
                     </span>
                   </h3>
+                  {dummy && (
+                    <div className="group-cumulative">
+                      <h4 className="group-cumulative__title">Cumulative by number</h4>
+                      {cumulativeByNumber(numbers).map((c) => (
+                        <div key={c.number} className="group-cumulative__row">
+                          <span className="group-cumulative__number">{c.number}</span>
+                          <span className="group-cumulative__count">{c.count > 1 ? `×${c.count}` : ""}</span>
+                          <span className="group-cumulative__total">{new Intl.NumberFormat("en-IN").format(c.total)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="scroll-container" ref={(el) => (groupRefs.current[idx] = el)}>
                     {numbers.map((item, index) => (
                       <div key={index} className="row">

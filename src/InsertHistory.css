@@ -467,6 +467,48 @@
   font-weight: 600;
 }
 
+.group-cumulative {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.group-cumulative__title {
+  margin: 0 0 0.4rem 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--color-text));
+  opacity: 0.75;
+}
+
+.group-cumulative__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.2rem;
+  font-size: clamp(0.8rem, 1.2vw, 1rem);
+}
+
+.group-cumulative__number {
+  font-weight: 600;
+  color: var(--color-heading);
+  min-width: 36px;
+}
+
+.group-cumulative__count {
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  min-width: 28px;
+}
+
+.group-cumulative__total {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
 .scroll-container {
   max-height: 300px;
   overflow-y: auto;
