@@ -844,28 +844,36 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
 
   const isBlocked = invalidLines.length > 0 || Object.values(groupedData).flat().length === 0;
 
-  // Practice mode only: the same number (e.g. jodi 00) typed across many lines shows as one row
-  // here with every entry folded into it, so the cumulative total -- already carrying each line's
-  // cut -- is visible at a glance instead of scrolling through duplicates.
-  const cumulativeByNumber = (numbers: NumberEntry[]) => {
-    const map = new Map<string, { number: string; count: number; total: number }>();
+  // Folds every entry for the same number (e.g. jodi 00 typed on several lines) into one
+  // number+total pair, each total already carrying that line's cut.
+  const sumByNumber = (numbers: NumberEntry[]) => {
+    const totals = new Map<string, { number: string; count: number; total: number }>();
     numbers.forEach((item) => {
-      const existing = map.get(item.number);
+      const existing = totals.get(item.number);
       const amount = Number(item.amount) || 0;
       if (existing) {
         existing.count += 1;
         existing.total += amount;
       } else {
-        map.set(item.number, { number: item.number, count: 1, total: amount });
+        totals.set(item.number, { number: item.number, count: 1, total: amount });
       }
     });
-    return [...map.values()].sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+    return [...totals.values()].sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
   };
 
-  // Copies one type's table (number-amount per line, cut already applied) as plain text --
-  // just the rows, no type header or total.
+  // Practice mode only: a number typed across several lines shows as one row here with every
+  // entry folded into it, so the cumulative total is visible at a glance instead of scrolling
+  // through duplicates. A number typed only once has nothing to fold, so it's left out here and
+  // stays in the editable list below instead.
+  const duplicateNumbers = (numbers: NumberEntry[]) => sumByNumber(numbers).filter((t) => t.count > 1);
+
+  // Copies one type's table as plain text -- one number-amount line per unique number (same
+  // numbers typed on several lines folded into their cumulative total), cut already applied, no
+  // type header or total.
   const copyGroupTable = async (typename: string, numbers: NumberEntry[]) => {
-    const text = numbers.map((item) => `${item.number}-${item.amount}`).join("\n");
+    const text = sumByNumber(numbers)
+      .map((c) => `${c.number}-${c.total}`)
+      .join("\n");
     try {
       await navigator.clipboard.writeText(text);
       message.success(`${typename.toUpperCase()} table copied`);
@@ -1117,8 +1125,14 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
           {loading ? (
             <Spin size="large" />
           ) : Object.entries(groupedData).length > 0 ? (
-            Object.entries(groupedData).map(([length, numbers], idx) =>
-              numbers.length > 0 ? (
+            Object.entries(groupedData).map(([length, numbers], idx) => {
+              if (numbers.length === 0) return null;
+              const dupes = dummy ? duplicateNumbers(numbers) : [];
+              const dupeNums = new Set(dupes.map((d) => d.number));
+              const editableEntries = numbers
+                .map((item, index) => ({ item, index }))
+                .filter(({ item }) => !dupeNums.has(item.number));
+              return (
                 <div className="group" key={length}>
                   <h3 className="group-header">
                     <span className="group-header__title">{getMapping(Number(length))?.typename.toUpperCase()}</span>
@@ -1133,20 +1147,19 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
                       </Button>
                     </span>
                   </h3>
-                  {dummy && (
+                  {dupes.length > 0 && (
                     <div className="group-cumulative">
                       <h4 className="group-cumulative__title">Cumulative by number</h4>
-                      {cumulativeByNumber(numbers).map((c) => (
+                      {dupes.map((c) => (
                         <div key={c.number} className="group-cumulative__row">
                           <span className="group-cumulative__number">{c.number}</span>
-                          <span className="group-cumulative__count">{c.count > 1 ? `×${c.count}` : ""}</span>
                           <span className="group-cumulative__total">{new Intl.NumberFormat("en-IN").format(c.total)}</span>
                         </div>
                       ))}
                     </div>
                   )}
                   <div className="scroll-container" ref={(el) => (groupRefs.current[idx] = el)}>
-                    {numbers.map((item, index) => (
+                    {editableEntries.map(({ item, index }) => (
                       <div key={index} className="row">
                         <span>{item.number}</span>
                         <Input
@@ -1165,8 +1178,8 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
                     ))}
                   </div>
                 </div>
-              ) : null
-            )
+              );
+            })
           ) : (
             <div className="placeholder">No data available</div>
           )}

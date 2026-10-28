@@ -497,12 +497,6 @@
   min-width: 36px;
 }
 
-.group-cumulative__count {
-  color: var(--color-primary);
-  font-size: 0.75rem;
-  min-width: 28px;
-}
-
 .group-cumulative__total {
   margin-left: auto;
   font-weight: 600;
