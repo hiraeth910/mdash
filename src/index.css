@@ -532,8 +532,15 @@ button:focus-visible {
   color: var(--color-primary);
 }
 .live-clock__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.85rem;
   color: var(--color-text);
+}
+.live-clock__calendar-icon {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
 }
 .live-clock__cog {
   border: 0;

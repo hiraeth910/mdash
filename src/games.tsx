@@ -451,6 +451,7 @@ if (name === "open_pana")  setOpenPana(value);
             setEditingGame(null);
           }}
           onOk={isEditing ? handleUpdate : handleSubmit}
+          okText={isEditing ? "Save" : "OK"}
         >
           <div style={{ color: 'var(--color-text)' }}>
             <label>Game Name</label>

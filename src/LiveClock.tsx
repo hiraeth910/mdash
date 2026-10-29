@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Popover, Radio, Switch } from "antd";
-import { SettingOutlined } from "@ant-design/icons";
+import { CalendarOutlined, SettingOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
 const STORAGE_KEY = "clock-format";
@@ -78,7 +78,10 @@ const LiveClock: React.FC = () => {
   return (
     <span className="live-clock" data-testid="live-clock">
       <span className="live-clock__time">{time}</span>
-      <span className="live-clock__date">{now.format(format.date)}</span>
+      <span className="live-clock__date">
+        <CalendarOutlined className="live-clock__calendar-icon" />
+        {now.format(format.date)}
+      </span>
       <Popover content={settings} title="Clock format" trigger="click" placement="bottomLeft" getPopupContainer={() => document.body}>
         <button type="button" className="live-clock__cog" aria-label="Change clock format">
           <SettingOutlined />
