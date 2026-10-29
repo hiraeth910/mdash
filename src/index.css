@@ -276,7 +276,8 @@ button:focus-visible {
   box-shadow: var(--shadow-soft) !important;
 }
 
-.ant-picker-panel {
+.ant-picker-panel,
+.ant-picker-calendar {
   background: var(--color-surface) !important;
   border-radius: 0.5rem !important;
 }
@@ -299,6 +300,42 @@ button:focus-visible {
 
 .ant-picker-cell-selected .ant-picker-cell-inner {
   background: var(--color-primary) !important;
+  color: var(--color-heading) !important;
+}
+
+/* Popover (clock settings, the header calendar) -- antd paints it white by default */
+.ant-popover-inner {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.ant-popover-title,
+.ant-popover-inner-content {
+  color: var(--color-text) !important;
+}
+
+.ant-popover-arrow::before {
+  background: var(--color-surface) !important;
+}
+
+[data-theme="light"] .ant-popover-inner {
+  background: var(--gradient-surface) !important;
+}
+
+[data-theme="light"] .ant-popover-arrow::before {
+  background: var(--color-surface) !important;
+}
+
+/* Radio.Button (e.g. the Calendar's Month/Year switch) -- antd paints it white by default */
+.ant-radio-button-wrapper {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.ant-radio-button-wrapper-checked {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
   color: var(--color-heading) !important;
 }
 
@@ -460,7 +497,8 @@ button:focus-visible {
 }
 
 [data-theme="light"] .ant-picker-dropdown,
-[data-theme="light"] .ant-picker-panel {
+[data-theme="light"] .ant-picker-panel,
+[data-theme="light"] .ant-picker-calendar {
   background: var(--color-surface) !important;
 }
 
@@ -538,9 +576,27 @@ button:focus-visible {
   font-size: 0.85rem;
   color: var(--color-text);
 }
+.live-clock__date-btn {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.live-clock__date-btn:hover {
+  background: var(--color-primary-10, rgba(62, 207, 142, 0.12));
+  color: var(--color-primary);
+}
 .live-clock__calendar-icon {
   color: var(--color-text-muted);
   font-size: 0.8rem;
+}
+.live-clock__date-btn:hover .live-clock__calendar-icon {
+  color: var(--color-primary);
+}
+.live-clock__calendar.ant-picker-calendar {
+  width: 280px;
 }
 .live-clock__cog {
   border: 0;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Popover, Radio, Switch } from "antd";
+import { Calendar, Popover, Radio, Switch } from "antd";
 import { CalendarOutlined, SettingOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
+import dayjs, { type Dayjs } from "dayjs";
 
 const STORAGE_KEY = "clock-format";
 
@@ -32,6 +32,10 @@ const load = (): ClockFormat => {
 const LiveClock: React.FC = () => {
   const [now, setNow] = useState(dayjs());
   const [format, setFormat] = useState<ClockFormat>(load);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  // What the popover calendar is showing -- browsing other months doesn't move this away from
+  // today's actual date, and reopening the popover always lands back on today.
+  const [calendarMonth, setCalendarMonth] = useState<Dayjs>(now);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(dayjs()), 1000);
@@ -75,13 +79,35 @@ const LiveClock: React.FC = () => {
     </div>
   );
 
+  const calendar = (
+    <Calendar
+      fullscreen={false}
+      value={calendarMonth}
+      onPanelChange={(d) => setCalendarMonth(d)}
+      onSelect={(d) => setCalendarMonth(d)}
+      className="live-clock__calendar"
+    />
+  );
+
   return (
     <span className="live-clock" data-testid="live-clock">
       <span className="live-clock__time">{time}</span>
-      <span className="live-clock__date">
-        <CalendarOutlined className="live-clock__calendar-icon" />
-        {now.format(format.date)}
-      </span>
+      <Popover
+        content={calendar}
+        trigger="click"
+        placement="bottom"
+        open={calendarOpen}
+        onOpenChange={(v) => {
+          setCalendarOpen(v);
+          if (v) setCalendarMonth(dayjs()); // always reopen centered on today
+        }}
+        getPopupContainer={() => document.body}
+      >
+        <button type="button" className="live-clock__date live-clock__date-btn" aria-label="View calendar">
+          <CalendarOutlined className="live-clock__calendar-icon" />
+          {now.format(format.date)}
+        </button>
+      </Popover>
       <Popover content={settings} title="Clock format" trigger="click" placement="bottomLeft" getPopupContainer={() => document.body}>
         <button type="button" className="live-clock__cog" aria-label="Change clock format">
           <SettingOutlined />
