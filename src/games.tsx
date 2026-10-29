@@ -189,6 +189,14 @@ const isCloseValid = /^\d{3}$/.test(closePana);
     setModalVisible(true);
   };
 
+  const openAddGameModal = () => {
+    setNewGame({ gamename: "", gamedescription: "" });
+    setNewGamesList([]);
+    setEditingGame(null);
+    setIsEditing(false);
+    setModalVisible(true);
+  };
+
   const handleUpdate = async () => {
     if (!editingGame) return;
     try {
@@ -326,6 +334,9 @@ if (name === "open_pana")  setOpenPana(value);
             />
             <Button className="btn-ghost btn-responsive" onClick={() => setResultDate(dayjs().format("YYYY-MM-DD"))}>
               Today
+            </Button>
+            <Button type="primary" icon={<PlusCircleOutlined />} onClick={openAddGameModal}>
+              Add Game
             </Button>
           </div>
         )}
