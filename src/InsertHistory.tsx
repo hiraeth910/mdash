@@ -769,6 +769,10 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
       message.error("Cannot submit: unresolved parse errors in input.");
       return;
     }
+    if (ambiguousLines.length > 0) {
+      message.error("Cannot submit: fix the yellow-marked lines first.");
+      return;
+    }
     const allFilled = Object.values(groupedData).every((group) => group.every((item) => item.amount > 0 && item.typeid));
     if (!allFilled) {
       message.error("Please fill all amount fields.");
@@ -842,7 +846,10 @@ setGames(gamesResp.slice().sort((a, b) => extractSortKey(a) - extractSortKey(b))
   const entries = Object.values(groupedData).flat();
   const entryTotal = entries.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
-  const isBlocked = invalidLines.length > 0 || Object.values(groupedData).flat().length === 0;
+  // Red (invalid) and yellow (ambiguous) lines both block Update: a yellow line may have been
+  // dropped from the entries entirely (e.g. a lone "1" amount), so submitting past it would
+  // silently save fewer entries than were typed. Green "auto-filled" lines are informational only.
+  const isBlocked = invalidLines.length > 0 || ambiguousLines.length > 0 || Object.values(groupedData).flat().length === 0;
 
   // Folds every entry for the same number (e.g. jodi 00 typed on several lines) into one
   // number+total pair, each total already carrying that line's cut.
