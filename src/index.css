@@ -644,10 +644,72 @@ button:focus-visible {
 .admin-bar .admin-bar__btn--calc.ant-btn {
   background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-strong) 100%) !important;
 }
+.admin-bar .admin-bar__btn--notepad.ant-btn {
+  background: linear-gradient(135deg, #7c6cf0 0%, #5b4bc4 100%) !important;
+}
 .admin-bar .admin-bar__btn.ant-btn:hover {
   filter: brightness(1.12);
   transform: translateY(-1px);
 }
 .admin-bar .admin-bar__btn.ant-btn:active {
   transform: none;
+}
+
+.notepad {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 280px;
+}
+.notepad__date {
+  width: 100%;
+}
+.notepad__add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.notepad__loading {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+.notepad__empty {
+  margin: 4px 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.notepad__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.notepad__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+}
+.notepad__item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.notepad__item-text {
+  font-size: 0.85rem;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.notepad__item-time {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
 }

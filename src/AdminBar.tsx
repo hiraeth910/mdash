@@ -7,6 +7,7 @@ import { getTabUserName, saveUserName } from "./utils/session";
 import { Link } from "react-router-dom";
 import CalculatorButton from "./Calculator";
 import LiveClock from "./LiveClock";
+import Notepad from "./Notepad";
 
 // Shown at the top of every page: who is logged in, and a Recalculate button for all of that
 // account's groups (the platform admin's covers every admin's groups, a user's only their own).
@@ -72,6 +73,7 @@ const AdminBar: React.FC = () => {
               ChatGPT pastes
             </Link>
           )}
+          <Notepad />
           <CalculatorButton className="admin-bar__btn admin-bar__btn--calc" />
         <Button
           className="admin-bar__btn admin-bar__btn--recalc"
