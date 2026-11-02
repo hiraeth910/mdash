@@ -102,7 +102,7 @@ const Notepad: React.FC = () => {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Add a note for this day"
-                autoSize={{ minRows: 1, maxRows: 4 }}
+                autoSize={{ minRows: 4, maxRows: 10 }}
                 aria-label="New note text"
                 onPressEnter={(e) => {
                   if (!e.shiftKey) {
