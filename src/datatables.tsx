@@ -474,7 +474,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
   const copyTableData = (rows: any[]) => {
     const dataToCopy = rows
       .filter((row) => !row.__isBucket)
-      .map((row) => `${row.inumber}: ${row.adjusted_amount ?? row.total_amount}`)
+      .map((row) => `${row.inumber}-${row.adjusted_amount ?? row.total_amount}`)
       .join("\n");
     navigator.clipboard.writeText(dataToCopy).then(() => {
       message.success("Table data copied to clipboard");
@@ -494,7 +494,7 @@ const snapToTens = (v: number, mode: "floor" | "nearest" | "ceil" = "floor") => 
     const lines: string[] = [];
     for (let i = 0; i < 10; i++) {
       const key = `${digit}${i}`;
-      lines.push(`${key}: ${amounts.get(key) ?? 0}`);
+      lines.push(`${key}-${amounts.get(key) ?? 0}`);
     }
 
     navigator.clipboard.writeText(lines.join("\n")).then(
