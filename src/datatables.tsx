@@ -868,7 +868,7 @@ const columns = [
           </span>
         );
       }
-      return <span>{record.inumber}</span>;
+      return <span>{record.inumber} —</span>;
     },
   },
   {
